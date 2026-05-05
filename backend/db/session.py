@@ -7,11 +7,22 @@ the location by setting ``HIRED_DB_URL`` (e.g. ``sqlite:///./scratch.db``).
 from __future__ import annotations
 
 import os
+import sqlite3
 from pathlib import Path
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
+
+
+@event.listens_for(Engine, "connect")
+def _enable_sqlite_foreign_keys(dbapi_connection: object, _: object) -> None:
+    """SQLite ignores ON DELETE CASCADE unless foreign_keys=ON is set per connection."""
+    if isinstance(dbapi_connection, sqlite3.Connection):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
 
 DEFAULT_DB_DIR = Path.home() / ".hired"
 DEFAULT_DB_PATH = DEFAULT_DB_DIR / "data.db"

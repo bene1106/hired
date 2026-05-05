@@ -7,13 +7,24 @@ Run in dev with::
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api import VERSION
 from api.health import router as health_router
+from db.migrations import run_migrations
 
-app = FastAPI(title="Hired. backend", version=VERSION)
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    run_migrations()
+    yield
+
+
+app = FastAPI(title="Hired. backend", version=VERSION, lifespan=lifespan)
 
 # The Tauri webview runs the React frontend on a `tauri://` (prod) or
 # `http://localhost:<vite-port>` (dev) origin. Both need to call the sidecar

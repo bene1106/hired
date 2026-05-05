@@ -52,7 +52,13 @@ CI must pass on push:
   - Identifier: `dev.hired.app`
   - Window: 1280x800, resizable down to 800x600
   - Icon placeholder (use Tauri default for now)
-- [ ] Configure FastAPI as Tauri sidecar (Tauri's `externalBin` + sidecar binary path)
+- [ ] ~~Configure FastAPI as Tauri sidecar (Tauri's `externalBin` + sidecar binary path)~~
+  **Scope reduction (decided 2026-05-05):** Sidecar bundling is deferred to
+  Phase 6 (packaging/polish). For Phase 1, the user runs `uvicorn` separately
+  in dev (`pnpm tauri dev` opens the shell, the backend is started by the
+  bootstrap docs / a `pnpm dev:backend` script). The frontend hits
+  `http://localhost:8765` regardless. PyInstaller-bundling the Python sidecar
+  for `pnpm tauri build` is part of Phase 6 instead.
 
 ### 1.3 Frontend Skeleton
 

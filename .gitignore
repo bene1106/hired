@@ -1,0 +1,118 @@
+# ─────────────────────────────────────────────
+#  Python
+# ─────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.eggs/
+*.egg-info/
+*.egg
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+.hypothesis/
+.tox/
+.nox/
+.python-version
+
+# uv lockfile is committed; uv cache is not
+.uv/
+
+# ─────────────────────────────────────────────
+#  Node / Frontend
+# ─────────────────────────────────────────────
+node_modules/
+dist/
+dist-ssr/
+build/
+.cache/
+.parcel-cache/
+.vite/
+.turbo/
+.next/
+.nuxt/
+*.local
+.eslintcache
+.stylelintcache
+.npm/
+.pnpm-store/
+.yarn/cache
+.yarn/install-state.gz
+
+# Vitest / Jest
+coverage/
+
+# ─────────────────────────────────────────────
+#  Rust / Tauri
+# ─────────────────────────────────────────────
+target/
+**/*.rs.bk
+Cargo.lock.bak
+src-tauri/target/
+src-tauri/gen/
+src-tauri/WixTools/
+
+# ─────────────────────────────────────────────
+#  OS
+# ─────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ─────────────────────────────────────────────
+#  Editors / IDEs
+# ─────────────────────────────────────────────
+.idea/
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json.example
+*.swp
+*.swo
+*~
+.*.sw[a-p]
+
+# ─────────────────────────────────────────────
+#  Hired. — local user data
+# ─────────────────────────────────────────────
+# These files are stored under the user's home dir (~/.hired/) but
+# pattern-listed here for safety in case anyone copies them into the repo.
+.hired/
+data.db
+data.db-journal
+data.db-wal
+data.db-shm
+
+# ─────────────────────────────────────────────
+#  Secrets / local overrides
+# ─────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets.json
+credentials.json
+
+# ─────────────────────────────────────────────
+#  Build artifacts
+# ─────────────────────────────────────────────
+*.log
+logs/
+*.tsbuildinfo
+.claude/local/

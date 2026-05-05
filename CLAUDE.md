@@ -64,6 +64,15 @@ pnpm tauri dev                 # launches Tauri shell with sidecar
 - Update `docs/CHANGELOG.md` for any user-visible change
 - When adding a new prompt, save it as a versioned file in `backend/prompts/` and reference it by name
 
+## Git Workflow (always)
+
+- Commit after every meaningful unit of work — don't accumulate huge changesets
+- Conventional commits: `feat: ...`, `fix: ...`, `refactor: ...`, `docs: ...`, `test: ...`, `chore: ...`
+- One logical change per commit (e.g., "feat: add CV parsing endpoint" — not "feat: phase 3 progress")
+- Run tests before committing; never commit failing code
+- After completing each phase, push to origin: `git push origin main`
+- If unsure whether to commit: commit. Granularity is cheap, lost work is expensive.
+
 ## Never Do
 
 - Hardcode API keys or secrets — always use the OS keychain abstraction in `backend/llm/credentials.py`

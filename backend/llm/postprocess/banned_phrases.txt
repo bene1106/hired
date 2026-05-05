@@ -1,0 +1,73 @@
+# Banned phrases for cover letter post-processing.
+# One phrase per line. Comments start with #.
+# Matching is case-insensitive, substring match.
+#
+# When to add to this list: a phrase that consistently makes generated text
+# read as AI-slop or generic, AND that has a known better alternative.
+
+# Generic enthusiasm
+passionate about
+excited to apply
+thrilled to apply
+delighted to apply
+honored to apply
+
+# Vague competencies
+results-driven
+results-oriented
+team player
+self-starter
+go-getter
+strong communicator
+detail-oriented
+hard-working
+hard worker
+
+# Cliché framing
+synergies
+synergy
+think outside the box
+outside the box
+push the envelope
+move the needle
+hit the ground running
+
+# Inflated claims (require specifics instead)
+extensive experience
+deep expertise
+proven track record
+demonstrated ability
+exceptional skills
+unparalleled
+world-class
+
+# Weasel openers
+I am writing to apply for
+I am writing to express my interest
+Please find attached
+Please find enclosed
+I would like to apply
+I am very interested in
+
+# Generic closers
+Thank you for your time and consideration
+I look forward to hearing from you
+I appreciate your consideration
+At your earliest convenience
+
+# Marketing-speak
+dynamic environment
+fast-paced environment
+mission-driven
+purpose-driven
+cutting-edge
+state-of-the-art
+best-in-class
+
+# Uncertain phrasing (replace with directness)
+I believe I would be
+I think I could be
+I feel that I am
+I might be a good fit
+perfect fit
+ideal candidate

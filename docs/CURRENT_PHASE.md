@@ -1,8 +1,9 @@
 # Current Phase
 
-Phase 1 — Foundation: **complete**
-Next: Phase 2 — LLM Provider Abstraction
+Phase 1 complete (PR #1 awaiting merge); Phase 2 — LLM provider layer ready
+to start once merged.
 
+PR: https://github.com/bene1106/hired/pull/1
 Spec for the next phase: `.claude/specs/PHASE_2_llm_layer.md`
 
 ## Phase 1 — completed checklist

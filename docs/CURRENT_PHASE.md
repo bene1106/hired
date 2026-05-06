@@ -1,9 +1,9 @@
 # Current Phase
 
-Phase 2 implementation complete on the working branch; ready for review and
-merge. Phase 3 (profile setup, CV upload + parse, onboarding wizard) is
-unblocked once Phase 2 lands on `main`.
+Phase 2 complete (PR #2 awaiting merge); Phase 3 — profile setup, CV upload
++ parse, onboarding wizard — unblocked once PR #2 lands on `main`.
 
+PR: https://github.com/bene1106/hired/pull/2
 Spec for the next phase: `.claude/specs/PHASE_3_profile.md`
 
 ## Phase 2 — completed checklist

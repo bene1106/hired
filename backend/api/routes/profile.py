@@ -135,10 +135,42 @@ async def post_cv_upload(
     return CVParseResponse(parsed=parsed, profile=ProfileResponse.from_row(row))
 
 
-# Profile GET / POST and DELETE /api/data/all land in the next commit.
+@router.get("/profile", response_model=ProfileResponse)
+def get_profile() -> ProfileResponse:
+    """Return the single profile row. 404 if onboarding hasn't run yet."""
+    row = _read_profile_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail="No profile saved yet.")
+    return ProfileResponse.from_row(row)
+
+
+@router.post("/profile", response_model=ProfileResponse)
+def post_profile(payload: ProfileUpdate) -> ProfileResponse:
+    """Upsert the single profile row with whichever fields the user provided."""
+    with get_session() as session:
+        row = session.execute(select(ProfileRow).limit(1)).scalar_one_or_none()
+        if row is None:
+            row = ProfileRow()
+            session.add(row)
+
+        if payload.name is not None:
+            row.name = payload.name
+        if payload.email is not None:
+            row.email = payload.email
+        if payload.target_roles is not None:
+            row.target_roles_json = payload.target_roles
+        if payload.target_locations is not None:
+            row.target_locations_json = payload.target_locations
+        if payload.target_salary_min is not None:
+            row.target_salary_min = payload.target_salary_min
+        if payload.priorities is not None:
+            row.priorities_json = payload.priorities
+
+        session.commit()
+        session.refresh(row)
+        return ProfileResponse.from_row(row)
 
 
 def _read_profile_or_none() -> ProfileRow | None:
-    """Helper for upcoming GET/POST handlers."""
     with get_session() as session:
         return session.execute(select(ProfileRow).limit(1)).scalar_one_or_none()

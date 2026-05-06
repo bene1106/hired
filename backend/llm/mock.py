@@ -52,9 +52,7 @@ class MockProvider:
     def set_response(self, method: str, value: Any) -> None:
         """Override the response for `method`. Pass `None` to clear."""
         if method not in _VALID_METHODS:
-            raise ValueError(
-                f"Unknown method '{method}'. Valid: {sorted(_VALID_METHODS)}"
-            )
+            raise ValueError(f"Unknown method '{method}'. Valid: {sorted(_VALID_METHODS)}")
         if value is None:
             self._overrides.pop(method, None)
         else:
@@ -143,9 +141,7 @@ class MockProvider:
             "4. **Deemphasize:** trim early-career internships unrelated to backend work.\n"
         )
 
-    def generate_cover_letter(
-        self, profile: Profile, job: Job, brief: CompanyBrief
-    ) -> CoverLetter:
+    def generate_cover_letter(self, profile: Profile, job: Job, brief: CompanyBrief) -> CoverLetter:
         if (override := self._override("generate_cover_letter")) is not None:
             return override
         body = (

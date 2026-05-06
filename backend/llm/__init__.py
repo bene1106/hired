@@ -57,9 +57,7 @@ def _read_config() -> tuple[str, str | None]:
     """Read (provider, model) from app_config. Defaults to ('mock', None)."""
     with get_session() as session:
         rows = session.execute(
-            select(AppConfig.key, AppConfig.value).where(
-                AppConfig.key.in_(["provider", "model"])
-            )
+            select(AppConfig.key, AppConfig.value).where(AppConfig.key.in_(["provider", "model"]))
         ).all()
     config = {key: value for key, value in rows}
     provider = config.get("provider") or "mock"
@@ -80,8 +78,7 @@ def _build_provider() -> LLMProvider:
         return AnthropicAPIAdapter(model=model or DEFAULT_MODEL)
 
     raise LLMError(
-        f"Unknown provider '{provider_name}'. Set app_config.provider to "
-        "'mock' or 'anthropic_api'."
+        f"Unknown provider '{provider_name}'. Set app_config.provider to 'mock' or 'anthropic_api'."
     )
 
 

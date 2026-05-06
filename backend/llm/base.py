@@ -41,9 +41,7 @@ class LLMProvider(Protocol):
         """Suggest CV emphasis changes for a specific job. Returns markdown."""
         ...
 
-    def generate_cover_letter(
-        self, profile: Profile, job: Job, brief: CompanyBrief
-    ) -> CoverLetter:
+    def generate_cover_letter(self, profile: Profile, job: Job, brief: CompanyBrief) -> CoverLetter:
         """Generate a tailored cover letter."""
         ...
 

@@ -78,8 +78,8 @@ class AnthropicAPIAdapter:
         if client is not None:
             self._client = client
         else:
-            resolved_key = api_key or get_credential(ANTHROPIC_API_KEY_NAME) or os.getenv(
-                "ANTHROPIC_API_KEY"
+            resolved_key = (
+                api_key or get_credential(ANTHROPIC_API_KEY_NAME) or os.getenv("ANTHROPIC_API_KEY")
             )
             if not resolved_key:
                 raise LLMAuthError(
@@ -130,9 +130,7 @@ class AnthropicAPIAdapter:
         text = self._call(rendered, max_tokens=_MAX_TOKENS["tailor_cv"])
         return text.strip()
 
-    def generate_cover_letter(
-        self, profile: Profile, job: Job, brief: CompanyBrief
-    ) -> CoverLetter:
+    def generate_cover_letter(self, profile: Profile, job: Job, brief: CompanyBrief) -> CoverLetter:
         rendered = load_prompt(
             "generate_cover_letter",
             profile=profile.model_dump(mode="json"),
@@ -150,9 +148,7 @@ class AnthropicAPIAdapter:
             job=job.model_dump(mode="json"),
             company_brief="",
         )
-        text = self._call(
-            rendered, max_tokens=_MAX_TOKENS["generate_interview_questions"]
-        )
+        text = self._call(rendered, max_tokens=_MAX_TOKENS["generate_interview_questions"])
         payload = _parse_json_object(text)
         questions = payload.get("questions")
         if not isinstance(questions, list):
@@ -195,9 +191,7 @@ class AnthropicAPIAdapter:
         except anthropic.APIConnectionError as e:
             raise LLMNetworkError("Network error talking to Anthropic.") from e
         except anthropic.APIStatusError as e:
-            raise LLMResponseError(
-                f"Anthropic returned status {e.status_code}: {e.message}"
-            ) from e
+            raise LLMResponseError(f"Anthropic returned status {e.status_code}: {e.message}") from e
         except anthropic.APIError as e:
             raise LLMResponseError(f"Anthropic API error: {e}") from e
 
@@ -236,9 +230,7 @@ def _parse_json_object(text: str) -> dict:
         raise LLMResponseError(f"Response is not valid JSON: {e}") from e
 
     if not isinstance(result, dict):
-        raise LLMResponseError(
-            f"Expected JSON object, got {type(result).__name__}."
-        )
+        raise LLMResponseError(f"Expected JSON object, got {type(result).__name__}.")
     return result
 
 

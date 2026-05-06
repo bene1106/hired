@@ -129,9 +129,7 @@ class TestMockProvider:
         assert letter.body
         assert letter.word_count and letter.word_count > 0
 
-    def test_generate_interview_questions_returns_typed_list(
-        self, sample_job: Job
-    ) -> None:
+    def test_generate_interview_questions_returns_typed_list(self, sample_job: Job) -> None:
         provider = MockProvider()
         questions = provider.generate_interview_questions(sample_job)
         assert isinstance(questions, list)
@@ -154,17 +152,13 @@ class TestMockProvider:
         assert isinstance(feedback, AnswerFeedback)
         assert feedback.what_to_improve  # min_length=1 enforced by the model
 
-    def test_set_response_overrides_method(
-        self, sample_profile: Profile, sample_job: Job
-    ) -> None:
+    def test_set_response_overrides_method(self, sample_profile: Profile, sample_job: Job) -> None:
         provider = MockProvider()
         custom = ScoreResult(score=42, rationale="Test override.")
         provider.set_response("score_job", custom)
         assert provider.score_job(sample_profile, sample_job) is custom
 
-    def test_set_response_can_be_cleared(
-        self, sample_profile: Profile, sample_job: Job
-    ) -> None:
+    def test_set_response_can_be_cleared(self, sample_profile: Profile, sample_job: Job) -> None:
         provider = MockProvider()
         provider.set_response("score_job", ScoreResult(score=1, rationale="x"))
         provider.set_response("score_job", None)
@@ -219,17 +213,13 @@ class TestProviderFactory:
         run_migrations()
         with get_session() as session:
             session.execute(
-                update(AppConfig)
-                .where(AppConfig.key == "provider")
-                .values(value="anthropic_api")
+                update(AppConfig).where(AppConfig.key == "provider").values(value="anthropic_api")
             )
             session.commit()
 
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test-key")
         # Don't read from the user's keychain during tests.
-        monkeypatch.setattr(
-            "llm.anthropic_api.get_credential", lambda _name: None
-        )
+        monkeypatch.setattr("llm.anthropic_api.get_credential", lambda _name: None)
 
         provider = get_provider()
         assert isinstance(provider, AnthropicAPIAdapter)
@@ -262,9 +252,7 @@ class TestPydanticValidation:
 
     def test_profile_ignores_extra_fields(self) -> None:
         # extra="ignore" — surplus keys (e.g., from a richer DB row) shouldn't break us.
-        profile = Profile.model_validate(
-            {"name": "Alex", "stray_field_from_db": "ignored"}
-        )
+        profile = Profile.model_validate({"name": "Alex", "stray_field_from_db": "ignored"})
         assert profile.name == "Alex"
 
 
@@ -297,9 +285,7 @@ class TestCredentials:
         delete_credential("test_key")
         assert get_credential("test_key") is None
 
-    def test_get_returns_none_on_keyring_error(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_get_returns_none_on_keyring_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from keyring.errors import KeyringError
 
         def fake_get(service: str, name: str) -> str | None:
@@ -308,9 +294,7 @@ class TestCredentials:
         monkeypatch.setattr("llm.credentials.keyring.get_password", fake_get)
         assert get_credential("missing_backend") is None
 
-    def test_delete_swallows_password_delete_error(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_delete_swallows_password_delete_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from keyring.errors import PasswordDeleteError
 
         def fake_delete(service: str, name: str) -> None:
@@ -386,9 +370,7 @@ class TestAnthropicAPIAdapter:
         adapter = AnthropicAPIAdapter(api_key="sk-ant-explicit")
         assert adapter.model == "claude-opus-4-7"
 
-    def test_score_job_round_trip(
-        self, sample_profile: Profile, sample_job: Job
-    ) -> None:
+    def test_score_job_round_trip(self, sample_profile: Profile, sample_job: Job) -> None:
         payload = (
             '{"score": 82, "rationale": "Strong match.", '
             '"matched_skills": ["Python"], "missing_skills": [], "red_flags": []}'
@@ -413,16 +395,14 @@ class TestAnthropicAPIAdapter:
             '{"questions": ['
             '{"category": "technical", "question": "Idempotency?", '
             '"what_theyre_assessing": null, "difficulty": "standard"}'
-            ']}'
+            "]}"
         )
         adapter = _make_adapter(response_text=payload)
         questions = adapter.generate_interview_questions(sample_job)
         assert len(questions) == 1
         assert questions[0].category == "technical"
 
-    def test_generate_interview_questions_rejects_non_list(
-        self, sample_job: Job
-    ) -> None:
+    def test_generate_interview_questions_rejects_non_list(self, sample_job: Job) -> None:
         adapter = _make_adapter(response_text='{"questions": "oops"}')
         with pytest.raises(LLMResponseError, match="expected 'questions' list"):
             adapter.generate_interview_questions(sample_job)
@@ -471,9 +451,7 @@ class TestAnthropicAPIAdapter:
         with pytest.raises(LLMAuthError):
             adapter.score_job(sample_profile, sample_job)
 
-    def test_translates_rate_limit_error(
-        self, sample_profile: Profile, sample_job: Job
-    ) -> None:
+    def test_translates_rate_limit_error(self, sample_profile: Profile, sample_job: Job) -> None:
         from anthropic import RateLimitError
 
         from llm.errors import LLMRateLimitError
@@ -483,9 +461,7 @@ class TestAnthropicAPIAdapter:
         with pytest.raises(LLMRateLimitError):
             adapter.score_job(sample_profile, sample_job)
 
-    def test_translates_connection_error(
-        self, sample_profile: Profile, sample_job: Job
-    ) -> None:
+    def test_translates_connection_error(self, sample_profile: Profile, sample_job: Job) -> None:
         from anthropic import APIConnectionError
 
         from llm.errors import LLMNetworkError
@@ -553,13 +529,8 @@ class TestParserHelpers:
 
 
 @pytest.mark.integration
-def test_anthropic_adapter_score_job_integration(
-    sample_profile: Profile, sample_job: Job
-) -> None:
-    if not (
-        os.getenv("ANTHROPIC_API_KEY")
-        or get_credential(ANTHROPIC_API_KEY_NAME)
-    ):
+def test_anthropic_adapter_score_job_integration(sample_profile: Profile, sample_job: Job) -> None:
+    if not (os.getenv("ANTHROPIC_API_KEY") or get_credential(ANTHROPIC_API_KEY_NAME)):
         pytest.skip("ANTHROPIC_API_KEY not set; skipping integration test")
 
     adapter = AnthropicAPIAdapter()

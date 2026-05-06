@@ -143,15 +143,12 @@ jobs:
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
 
+      - name: Install root deps (Tauri CLI)
+        run: pnpm install --frozen-lockfile
+
       - name: Install frontend deps
         run: pnpm install --frozen-lockfile
         working-directory: frontend
 
-      - name: Build
-        # Until src-tauri/ exists (added in task #5) we just verify the
-        # frontend production bundle builds on every supported OS. Once
-        # task #5 lands, this step becomes `pnpm tauri build` from the
-        # repo root.
-        # TODO(phase-1, task #5): replace with `pnpm tauri build`
-        run: pnpm build
-        working-directory: frontend
+      - name: Tauri build
+        run: pnpm tauri build

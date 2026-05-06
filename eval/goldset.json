@@ -1,0 +1,84 @@
+[
+  {
+    "id": "ex-001-strong-match",
+    "description": "Junior backend dev with Python+FastAPI+Postgres skills applying to a Berlin junior backend role with a matching tech stack.",
+    "profile": {
+      "name": "Alex K.",
+      "target_role": "Backend Developer",
+      "target_locations": ["Berlin", "Remote EU"],
+      "target_salary_min": 50000,
+      "skills": ["Python", "FastAPI", "PostgreSQL", "Docker", "Git"],
+      "work_experience": [
+        {
+          "role": "Backend Intern",
+          "company": "TechStartup",
+          "duration_months": 6,
+          "summary": "Built FastAPI services, wrote integration tests."
+        }
+      ]
+    },
+    "job": {
+      "title": "Junior Backend Engineer",
+      "company": "HealthTech GmbH",
+      "location": "Berlin (hybrid)",
+      "remote_policy": "hybrid",
+      "salary_range": "55000-65000 EUR",
+      "description": "We're looking for a junior backend engineer. You'll build APIs in Python (FastAPI preferred), work with PostgreSQL, and deploy via Docker. 0-2 years experience, CS degree or equivalent."
+    },
+    "expected_score_range": [80, 95],
+    "must_mention_in_rationale": ["Python", "FastAPI"]
+  },
+  {
+    "id": "ex-002-weak-seniority-mismatch",
+    "description": "Same junior dev applying to a senior backend architect role requiring 8+ years and team leadership.",
+    "profile": {
+      "name": "Alex K.",
+      "target_role": "Backend Developer",
+      "target_locations": ["Berlin", "Remote EU"],
+      "skills": ["Python", "FastAPI", "PostgreSQL"],
+      "work_experience": [
+        {
+          "role": "Backend Intern",
+          "company": "TechStartup",
+          "duration_months": 6
+        }
+      ]
+    },
+    "job": {
+      "title": "Senior Backend Architect",
+      "company": "BigCorp AG",
+      "location": "Munich (onsite)",
+      "remote_policy": "onsite",
+      "salary_range": "95000-120000 EUR",
+      "description": "Lead the architecture of our microservices platform serving 50M users. 8+ years backend experience required, with at least 3 years leading teams. Java/Kotlin preferred."
+    },
+    "expected_score_range": [10, 30],
+    "must_mention_in_rationale": ["experience", "Java"]
+  },
+  {
+    "id": "ex-003-borderline-location",
+    "description": "Skills match cleanly but the role is onsite SF and the candidate wants Berlin/Remote-EU.",
+    "profile": {
+      "name": "Alex K.",
+      "target_role": "Backend Developer",
+      "target_locations": ["Berlin", "Remote EU"],
+      "skills": ["Python", "FastAPI", "PostgreSQL", "Docker", "Kubernetes", "AWS"],
+      "work_experience": [
+        {
+          "role": "Backend Engineer",
+          "duration_months": 24
+        }
+      ]
+    },
+    "job": {
+      "title": "Backend Engineer",
+      "company": "USCo Inc.",
+      "location": "San Francisco (onsite, no remote)",
+      "remote_policy": "onsite",
+      "salary_range": "$130000-$160000",
+      "description": "Mid-level backend engineer. 2+ years Python, FastAPI/Django, AWS, Kubernetes. Must work onsite in SF."
+    },
+    "expected_score_range": [40, 65],
+    "must_mention_in_rationale": ["location", "San Francisco"]
+  }
+]

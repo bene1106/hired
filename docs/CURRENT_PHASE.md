@@ -1,12 +1,53 @@
 # Current Phase
 
-Phase 1 complete (PR #1 awaiting merge); Phase 2 — LLM provider layer ready
-to start once merged.
+Phase 2 complete (PR #2 awaiting merge); Phase 3 — profile setup, CV upload
++ parse, onboarding wizard — unblocked once PR #2 lands on `main`.
 
-PR: https://github.com/bene1106/hired/pull/1
-Spec for the next phase: `.claude/specs/PHASE_2_llm_layer.md`
+PR: https://github.com/bene1106/hired/pull/2
+Spec for the next phase: `.claude/specs/PHASE_3_profile.md`
 
-## Phase 1 — completed checklist
+## Phase 2 — completed checklist
+
+- [x] `LLMProvider` Protocol (`backend/llm/base.py`) with seven methods.
+- [x] Pydantic types (`backend/llm/types.py`): Profile, Job, ScoreResult,
+  CompanyBrief, CoverLetter, InterviewQuestion, AnswerFeedback, plus
+  small helper types (WorkExperience, ImprovementNote).
+- [x] `MockProvider` (`backend/llm/mock.py`) returning deterministic
+  stubs for every method, with `set_response(method, value)` override
+  for tests. Zero network calls.
+- [x] `AnthropicAPIAdapter` (`backend/llm/anthropic_api.py`) using the
+  official `anthropic` SDK. Reads the API key from the OS keychain
+  (or `ANTHROPIC_API_KEY` env var). Defaults to `claude-opus-4-7`
+  for every task; per-task model split deferred to Phase 6.
+- [x] OS-keychain credentials helper (`backend/llm/credentials.py`)
+  backed by `keyring`, service name `dev.hired.app`. Never logs values.
+- [x] Provider factory in `backend/llm/__init__.py` reading `provider`
+  and `model` from `app_config`, caching the built provider, with
+  `reset_provider_cache()` for config changes.
+- [x] Migration `0002_seed_default_model.py` adds the `model` row to
+  `app_config` (default `claude-opus-4-7`). `app_config` stays a
+  key/value table; no schema change.
+- [x] Pytest marker `integration` registered in `pyproject.toml`. CI
+  default `pytest` skips the integration test by design (run locally
+  with `pytest -m integration` and an API key).
+- [x] 45 always-run unit tests + 1 integration test. Coverage on
+  `backend/llm/` is 95% (target was 85%).
+- [x] `eval/goldset.json` bootstrapped with 3 starter examples + schema
+  doc. Full goldset arrives in Phase 4.
+- [x] ADR-0005 records the API-first decision.
+- [x] CHANGELOG updated.
+
+## Scope notes / deferrals logged
+
+- **Smaller-model split** for classification-shaped tasks (`score_job`,
+  `evaluate_answer`) deferred to Phase 6 cost-optimization work. TODO
+  documented inline in `backend/llm/anthropic_api.py`.
+- **Scheduled CI integration test runs** deferred to Phase 6. Local
+  `pytest -m integration` with a real API key is the verification path
+  for now.
+- **ClaudeCodeAdapter and OllamaAdapter** remain Phase 6 per ADR-0005.
+
+## Phase 1 — completed checklist (kept for reference)
 
 - [x] Repo bootstrap: `.gitignore`, `.gitattributes`, `LICENSE` (MIT, Benedict
   Herrnleben), project `README.md`, `docs/CHANGELOG.md`, ADR-0001.

@@ -1,8 +1,9 @@
 # Current Phase
 
 **Phase 3 — Profile setup, CV upload + parse, onboarding wizard —
-implementation complete; PR open.**
+implementation complete; PR #3 open.**
 
+PR: https://github.com/bene1106/hired/pull/3
 Spec: `.claude/specs/PHASE_3_profile.md`
 
 ## Phase 3 — completed checklist

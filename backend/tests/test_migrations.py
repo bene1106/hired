@@ -16,6 +16,7 @@ EXPECTED_TABLES = {
     "application_materials",
     "interview_sessions",
     "app_config",
+    "provider_call_log",
 }
 
 
@@ -43,3 +44,14 @@ def test_run_migrations_is_idempotent() -> None:
 
     inspector = inspect(get_engine())
     assert EXPECTED_TABLES.issubset(set(inspector.get_table_names()))
+
+
+def test_phase3_profile_columns_are_plural() -> None:
+    """Phase 3 dropped the singular target_role/target_location in favor of JSON cols."""
+    run_migrations()
+
+    inspector = inspect(get_engine())
+    cols = {c["name"] for c in inspector.get_columns("profile")}
+    assert "target_role" not in cols
+    assert "target_location" not in cols
+    assert {"target_roles_json", "target_locations_json", "priorities_json"}.issubset(cols)

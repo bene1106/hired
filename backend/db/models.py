@@ -11,8 +11,10 @@ from datetime import datetime
 
 from sqlalchemy import (
     JSON,
+    Boolean,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -32,9 +34,10 @@ class Profile(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str | None] = mapped_column(String(255))
     email: Mapped[str | None] = mapped_column(String(255))
-    target_role: Mapped[str | None] = mapped_column(String(255))
+    target_roles_json: Mapped[list | None] = mapped_column(JSON)
+    target_locations_json: Mapped[list | None] = mapped_column(JSON)
     target_salary_min: Mapped[int | None] = mapped_column(Integer)
-    target_location: Mapped[str | None] = mapped_column(String(255))
+    priorities_json: Mapped[list | None] = mapped_column(JSON)
     cv_text: Mapped[str | None] = mapped_column(Text)
     cv_parsed_json: Mapped[dict | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(
@@ -115,3 +118,22 @@ class AppConfig(Base):
 
     key: Mapped[str] = mapped_column(String(128), primary_key=True)
     value: Mapped[str | None] = mapped_column(Text)
+
+
+class ProviderCallLog(Base):
+    """One row per LLMProvider method call. Powers Settings observability."""
+
+    __tablename__ = "provider_call_log"
+    __table_args__ = (Index("ix_provider_call_log_created_at", "created_at"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    method: Mapped[str] = mapped_column(String(64), nullable=False)
+    latency_ms: Mapped[int] = mapped_column(Integer, nullable=False)
+    success: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    tokens_in: Mapped[int | None] = mapped_column(Integer)
+    tokens_out: Mapped[int | None] = mapped_column(Integer)
+    error_type: Mapped[str | None] = mapped_column(String(128))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )

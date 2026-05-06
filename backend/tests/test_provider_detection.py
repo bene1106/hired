@@ -189,3 +189,57 @@ def test_test_provider_endpoint_missing_anthropic_key(monkeypatch: pytest.Monkey
     body = response.json()
     assert body["ok"] is False
     assert body["error_kind"] == "missing_api_key"
+
+
+# ---------------------------------------------------------------------------
+# /api/setup/select-provider
+# ---------------------------------------------------------------------------
+
+
+def test_select_provider_persists_mock(monkeypatch: pytest.MonkeyPatch) -> None:
+    from db.migrations import run_migrations
+    from db.models import AppConfig
+    from db.session import get_session
+    from sqlalchemy import select as sa_select
+
+    run_migrations()
+
+    response = client.post(
+        "/api/setup/select-provider", json={"provider": "mock", "api_key": None}
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"provider": "mock"}
+
+    with get_session() as session:
+        provider = session.execute(
+            sa_select(AppConfig.value).where(AppConfig.key == "provider")
+        ).scalar_one()
+    assert provider == "mock"
+
+
+def test_select_provider_anthropic_stores_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    from db.migrations import run_migrations
+
+    run_migrations()
+
+    stored: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        "api.routes.setup.set_credential",
+        lambda name, value: stored.append((name, value)),
+    )
+
+    response = client.post(
+        "/api/setup/select-provider",
+        json={"provider": "anthropic_api", "api_key": "sk-ant-XXXX"},
+    )
+
+    assert response.status_code == 200
+    assert stored == [("anthropic_api_key", "sk-ant-XXXX")]
+
+
+def test_select_provider_rejects_unsupported_provider() -> None:
+    response = client.post(
+        "/api/setup/select-provider", json={"provider": "claude_code", "api_key": None}
+    )
+    assert response.status_code == 400

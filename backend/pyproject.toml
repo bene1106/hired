@@ -14,12 +14,16 @@ dependencies = [
     "sqlalchemy>=2.0",
     "alembic>=1.14",
     "httpx>=0.28",
+    "pydantic>=2.10",
+    "anthropic>=0.40",
+    "keyring>=25.0",
 ]
 
 [dependency-groups]
 dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
+    "pytest-cov>=6.0",
     "ruff>=0.8",
 ]
 
@@ -43,4 +47,7 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 filterwarnings = [
     "ignore::DeprecationWarning:pydantic.*",
+]
+markers = [
+    "integration: tests that hit a real LLM provider (skipped by default; run with `pytest -m integration`)",
 ]

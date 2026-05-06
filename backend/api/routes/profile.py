@@ -1,0 +1,144 @@
+"""Profile + CV endpoints — used by the onboarding wizard and Settings."""
+
+from __future__ import annotations
+
+import logging
+from typing import Annotated, Any
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import select
+
+from api.dependencies import get_llm_provider
+from db.models import Profile as ProfileRow
+from db.session import get_session
+from llm import LLMProvider
+from services.cv_service import (
+    MAX_UPLOAD_BYTES,
+    CVUploadError,
+    extract_pdf_text,
+    parse_cv_with_provider,
+    upsert_profile_with_cv,
+)
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api", tags=["profile"])
+
+
+# ---------------------------------------------------------------------------
+# Schemas
+# ---------------------------------------------------------------------------
+
+
+class ProfileResponse(BaseModel):
+    """Full profile shape returned by ``GET /api/profile``."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str | None
+    email: str | None
+    target_roles: list[str]
+    target_locations: list[str]
+    target_salary_min: int | None
+    priorities: list[str]
+    cv_text: str | None
+    cv_parsed_json: dict[str, Any] | None
+
+    @classmethod
+    def from_row(cls, row: ProfileRow) -> ProfileResponse:
+        return cls(
+            id=row.id,
+            name=row.name,
+            email=row.email,
+            target_roles=row.target_roles_json or [],
+            target_locations=row.target_locations_json or [],
+            target_salary_min=row.target_salary_min,
+            priorities=row.priorities_json or [],
+            cv_text=row.cv_text,
+            cv_parsed_json=row.cv_parsed_json,
+        )
+
+
+class ProfileUpdate(BaseModel):
+    """Body for ``POST /api/profile``. All fields optional; missing → unchanged."""
+
+    name: str | None = None
+    email: str | None = None
+    target_roles: list[str] | None = None
+    target_locations: list[str] | None = None
+    target_salary_min: int | None = Field(default=None, ge=0)
+    priorities: list[str] | None = None
+
+
+class CVTextRequest(BaseModel):
+    cv_text: str = Field(..., min_length=1)
+
+
+class CVParseResponse(BaseModel):
+    parsed: dict[str, Any]
+    profile: ProfileResponse
+
+
+# ---------------------------------------------------------------------------
+# Profile CRUD (full set lands in the next commit)
+# ---------------------------------------------------------------------------
+
+
+@router.post("/profile/cv", response_model=CVParseResponse)
+def post_cv_text(
+    payload: CVTextRequest,
+    provider: Annotated[LLMProvider, Depends(get_llm_provider)],
+) -> CVParseResponse:
+    """Parse a pasted-in CV text. Persists raw + structured forms."""
+    try:
+        parsed = parse_cv_with_provider(provider, payload.cv_text)
+    except CVUploadError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    row = upsert_profile_with_cv(payload.cv_text, parsed)
+    return CVParseResponse(parsed=parsed, profile=ProfileResponse.from_row(row))
+
+
+@router.post("/profile/cv/upload", response_model=CVParseResponse)
+async def post_cv_upload(
+    provider: Annotated[LLMProvider, Depends(get_llm_provider)],
+    file: Annotated[UploadFile, File(description="PDF CV (≤5 MB)")],
+) -> CVParseResponse:
+    """Parse an uploaded PDF CV. Persists raw text + structured form."""
+    data = await file.read()
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"PDF is {len(data)} bytes; max is {MAX_UPLOAD_BYTES} (5 MB).",
+        )
+
+    content_type = (file.content_type or "").lower()
+    if not (content_type == "application/pdf" or (file.filename or "").lower().endswith(".pdf")):
+        raise HTTPException(
+            status_code=415,
+            detail="Only PDF uploads are supported.",
+        )
+
+    try:
+        cv_text = extract_pdf_text(data)
+    except CVUploadError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    try:
+        parsed = parse_cv_with_provider(provider, cv_text)
+    except CVUploadError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    row = upsert_profile_with_cv(cv_text, parsed)
+    return CVParseResponse(parsed=parsed, profile=ProfileResponse.from_row(row))
+
+
+# Profile GET / POST and DELETE /api/data/all land in the next commit.
+
+
+def _read_profile_or_none() -> ProfileRow | None:
+    """Helper for upcoming GET/POST handlers."""
+    with get_session() as session:
+        return session.execute(select(ProfileRow).limit(1)).scalar_one_or_none()

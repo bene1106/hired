@@ -17,6 +17,8 @@ dependencies = [
     "pydantic>=2.10",
     "anthropic>=0.40",
     "keyring>=25.0",
+    "pypdf>=5.1",
+    "python-multipart>=0.0.18",
 ]
 
 [dependency-groups]

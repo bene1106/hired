@@ -1,10 +1,30 @@
 # Current Phase
 
-Phase 2 complete (PR #2 awaiting merge); Phase 3 — profile setup, CV upload
-+ parse, onboarding wizard — unblocked once PR #2 lands on `main`.
+Phase 2 merged (PR #2, commit `35fff0c`). **Phase 3 — Profile setup, CV
+upload + parse, onboarding wizard — in progress.**
 
-PR: https://github.com/bene1106/hired/pull/2
-Spec for the next phase: `.claude/specs/PHASE_3_profile.md`
+Spec: `.claude/specs/PHASE_3_profile.md`
+
+## Phase 3 — kickoff decisions (locked in 2026-05-06)
+
+- **Profile schema:** plural reshape now. Migration 0003 drops the singular
+  `target_role`/`target_location` columns and adds `target_roles_json`,
+  `target_locations_json`, `priorities_json` (JSON columns). Profile table
+  is empty so the drop is cheap.
+- **Provider observability:** `provider_call_log` table populated by a thin
+  recorder around `LLMProvider`. Schema: `id, provider, method, latency_ms,
+  success, tokens_in, tokens_out, error_type, created_at`. Settings UI
+  reads it for "last call latency / calls today".
+- **`DELETE /api/data/all` scope:** wipes every user-owned table **and**
+  `app_config`, **and** clears the keychain entry via
+  `credentials.delete_credential(...)`. The wizard runs from scratch on
+  next launch with no secrets left behind.
+- **Routing:** React Router v6.
+- **CV parsing output:** the existing `parse_cv` prompt already returns
+  `summary`, `education`, `languages`, `certifications` alongside the
+  Profile-typed fields. Persist the full dict as `profile.cv_parsed_json`;
+  the typed `Profile` consumes the subset business logic needs.
+- **Test deps:** add `msw` to the frontend for API mocking in Vitest.
 
 ## Phase 2 — completed checklist
 

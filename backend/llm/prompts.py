@@ -14,7 +14,6 @@ import json
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from string import Template
 from typing import Any
 
 PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
@@ -36,7 +35,7 @@ class PromptTemplate:
     schema: dict | None = None
     examples: list[FewShotExample] = field(default_factory=list)
 
-    def render(self, **kwargs: Any) -> "RenderedPrompt":
+    def render(self, **kwargs: Any) -> RenderedPrompt:
         """Render the user template with the given kwargs."""
         return RenderedPrompt(
             system=self.system,
@@ -126,7 +125,9 @@ def _parse_prompt_file(path: Path) -> PromptTemplate:
     )
 
 
-def _extract_code_block_after(text: str, header_pattern: str, lang: str | None = None) -> str | None:
+def _extract_code_block_after(
+    text: str, header_pattern: str, lang: str | None = None
+) -> str | None:
     """
     Find a header matching `header_pattern`, then extract the next ```-fenced code block.
     Returns the inner text of the code block, or None if not found.
@@ -137,7 +138,7 @@ def _extract_code_block_after(text: str, header_pattern: str, lang: str | None =
         return None
 
     # Search for next code block after the header
-    after = text[match.end():]
+    after = text[match.end() :]
     # Match opening fence (with optional lang) then anything (non-greedy) until closing fence
     fence_re = re.compile(r"```(\w*)\n(.*?)\n```", re.DOTALL)
     block = fence_re.search(after)
@@ -146,7 +147,7 @@ def _extract_code_block_after(text: str, header_pattern: str, lang: str | None =
 
     if lang and block.group(1) and block.group(1).lower() != lang.lower():
         # Wrong language; try the next one (rare case)
-        next_after = after[block.end():]
+        next_after = after[block.end() :]
         block = fence_re.search(next_after)
         if not block:
             return None
@@ -180,7 +181,7 @@ def _extract_few_shot_examples(text: str) -> list[FewShotExample]:
         return []
 
     # Find the next ## heading after Few-Shot Examples to bound the section
-    after_fs = text[fs_match.end():]
+    after_fs = text[fs_match.end() :]
     next_section = re.search(r"^##\s+(?!#)", after_fs, re.MULTILINE)
     section_text = after_fs[: next_section.start()] if next_section else after_fs
 
@@ -217,7 +218,7 @@ def _split_input_output(content: str) -> tuple[str, str]:
         return "", ""
 
     input_part = content[: output_marker.start()].strip()
-    output_part = content[output_marker.end():]
+    output_part = content[output_marker.end() :]
 
     # Extract the first fenced code block in output_part as the literal output
     fence_re = re.compile(r"```(?:\w*)\n(.*?)\n```", re.DOTALL)
@@ -235,6 +236,7 @@ def _render_template(template: str, params: dict) -> str:
 
     Nested keys via dot notation: {{job.title}} → params['job'].title or params['job']['title']
     """
+
     def replace(match: re.Match) -> str:
         key = match.group(1).strip()
         value = _lookup(key, params)
@@ -254,8 +256,5 @@ def _lookup(key: str, params: dict) -> Any:
     for part in parts:
         if current is None:
             return None
-        if isinstance(current, dict):
-            current = current.get(part)
-        else:
-            current = getattr(current, part, None)
+        current = current.get(part) if isinstance(current, dict) else getattr(current, part, None)
     return current

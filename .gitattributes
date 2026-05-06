@@ -1,0 +1,39 @@
+# Auto-detect text files and normalize to LF in repo
+* text=auto eol=lf
+
+# Shell scripts MUST be LF or they break on Linux/macOS
+*.sh        text eol=lf
+*.bash      text eol=lf
+
+# Windows-only files keep CRLF
+*.ps1       text eol=crlf
+*.cmd       text eol=crlf
+*.bat       text eol=crlf
+
+# Common config / source — explicit LF
+*.py        text eol=lf
+*.ts        text eol=lf
+*.tsx       text eol=lf
+*.js        text eol=lf
+*.jsx       text eol=lf
+*.json      text eol=lf
+*.toml      text eol=lf
+*.yaml      text eol=lf
+*.yml       text eol=lf
+*.md        text eol=lf
+*.rs        text eol=lf
+*.html      text eol=lf
+*.css       text eol=lf
+
+# Treat as binary
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.ico       binary
+*.icns      binary
+*.woff      binary
+*.woff2     binary
+*.pdf       binary
+*.db        binary
+*.sqlite    binary

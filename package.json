@@ -1,0 +1,17 @@
+{
+  "name": "hired",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Hired. — local-first AI career agent (Tauri shell)",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.1.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild", "@tauri-apps/cli"]
+  }
+}

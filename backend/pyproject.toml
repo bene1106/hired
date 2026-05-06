@@ -1,0 +1,46 @@
+[project]
+name = "hired-backend"
+version = "0.1.0"
+description = "Hired. — local-first AI career agent (FastAPI sidecar)"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+    { name = "Benedict Herrnleben" },
+]
+license = { text = "MIT" }
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "sqlalchemy>=2.0",
+    "alembic>=1.14",
+    "httpx>=0.28",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.8",
+]
+
+[tool.uv]
+# Hired. backend is an application, not a library — uv should install deps
+# into a venv and run scripts in place, not build a wheel.
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "N", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+"alembic/versions/*.py" = ["E501"]   # auto-generated migration headers
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+filterwarnings = [
+    "ignore::DeprecationWarning:pydantic.*",
+]

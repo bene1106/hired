@@ -197,16 +197,15 @@ def test_test_provider_endpoint_missing_anthropic_key(monkeypatch: pytest.Monkey
 
 
 def test_select_provider_persists_mock(monkeypatch: pytest.MonkeyPatch) -> None:
+    from sqlalchemy import select as sa_select
+
     from db.migrations import run_migrations
     from db.models import AppConfig
     from db.session import get_session
-    from sqlalchemy import select as sa_select
 
     run_migrations()
 
-    response = client.post(
-        "/api/setup/select-provider", json={"provider": "mock", "api_key": None}
-    )
+    response = client.post("/api/setup/select-provider", json={"provider": "mock", "api_key": None})
 
     assert response.status_code == 200
     assert response.json() == {"provider": "mock"}

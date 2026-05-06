@@ -29,8 +29,14 @@ const initialState: OnboardingState = {
   cvText: null,
 }
 
-export function OnboardingProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<OnboardingState>(initialState)
+export function OnboardingProvider({
+  children,
+  initial,
+}: {
+  children: ReactNode
+  initial?: Partial<OnboardingState>
+}) {
+  const [state, setState] = useState<OnboardingState>({ ...initialState, ...initial })
 
   const value = useMemo<OnboardingContextValue>(
     () => ({

@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import TypedDict
 
 from sqlalchemy import func, select
+from typing_extensions import TypedDict
 
 from db.models import ProviderCallLog
 from db.session import get_session

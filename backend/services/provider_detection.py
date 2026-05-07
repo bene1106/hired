@@ -18,9 +18,9 @@ import logging
 import os
 import shutil
 import subprocess
-from typing import TypedDict
 
 import httpx
+from typing_extensions import TypedDict
 
 from llm.anthropic_api import ANTHROPIC_API_KEY_NAME
 from llm.credentials import get_credential

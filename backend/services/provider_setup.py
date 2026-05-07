@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Literal, TypedDict
+from typing import Literal
+
+from typing_extensions import TypedDict
 
 from llm.anthropic_api import DEFAULT_MODEL, AnthropicAPIAdapter
 from llm.errors import (

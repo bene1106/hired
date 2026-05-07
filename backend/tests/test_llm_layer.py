@@ -306,6 +306,17 @@ class TestCredentials:
         monkeypatch.setattr("llm.credentials.keyring.delete_password", fake_delete)
         delete_credential("nope")  # should NOT raise
 
+    def test_delete_swallows_no_keyring_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Headless CI runners often have no keyring backend at all and raise
+        # NoKeyringError on any delete. The wipe path must still succeed.
+        from keyring.errors import NoKeyringError
+
+        def fake_delete(service: str, name: str) -> None:
+            raise NoKeyringError("no backend available")
+
+        monkeypatch.setattr("llm.credentials.keyring.delete_password", fake_delete)
+        delete_credential("nope")  # should NOT raise
+
 
 # ---------------------------------------------------------------------------
 # AnthropicAPIAdapter — exercised via a stubbed client so we don't hit the API

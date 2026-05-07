@@ -19,7 +19,7 @@ from __future__ import annotations
 import contextlib
 
 import keyring
-from keyring.errors import KeyringError, PasswordDeleteError
+from keyring.errors import KeyringError
 
 SERVICE_NAME = "dev.hired.app"
 
@@ -41,8 +41,16 @@ def set_credential(name: str, value: str) -> None:
 
 
 def delete_credential(name: str) -> None:
-    """Remove a credential. No-op if it doesn't exist."""
-    with contextlib.suppress(PasswordDeleteError):
+    """Remove a credential. No-op if it doesn't exist or no backend is
+    available.
+
+    Headless CI runners (and minimal Linux installs) often have no keyring
+    backend at all, in which case ``keyring.delete_password`` raises
+    ``NoKeyringError`` (a ``KeyringError``). Treat that the same way we
+    treat ``PasswordDeleteError``: there's no credential to remove, so
+    there's nothing to do.
+    """
+    with contextlib.suppress(KeyringError):
         keyring.delete_password(SERVICE_NAME, name)
 
 

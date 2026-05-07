@@ -50,11 +50,7 @@ function Stepper({ currentIndex }: { currentIndex: number }) {
             >
               {i + 1}
             </span>
-            <span
-              className={
-                'text-sm ' + (isActive ? 'text-foreground' : 'text-muted-foreground')
-              }
-            >
+            <span className={'text-sm ' + (isActive ? 'text-foreground' : 'text-muted-foreground')}>
               {step.label}
             </span>
             {i < STEPS.length - 1 && (

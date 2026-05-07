@@ -43,8 +43,7 @@ export function OnboardingProvider({
       ...state,
       setProvider: (provider, apiKey) =>
         setState((prev) => ({ ...prev, selectedProvider: provider, apiKey })),
-      setCvResult: (parsed, cvText) =>
-        setState((prev) => ({ ...prev, cvParsed: parsed, cvText })),
+      setCvResult: (parsed, cvText) => setState((prev) => ({ ...prev, cvParsed: parsed, cvText })),
       reset: () => setState(initialState),
     }),
     [state],

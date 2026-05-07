@@ -173,14 +173,14 @@ function Field({ id, label, value, onChange, type = 'text', required, hint }: Fi
     <div className="flex flex-col gap-1">
       <Label htmlFor={id}>
         {label}
-        {required && <span aria-hidden className="text-destructive"> *</span>}
+        {required && (
+          <span aria-hidden className="text-destructive">
+            {' '}
+            *
+          </span>
+        )}
       </Label>
-      <Input
-        id={id}
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      />
+      <Input id={id} type={type} value={value} onChange={(e) => onChange(e.target.value)} />
       {hint !== undefined && <p className="text-xs text-muted-foreground">{hint}</p>}
     </div>
   )

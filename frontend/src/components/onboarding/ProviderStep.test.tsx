@@ -37,10 +37,7 @@ describe('ProviderStep', () => {
     renderStep()
     await waitFor(() => screen.getByTestId('provider-card-claude_code'))
 
-    expect(screen.getByTestId('provider-card-claude_code')).toHaveAttribute(
-      'aria-disabled',
-      'true',
-    )
+    expect(screen.getByTestId('provider-card-claude_code')).toHaveAttribute('aria-disabled', 'true')
     expect(screen.getByTestId('provider-card-ollama')).toHaveAttribute('aria-disabled', 'true')
   })
 

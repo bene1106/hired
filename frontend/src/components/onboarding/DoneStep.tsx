@@ -11,8 +11,7 @@ export function DoneStep() {
       <CardHeader>
         <CardTitle>You're all set.</CardTitle>
         <CardDescription>
-          Your profile is saved locally. Next: crawl some jobs and we'll score them
-          against your CV.
+          Your profile is saved locally. Next: crawl some jobs and we'll score them against your CV.
         </CardDescription>
       </CardHeader>
       <CardContent>

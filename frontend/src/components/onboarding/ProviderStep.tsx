@@ -154,8 +154,8 @@ export function ProviderStep() {
       <CardHeader>
         <CardTitle>Pick an LLM provider</CardTitle>
         <CardDescription>
-          Hired. supports several backends. The Anthropic API is the most reliable; the
-          others are coming in v0.6.
+          Hired. supports several backends. The Anthropic API is the most reliable; the others are
+          coming in v0.6.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -197,8 +197,7 @@ export function ProviderStep() {
                   {testMessage !== null && (
                     <span
                       className={
-                        'text-xs ' +
-                        (testStatus === 'ok' ? 'text-foreground' : 'text-destructive')
+                        'text-xs ' + (testStatus === 'ok' ? 'text-foreground' : 'text-destructive')
                       }
                     >
                       {testMessage}
@@ -227,7 +226,9 @@ export function ProviderStep() {
             id="ollama"
             title="Ollama"
             subtitle="Fully offline. Coming in v0.6."
-            badge={detection.ollama.detected ? `${detection.ollama.models.length} models` : 'Not running'}
+            badge={
+              detection.ollama.detected ? `${detection.ollama.models.length} models` : 'Not running'
+            }
             disabled
             selected={false}
             onSelect={() => undefined}

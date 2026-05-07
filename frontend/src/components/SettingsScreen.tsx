@@ -18,7 +18,10 @@ export function SettingsScreen() {
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
-    api.getProfile().then(setProfile).catch(() => setProfile(null))
+    api
+      .getProfile()
+      .then(setProfile)
+      .catch(() => setProfile(null))
   }, [])
 
   async function handleWipe() {
@@ -44,9 +47,7 @@ export function SettingsScreen() {
         <Card>
           <CardHeader>
             <CardTitle>Profile</CardTitle>
-            <CardDescription>
-              Edit your target roles, locations, and priorities.
-            </CardDescription>
+            <CardDescription>Edit your target roles, locations, and priorities.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             {profile === null ? (
@@ -66,11 +67,7 @@ export function SettingsScreen() {
               </>
             )}
             <div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate('/onboarding/review')}
-              >
+              <Button variant="outline" size="sm" onClick={() => navigate('/onboarding/review')}>
                 Edit profile
               </Button>
             </div>
@@ -95,16 +92,12 @@ export function SettingsScreen() {
           <CardHeader>
             <CardTitle>Delete everything</CardTitle>
             <CardDescription>
-              Wipes your profile, every saved job, and your stored API key. Cannot be
-              undone.
+              Wipes your profile, every saved job, and your stored API key. Cannot be undone.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             {!confirmingDelete ? (
-              <Button
-                variant="destructive"
-                onClick={() => setConfirmingDelete(true)}
-              >
+              <Button variant="destructive" onClick={() => setConfirmingDelete(true)}>
                 Delete everything…
               </Button>
             ) : (
@@ -113,11 +106,7 @@ export function SettingsScreen() {
                   Really delete everything? You'll be asked to onboard again.
                 </p>
                 <div className="flex gap-2">
-                  <Button
-                    variant="destructive"
-                    disabled={deleting}
-                    onClick={handleWipe}
-                  >
+                  <Button variant="destructive" disabled={deleting} onClick={handleWipe}>
                     {deleting ? 'Deleting…' : 'Yes, delete'}
                   </Button>
                   <Button

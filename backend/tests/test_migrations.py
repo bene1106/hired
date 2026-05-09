@@ -55,3 +55,18 @@ def test_phase3_profile_columns_are_plural() -> None:
     assert "target_role" not in cols
     assert "target_location" not in cols
     assert {"target_roles_json", "target_locations_json", "priorities_json"}.issubset(cols)
+
+
+def test_phase4_jobs_columns_and_profile_version() -> None:
+    """Phase 4 adds normalized job columns + profile_version cache key."""
+    run_migrations()
+
+    inspector = inspect(get_engine())
+    job_cols = {c["name"] for c in inspector.get_columns("jobs")}
+    assert {"remote_policy", "salary_min", "salary_max", "currency"}.issubset(job_cols)
+
+    profile_cols = {c["name"] for c in inspector.get_columns("profile")}
+    assert "profile_version" in profile_cols
+
+    score_cols = {c["name"] for c in inspector.get_columns("job_scores")}
+    assert "profile_version" in score_cols

@@ -59,6 +59,11 @@ pnpm tauri dev                 # launches Tauri shell with sidecar
 
 - Read the relevant phase spec in `.claude/specs/` before starting a phase
 - Run `pytest` and `pnpm test` before claiming a task is complete
+- **Run lint AND format checks before pushing** — CI runs both, and
+  format-only failures have already burned us twice (Phase 3, Phase 4).
+  Use the full CI mirror:
+  - Backend: `cd backend && uv run ruff check . && uv run ruff format --check . && uv run pytest -q`
+  - Frontend: `cd frontend && pnpm typecheck && pnpm lint && pnpm format:check && pnpm test --run`
 - Use the LLMProvider interface, never call adapter implementations directly from business logic
 - Write tests against `MockProvider`, not real LLM providers (faster, deterministic, no API costs)
 - Update `docs/CHANGELOG.md` for any user-visible change

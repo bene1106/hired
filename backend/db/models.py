@@ -40,6 +40,11 @@ class Profile(Base):
     priorities_json: Mapped[list | None] = mapped_column(JSON)
     cv_text: Mapped[str | None] = mapped_column(Text)
     cv_parsed_json: Mapped[dict | None] = mapped_column(JSON)
+    # Bumped on every profile mutation. Score cache keys on this so a profile
+    # edit invalidates stale scores without a manual cache-clear step.
+    profile_version: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0", default=0
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
     )
@@ -58,6 +63,10 @@ class Job(Base):
     title: Mapped[str] = mapped_column(String(512), nullable=False)
     company: Mapped[str | None] = mapped_column(String(255))
     location: Mapped[str | None] = mapped_column(String(255))
+    remote_policy: Mapped[str | None] = mapped_column(String(32))
+    salary_min: Mapped[int | None] = mapped_column(Integer)
+    salary_max: Mapped[int | None] = mapped_column(Integer)
+    currency: Mapped[str | None] = mapped_column(String(8))
     description: Mapped[str | None] = mapped_column(Text)
     url: Mapped[str | None] = mapped_column(String(2048))
     posted_at: Mapped[datetime | None] = mapped_column(DateTime)
@@ -68,9 +77,16 @@ class Job(Base):
 
 class JobScore(Base):
     __tablename__ = "job_scores"
+    __table_args__ = (
+        Index("ix_job_scores_job_id", "job_id"),
+        Index("ix_job_scores_profile_version_job_id", "profile_version", "job_id"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False)
+    profile_version: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0", default=0
+    )
     score: Mapped[int] = mapped_column(Integer, nullable=False)
     rationale_json: Mapped[dict | None] = mapped_column(JSON)
     scored_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)

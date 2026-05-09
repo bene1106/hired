@@ -78,6 +78,7 @@ export interface ProfileResponse {
   priorities: string[]
   cv_text: string | null
   cv_parsed_json: CVParsedJson | null
+  profile_version: number
 }
 
 export interface CVParseResponse {
@@ -92,4 +93,50 @@ export interface ProfileUpdate {
   target_locations?: string[]
   target_salary_min?: number | null
   priorities?: string[]
+}
+
+// ----- Phase 4 feed --------------------------------------------------------
+
+export type CrawlSource = 'manual_url' | 'linkedin'
+
+export type CrawlState = 'queued' | 'running' | 'done' | 'error'
+
+export interface CrawlRequest {
+  source: CrawlSource
+  urls?: string[]
+  max_jobs?: number
+}
+
+export interface CrawlResponse {
+  job_id: string
+}
+
+export interface CrawlStatus {
+  job_id: string
+  state: CrawlState
+  fetched: number
+  total: number
+  new: number
+  duplicates: number
+  scored: number
+  error: string | null
+}
+
+export type JobActionStatus = 'applied' | 'saved' | 'skipped'
+
+export type JobAction = 'apply' | 'save' | 'skip'
+
+export interface FeedItem {
+  job_id: number
+  title: string
+  company: string | null
+  location: string | null
+  remote_policy: string | null
+  url: string | null
+  score: number
+  rationale: string
+  matched_skills: string[]
+  missing_skills: string[]
+  red_flags: string[]
+  status: JobActionStatus | null
 }

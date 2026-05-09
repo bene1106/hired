@@ -2,6 +2,10 @@ import { http, HttpResponse } from 'msw'
 
 import type {
   CVParseResponse,
+  CrawlStatus,
+  FeedItem,
+  JobAction,
+  JobActionStatus,
   ProfileResponse,
   ProviderDetectionResult,
   TestProviderResult,
@@ -18,6 +22,8 @@ interface MockState {
   testProvider: TestProviderResult
   profile: ProfileResponse | null
   cvParse: CVParseResponse
+  feed: FeedItem[]
+  crawl: CrawlStatus | null
 }
 
 const defaultState = (): MockState => ({
@@ -28,6 +34,8 @@ const defaultState = (): MockState => ({
   },
   testProvider: { ok: true, latency_ms: 12, error: null, error_kind: null },
   profile: null,
+  feed: [],
+  crawl: null,
   cvParse: {
     parsed: {
       name: 'Alex K.',
@@ -49,6 +57,7 @@ const defaultState = (): MockState => ({
       priorities: [],
       cv_text: 'Pretend CV text',
       cv_parsed_json: null,
+      profile_version: 1,
     },
   },
 })
@@ -110,6 +119,7 @@ export const handlers = [
       priorities: (body.priorities as string[]) ?? state.profile?.priorities ?? [],
       cv_text: state.profile?.cv_text ?? null,
       cv_parsed_json: state.profile?.cv_parsed_json ?? null,
+      profile_version: (state.profile?.profile_version ?? 0) + 1,
     }
     state = { ...state, profile: next }
     return HttpResponse.json(next)
@@ -118,5 +128,58 @@ export const handlers = [
   http.delete(`${BACKEND}/api/data/all`, () => {
     state = defaultState()
     return HttpResponse.json({ deleted: true })
+  }),
+
+  http.get(`${BACKEND}/api/jobs/feed`, ({ request }) => {
+    const url = new URL(request.url)
+    const excludeStatus = url.searchParams.get('exclude_status')
+    const minScore = Number(url.searchParams.get('min_score') ?? '0')
+    const filtered = state.feed
+      .filter((item) => item.score >= minScore)
+      .filter((item) => {
+        if (excludeStatus === null || excludeStatus === '') return true
+        return item.status !== excludeStatus
+      })
+    return HttpResponse.json(filtered)
+  }),
+
+  http.post(`${BACKEND}/api/jobs/crawl`, () => {
+    const next: CrawlStatus = {
+      job_id: 'crawl-test',
+      state: 'done',
+      fetched: state.feed.length,
+      total: state.feed.length,
+      new: state.feed.length,
+      duplicates: 0,
+      scored: state.feed.length,
+      error: null,
+    }
+    state = { ...state, crawl: next }
+    return HttpResponse.json({ job_id: next.job_id })
+  }),
+
+  http.get(`${BACKEND}/api/jobs/crawl/status/:jobId`, () => {
+    if (!state.crawl) {
+      return HttpResponse.json({ detail: 'Unknown crawl job id.' }, { status: 404 })
+    }
+    return HttpResponse.json(state.crawl)
+  }),
+
+  http.post<{ jobId: string }>(`${BACKEND}/api/jobs/:jobId/action`, async ({ params, request }) => {
+    const jobId = Number(params.jobId)
+    const body = (await request.json()) as { action: JobAction }
+    const statusMap: Record<JobAction, JobActionStatus> = {
+      apply: 'applied',
+      save: 'saved',
+      skip: 'skipped',
+    }
+    const newStatus = statusMap[body.action]
+    state = {
+      ...state,
+      feed: state.feed.map((item) =>
+        item.job_id === jobId ? { ...item, status: newStatus } : item,
+      ),
+    }
+    return HttpResponse.json({ job_id: jobId, status: newStatus })
   }),
 ]

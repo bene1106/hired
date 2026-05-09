@@ -19,6 +19,8 @@ dependencies = [
     "keyring>=25.0",
     "pypdf>=5.1",
     "python-multipart>=0.0.18",
+    "beautifulsoup4>=4.12",
+    "playwright>=1.49",
     # Python 3.11 doesn't ship the variant of typing.TypedDict that
     # Pydantic v2 needs; pull it in explicitly even though it's
     # transitively available through pydantic itself.

@@ -21,7 +21,7 @@ describe('App router', () => {
     expect(await screen.findByText(/welcome to hired/i)).toBeInTheDocument()
   })
 
-  it('routes a user with a saved profile to the main shell', async () => {
+  it('routes a user with a saved profile to the feed', async () => {
     setMockState({
       profile: {
         id: 1,
@@ -33,6 +33,7 @@ describe('App router', () => {
         priorities: ['impact'],
         cv_text: 'cv',
         cv_parsed_json: null,
+        profile_version: 1,
       },
     })
     renderAt('/')

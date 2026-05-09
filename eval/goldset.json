@@ -1,7 +1,8 @@
 [
   {
-    "id": "ex-001-strong-match",
-    "description": "Junior backend dev with Python+FastAPI+Postgres skills applying to a Berlin junior backend role with a matching tech stack.",
+    "id": "swe-001-junior-strong-match",
+    "category": "swe",
+    "description": "Junior backend dev with Python+FastAPI+Postgres applying to a Berlin junior backend role with matching tech stack.",
     "profile": {
       "name": "Alex K.",
       "target_role": "Backend Developer",
@@ -9,12 +10,8 @@
       "target_salary_min": 50000,
       "skills": ["Python", "FastAPI", "PostgreSQL", "Docker", "Git"],
       "work_experience": [
-        {
-          "role": "Backend Intern",
-          "company": "TechStartup",
-          "duration_months": 6,
-          "summary": "Built FastAPI services, wrote integration tests."
-        }
+        {"role": "Backend Intern", "company": "TechStartup", "duration_months": 6,
+         "summary": "Built FastAPI services, wrote integration tests."}
       ]
     },
     "job": {
@@ -23,62 +20,503 @@
       "location": "Berlin (hybrid)",
       "remote_policy": "hybrid",
       "salary_range": "55000-65000 EUR",
-      "description": "We're looking for a junior backend engineer. You'll build APIs in Python (FastAPI preferred), work with PostgreSQL, and deploy via Docker. 0-2 years experience, CS degree or equivalent."
+      "description": "Junior backend engineer. Build APIs in Python (FastAPI preferred), work with PostgreSQL, deploy via Docker. 0-2 years experience, CS degree or equivalent."
     },
     "expected_score_range": [80, 95],
     "must_mention_in_rationale": ["Python", "FastAPI"]
   },
   {
-    "id": "ex-002-weak-seniority-mismatch",
-    "description": "Same junior dev applying to a senior backend architect role requiring 8+ years and team leadership.",
+    "id": "swe-002-mid-clean-match",
+    "category": "swe",
+    "description": "Mid-level Go engineer applying to a Go-heavy distributed systems role with matching domain.",
     "profile": {
-      "name": "Alex K.",
-      "target_role": "Backend Developer",
-      "target_locations": ["Berlin", "Remote EU"],
-      "skills": ["Python", "FastAPI", "PostgreSQL"],
+      "name": "Priya M.",
+      "target_role": "Software Engineer",
+      "target_locations": ["Amsterdam", "Remote EU"],
+      "target_salary_min": 80000,
+      "skills": ["Go", "Kubernetes", "gRPC", "PostgreSQL", "AWS"],
       "work_experience": [
-        {
-          "role": "Backend Intern",
-          "company": "TechStartup",
-          "duration_months": 6
-        }
+        {"role": "Software Engineer", "company": "FinTechCo", "duration_months": 36,
+         "summary": "Built order-routing services in Go, owned latency SLOs."}
       ]
     },
     "job": {
-      "title": "Senior Backend Architect",
-      "company": "BigCorp AG",
-      "location": "Munich (onsite)",
-      "remote_policy": "onsite",
-      "salary_range": "95000-120000 EUR",
-      "description": "Lead the architecture of our microservices platform serving 50M users. 8+ years backend experience required, with at least 3 years leading teams. Java/Kotlin preferred."
+      "title": "Software Engineer — Distributed Systems",
+      "company": "Booking.com",
+      "location": "Amsterdam, NL",
+      "remote_policy": "hybrid",
+      "salary_range": "75000-95000 EUR",
+      "description": "Build distributed services in Go on Kubernetes. 3+ years backend experience, comfort with gRPC and PostgreSQL. Hybrid in Amsterdam."
     },
-    "expected_score_range": [10, 30],
-    "must_mention_in_rationale": ["experience", "Java"]
+    "expected_score_range": [82, 95],
+    "must_mention_in_rationale": ["Go", "Kubernetes"]
   },
   {
-    "id": "ex-003-borderline-location",
-    "description": "Skills match cleanly but the role is onsite SF and the candidate wants Berlin/Remote-EU.",
+    "id": "swe-003-senior-mismatch",
+    "category": "swe",
+    "description": "Senior Java backend applying to a senior frontend role — wrong specialism despite matching seniority.",
     "profile": {
-      "name": "Alex K.",
+      "name": "Marcus T.",
+      "target_role": "Senior Backend Engineer",
+      "target_locations": ["Munich", "Remote DE"],
+      "target_salary_min": 95000,
+      "skills": ["Java", "Spring Boot", "Kafka", "PostgreSQL", "Kubernetes"],
+      "work_experience": [
+        {"role": "Senior Backend Engineer", "company": "BMW Digital", "duration_months": 60,
+         "summary": "Owned event-streaming platform, mentored 3 engineers."}
+      ]
+    },
+    "job": {
+      "title": "Senior Frontend Engineer",
+      "company": "Allianz Direct",
+      "location": "Munich (onsite)",
+      "remote_policy": "onsite",
+      "salary_range": "90000-110000 EUR",
+      "description": "Senior frontend role. 5+ years React/TypeScript, design-system experience, mentoring junior FE engineers. No backend in this role."
+    },
+    "expected_score_range": [10, 30],
+    "must_mention_in_rationale": ["frontend", "React"]
+  },
+  {
+    "id": "swe-004-staff-overqualified",
+    "category": "swe",
+    "description": "Staff engineer with 12yrs distributed systems applying to a junior role — overqualified, salary mismatch.",
+    "profile": {
+      "name": "Wei L.",
+      "target_role": "Staff Engineer",
+      "target_locations": ["London", "Remote UK"],
+      "target_salary_min": 140000,
+      "skills": ["Distributed Systems", "Go", "Rust", "AWS", "Architecture"],
+      "work_experience": [
+        {"role": "Staff Engineer", "company": "Stripe", "duration_months": 144,
+         "summary": "Led architecture for payments platform, IC10."}
+      ]
+    },
+    "job": {
+      "title": "Junior Software Engineer",
+      "company": "EarlyStartup",
+      "location": "London (onsite)",
+      "remote_policy": "onsite",
+      "salary_range": "45000-55000 GBP",
+      "description": "Entry-level role. 0-2 years experience. We'll train you on Python and Postgres. Mentorship from our 1-person engineering team."
+    },
+    "expected_score_range": [10, 30],
+    "must_mention_in_rationale": ["overqualified", "salary"]
+  },
+  {
+    "id": "data-001-mle-strong-match",
+    "category": "data",
+    "description": "ML engineer with Pytorch+production-ML applying to a matching MLE role at a fintech.",
+    "profile": {
+      "name": "Aisha R.",
+      "target_role": "Machine Learning Engineer",
+      "target_locations": ["Berlin", "Remote EU"],
+      "target_salary_min": 90000,
+      "skills": ["Python", "PyTorch", "MLflow", "AWS Sagemaker", "Spark"],
+      "work_experience": [
+        {"role": "ML Engineer", "company": "Zalando", "duration_months": 30,
+         "summary": "Productionized recommendation models, owned A/B framework."}
+      ]
+    },
+    "job": {
+      "title": "Senior ML Engineer",
+      "company": "N26",
+      "location": "Berlin (hybrid)",
+      "remote_policy": "hybrid",
+      "salary_range": "90000-115000 EUR",
+      "description": "Productionize fraud-detection models. Strong PyTorch + AWS Sagemaker, MLflow for experiment tracking, comfort with Spark for batch features."
+    },
+    "expected_score_range": [82, 95],
+    "must_mention_in_rationale": ["PyTorch", "Sagemaker"]
+  },
+  {
+    "id": "data-002-analyst-mismatch",
+    "category": "data",
+    "description": "BI analyst with Tableau/SQL applying to a research-scientist role — different career track.",
+    "profile": {
+      "name": "Hans B.",
+      "target_role": "Data Analyst",
+      "target_locations": ["Frankfurt"],
+      "target_salary_min": 55000,
+      "skills": ["SQL", "Tableau", "Excel", "dbt"],
+      "work_experience": [
+        {"role": "BI Analyst", "company": "Deutsche Bank", "duration_months": 24,
+         "summary": "Built dashboards for trading desk."}
+      ]
+    },
+    "job": {
+      "title": "Research Scientist — NLP",
+      "company": "Aleph Alpha",
+      "location": "Heidelberg",
+      "remote_policy": "hybrid",
+      "salary_range": "100000-140000 EUR",
+      "description": "PhD in ML/NLP required. Publish at top venues. Train large language models. PyTorch, distributed training, JAX a plus."
+    },
+    "expected_score_range": [5, 25],
+    "must_mention_in_rationale": ["PhD", "research"]
+  },
+  {
+    "id": "data-003-de-borderline",
+    "category": "data",
+    "description": "Data engineer with Airflow+Snowflake applying to a Snowflake-heavy role at a smaller scale — strong stack match but seniority gap.",
+    "profile": {
+      "name": "Carlos R.",
+      "target_role": "Data Engineer",
+      "target_locations": ["Madrid", "Remote EU"],
+      "target_salary_min": 70000,
+      "skills": ["Python", "Airflow", "Snowflake", "dbt", "AWS"],
+      "work_experience": [
+        {"role": "Data Engineer", "company": "Cabify", "duration_months": 18,
+         "summary": "Owned ELT pipelines for analytics warehouse."}
+      ]
+    },
+    "job": {
+      "title": "Senior Data Engineer",
+      "company": "Glovo",
+      "location": "Madrid (hybrid)",
+      "remote_policy": "hybrid",
+      "salary_range": "75000-95000 EUR",
+      "description": "Senior data engineer. 4+ years building production pipelines on Snowflake + Airflow + dbt. Will lead the modernization of the marts layer."
+    },
+    "expected_score_range": [55, 75],
+    "must_mention_in_rationale": ["seniority", "Snowflake"]
+  },
+  {
+    "id": "design-001-strong-match",
+    "category": "design",
+    "description": "Mid-level product designer with B2B SaaS portfolio applying to a matching B2B SaaS company.",
+    "profile": {
+      "name": "Yuki S.",
+      "target_role": "Product Designer",
+      "target_locations": ["Berlin", "Remote EU"],
+      "target_salary_min": 65000,
+      "skills": ["Figma", "User Research", "Design Systems", "Prototyping"],
+      "work_experience": [
+        {"role": "Product Designer", "company": "Pipedrive", "duration_months": 30,
+         "summary": "Owned the deals pipeline UX, ran 12 user-research studies."}
+      ]
+    },
+    "job": {
+      "title": "Senior Product Designer",
+      "company": "Personio",
+      "location": "Berlin (hybrid)",
+      "remote_policy": "hybrid",
+      "salary_range": "70000-90000 EUR",
+      "description": "Own end-to-end design for our HRIS surface. 3+ years B2B SaaS, fluent in Figma, comfortable running discovery research, contribute to our design system."
+    },
+    "expected_score_range": [78, 92],
+    "must_mention_in_rationale": ["Figma", "B2B"]
+  },
+  {
+    "id": "design-002-graphic-mismatch",
+    "category": "design",
+    "description": "Graphic designer (print/branding) applying to a senior product-design role — different specialism.",
+    "profile": {
+      "name": "Olivia M.",
+      "target_role": "Graphic Designer",
+      "target_locations": ["Paris"],
+      "target_salary_min": 40000,
+      "skills": ["Adobe Illustrator", "InDesign", "Branding", "Print"],
+      "work_experience": [
+        {"role": "Graphic Designer", "company": "Boutique Agency", "duration_months": 36,
+         "summary": "Brand identity work for fashion clients."}
+      ]
+    },
+    "job": {
+      "title": "Senior Product Designer",
+      "company": "Doctolib",
+      "location": "Paris (hybrid)",
+      "remote_policy": "hybrid",
+      "salary_range": "70000-90000 EUR",
+      "description": "Senior product designer. 5+ years SaaS. Figma, design systems, user research. Not a brand/marketing role."
+    },
+    "expected_score_range": [10, 30],
+    "must_mention_in_rationale": ["product design", "SaaS"]
+  },
+  {
+    "id": "design-003-ux-research",
+    "category": "design",
+    "description": "UX researcher with quant+qual mix applying to a UXR role — clean match.",
+    "profile": {
+      "name": "Daniel K.",
+      "target_role": "UX Researcher",
+      "target_locations": ["Stockholm", "Remote EU"],
+      "target_salary_min": 70000,
+      "skills": ["User Interviews", "Survey Design", "Usability Testing", "Statistics", "Dovetail"],
+      "work_experience": [
+        {"role": "UX Researcher", "company": "Spotify", "duration_months": 42,
+         "summary": "Owned research for podcasts surface, mixed-methods practitioner."}
+      ]
+    },
+    "job": {
+      "title": "Senior UX Researcher",
+      "company": "Klarna",
+      "location": "Stockholm (hybrid)",
+      "remote_policy": "hybrid",
+      "salary_range": "75000-95000 EUR",
+      "description": "Lead mixed-methods research for our checkout flow. 4+ years UXR experience, comfort with both qual and quant methods, fluent in Dovetail."
+    },
+    "expected_score_range": [80, 92],
+    "must_mention_in_rationale": ["mixed-methods", "Dovetail"]
+  },
+  {
+    "id": "pm-001-strong-match",
+    "category": "pm",
+    "description": "Mid-level B2B SaaS PM applying to a matching B2B PM role.",
+    "profile": {
+      "name": "Sara N.",
+      "target_role": "Product Manager",
+      "target_locations": ["Dublin", "Remote EU"],
+      "target_salary_min": 85000,
+      "skills": ["Product Strategy", "Roadmapping", "B2B SaaS", "Data Analysis", "Stakeholder Management"],
+      "work_experience": [
+        {"role": "Product Manager", "company": "HubSpot", "duration_months": 36,
+         "summary": "Owned the marketing-hub email-builder area, shipped 4 major releases."}
+      ]
+    },
+    "job": {
+      "title": "Senior Product Manager",
+      "company": "Workday",
+      "location": "Dublin (hybrid)",
+      "remote_policy": "hybrid",
+      "salary_range": "90000-115000 EUR",
+      "description": "Senior PM for HR-tech surface. 4+ years B2B SaaS, data-driven discovery, strong stakeholder management. Hybrid Dublin."
+    },
+    "expected_score_range": [78, 92],
+    "must_mention_in_rationale": ["B2B SaaS", "stakeholder"]
+  },
+  {
+    "id": "pm-002-engineer-pivot-mismatch",
+    "category": "pm",
+    "description": "Backend engineer applying to a senior PM role with no PM experience — pivot story not supported.",
+    "profile": {
+      "name": "Tomás G.",
+      "target_role": "Software Engineer",
+      "target_locations": ["Lisbon"],
+      "target_salary_min": 60000,
+      "skills": ["Python", "Django", "PostgreSQL"],
+      "work_experience": [
+        {"role": "Backend Engineer", "company": "Talkdesk", "duration_months": 48,
+         "summary": "Backend engineering."}
+      ]
+    },
+    "job": {
+      "title": "Senior Product Manager — Platform",
+      "company": "Unbabel",
+      "location": "Lisbon (hybrid)",
+      "remote_policy": "hybrid",
+      "salary_range": "85000-110000 EUR",
+      "description": "Senior platform PM. 5+ years PM experience required. Define platform roadmap, work with engineering and design. Not an engineering role."
+    },
+    "expected_score_range": [10, 30],
+    "must_mention_in_rationale": ["PM experience"]
+  },
+  {
+    "id": "pm-003-tpm-strong-match",
+    "category": "pm",
+    "description": "Technical PM with infra background applying to a technical-PM role on platform team — strong match.",
+    "profile": {
+      "name": "Eunjin K.",
+      "target_role": "Technical Product Manager",
+      "target_locations": ["Zurich"],
+      "target_salary_min": 130000,
+      "skills": ["Technical Product Management", "API Design", "Distributed Systems", "Roadmapping", "Engineering Background"],
+      "work_experience": [
+        {"role": "TPM, Platform", "company": "Atlassian", "duration_months": 48,
+         "summary": "Owned API platform roadmap; previously SWE for 5 years."}
+      ]
+    },
+    "job": {
+      "title": "Technical Product Manager — Developer Platform",
+      "company": "Datadog",
+      "location": "Zurich (hybrid)",
+      "remote_policy": "hybrid",
+      "salary_range": "130000-160000 CHF",
+      "description": "TPM for our developer-platform team. 4+ years TPM in distributed systems, ability to operate at API level with engineers, prior SWE background a plus."
+    },
+    "expected_score_range": [82, 95],
+    "must_mention_in_rationale": ["TPM", "platform"]
+  },
+  {
+    "id": "marketing-001-growth-strong",
+    "category": "marketing",
+    "description": "Growth marketer with paid+lifecycle experience applying to a matching B2C startup growth role.",
+    "profile": {
+      "name": "Lara F.",
+      "target_role": "Growth Marketing Manager",
+      "target_locations": ["Berlin"],
+      "target_salary_min": 65000,
+      "skills": ["Paid Acquisition", "Lifecycle Marketing", "SQL", "A/B Testing", "Google Ads"],
+      "work_experience": [
+        {"role": "Growth Marketing Manager", "company": "Babbel", "duration_months": 30,
+         "summary": "Owned paid + lifecycle for German market, hit CAC targets every quarter."}
+      ]
+    },
+    "job": {
+      "title": "Senior Growth Marketing Manager",
+      "company": "Tier Mobility",
+      "location": "Berlin (hybrid)",
+      "remote_policy": "hybrid",
+      "salary_range": "70000-90000 EUR",
+      "description": "Drive growth across DACH market. 3+ years paid + lifecycle, comfort with SQL, A/B testing-led culture."
+    },
+    "expected_score_range": [78, 92],
+    "must_mention_in_rationale": ["paid", "lifecycle"]
+  },
+  {
+    "id": "marketing-002-content-mismatch",
+    "category": "marketing",
+    "description": "Content marketer (B2C consumer brand) applying to an enterprise sales role — wrong function.",
+    "profile": {
+      "name": "Nico P.",
+      "target_role": "Content Marketing Manager",
+      "target_locations": ["Milan"],
+      "target_salary_min": 50000,
+      "skills": ["Content Strategy", "SEO", "Copywriting", "Editorial"],
+      "work_experience": [
+        {"role": "Content Marketer", "company": "Eataly", "duration_months": 24,
+         "summary": "Editorial calendar for the consumer brand."}
+      ]
+    },
+    "job": {
+      "title": "Enterprise Account Executive — DACH",
+      "company": "Salesforce",
+      "location": "Munich (hybrid)",
+      "remote_policy": "hybrid",
+      "salary_range": "100000-150000 EUR OTE",
+      "description": "Quota-carrying enterprise AE. 5+ years closing 6-figure SaaS deals into DACH, fluent German. Hunter mentality."
+    },
+    "expected_score_range": [5, 20],
+    "must_mention_in_rationale": ["sales", "quota"]
+  },
+  {
+    "id": "sales-001-ae-strong",
+    "category": "marketing",
+    "description": "Mid-market AE with SaaS quota carrying experience applying to a matching MM-AE role.",
+    "profile": {
+      "name": "James W.",
+      "target_role": "Account Executive",
+      "target_locations": ["London", "Remote UK"],
+      "target_salary_min": 80000,
+      "skills": ["Mid-Market Sales", "SaaS", "Salesforce", "Outbound", "Demo"],
+      "work_experience": [
+        {"role": "Mid-Market AE", "company": "Gong", "duration_months": 36,
+         "summary": "120% of quota three years running, MM segment."}
+      ]
+    },
+    "job": {
+      "title": "Mid-Market Account Executive — UK&I",
+      "company": "Mixpanel",
+      "location": "London (hybrid)",
+      "remote_policy": "hybrid",
+      "salary_range": "75000-95000 GBP base + variable",
+      "description": "Quota-carrying MM AE for UK&I. 3+ years closing SaaS deals, fluent in Salesforce + outbound process, comfort running technical demos."
+    },
+    "expected_score_range": [80, 92],
+    "must_mention_in_rationale": ["quota", "SaaS"]
+  },
+  {
+    "id": "border-001-location-mismatch",
+    "category": "borderline",
+    "description": "Skill-perfect candidate but role is onsite SF and target is Berlin/EU-only.",
+    "profile": {
+      "name": "Hans B.",
       "target_role": "Backend Developer",
       "target_locations": ["Berlin", "Remote EU"],
+      "target_salary_min": 75000,
       "skills": ["Python", "FastAPI", "PostgreSQL", "Docker", "Kubernetes", "AWS"],
       "work_experience": [
-        {
-          "role": "Backend Engineer",
-          "duration_months": 24
-        }
+        {"role": "Backend Engineer", "company": "Wayfair", "duration_months": 30,
+         "summary": "Built FastAPI services + K8s deployments."}
       ]
     },
     "job": {
       "title": "Backend Engineer",
       "company": "USCo Inc.",
-      "location": "San Francisco (onsite, no remote)",
+      "location": "San Francisco (onsite, no remote, no relocation)",
       "remote_policy": "onsite",
       "salary_range": "$130000-$160000",
-      "description": "Mid-level backend engineer. 2+ years Python, FastAPI/Django, AWS, Kubernetes. Must work onsite in SF."
+      "description": "Mid-level backend engineer. 2+ years Python, FastAPI/Django, AWS, Kubernetes. Must work onsite in SF — we do not sponsor visas or fund relocation."
+    },
+    "expected_score_range": [25, 50],
+    "must_mention_in_rationale": ["location", "onsite"]
+  },
+  {
+    "id": "border-002-salary-gap",
+    "category": "borderline",
+    "description": "Strong skill match but the job's max salary is below the candidate's stated minimum.",
+    "profile": {
+      "name": "Ivana T.",
+      "target_role": "Senior Backend Engineer",
+      "target_locations": ["Vienna", "Remote AT"],
+      "target_salary_min": 90000,
+      "skills": ["Python", "Django", "PostgreSQL", "AWS", "Microservices"],
+      "work_experience": [
+        {"role": "Senior Backend Engineer", "company": "RuneScape Vienna", "duration_months": 60,
+         "summary": "Owned the billing microservice, mentored 2 engineers."}
+      ]
+    },
+    "job": {
+      "title": "Senior Backend Engineer",
+      "company": "PaperCo",
+      "location": "Vienna (hybrid)",
+      "remote_policy": "hybrid",
+      "salary_range": "55000-70000 EUR",
+      "description": "Senior backend engineer. 5+ years Python/Django, PostgreSQL, AWS. Build microservices for our document-management product."
+    },
+    "expected_score_range": [35, 60],
+    "must_mention_in_rationale": ["salary", "below"]
+  },
+  {
+    "id": "border-003-partial-skill",
+    "category": "borderline",
+    "description": "Half the required stack matches, half doesn't (Python yes, Rust no).",
+    "profile": {
+      "name": "Aisha R.",
+      "target_role": "Backend Engineer",
+      "target_locations": ["Remote EU"],
+      "target_salary_min": 80000,
+      "skills": ["Python", "FastAPI", "PostgreSQL", "Docker"],
+      "work_experience": [
+        {"role": "Backend Engineer", "company": "Tier Mobility", "duration_months": 30,
+         "summary": "Python services + small amount of Go on the side."}
+      ]
+    },
+    "job": {
+      "title": "Backend Engineer — Rust",
+      "company": "Discord EU",
+      "location": "Remote EU",
+      "remote_policy": "remote",
+      "salary_range": "85000-105000 EUR",
+      "description": "Backend role in Rust + Tokio. Python/Go background welcome but you'll be writing Rust day one. Distributed systems experience required."
     },
     "expected_score_range": [40, 65],
-    "must_mention_in_rationale": ["location", "San Francisco"]
+    "must_mention_in_rationale": ["Rust", "experience"]
+  },
+  {
+    "id": "border-004-visa-relocation",
+    "category": "borderline",
+    "description": "EU candidate, US role pays well and matches stack, but no sponsorship — borderline because of visa block, not skill.",
+    "profile": {
+      "name": "Mateusz K.",
+      "target_role": "Backend Engineer",
+      "target_locations": ["Warsaw", "Remote EU", "Open to relocate (with sponsorship)"],
+      "target_salary_min": 100000,
+      "skills": ["Go", "Kubernetes", "AWS", "PostgreSQL", "gRPC"],
+      "work_experience": [
+        {"role": "Backend Engineer", "company": "Allegro", "duration_months": 48,
+         "summary": "Go services on K8s, owned platform reliability."}
+      ]
+    },
+    "job": {
+      "title": "Backend Engineer",
+      "company": "AcmeCo US",
+      "location": "New York (onsite)",
+      "remote_policy": "onsite",
+      "salary_range": "$160000-$200000",
+      "description": "Backend role in Go on AWS+K8s, gRPC services. 4+ years experience. We do not sponsor work visas — must already have US work authorization."
+    },
+    "expected_score_range": [25, 50],
+    "must_mention_in_rationale": ["visa", "sponsor"]
   }
 ]

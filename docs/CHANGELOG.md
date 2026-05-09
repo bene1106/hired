@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Phase 3 — Profile setup & onboarding: a five-step wizard (welcome →
+  pick provider → upload CV → review profile → done) is now the entry
+  point for first-time users; the main app shell and Settings screen
+  exist behind it. PDF or pasted CVs are extracted with `pypdf`, parsed
+  via `LLMProvider.parse_cv`, and persisted alongside structured
+  profile fields. Settings lets users switch providers, edit their
+  profile, and "Delete everything" — a two-step destructive action that
+  truncates the DB **and** clears the keychain entry so no secrets are
+  left behind. Migration `0003` reshapes the profile schema for plural
+  preferences (`target_roles_json`, `target_locations_json`,
+  `priorities_json`) and adds `provider_call_log` for the Settings UI.
 - Phase 2 — LLM provider layer: `LLMProvider` Protocol with seven
   methods (`parse_cv`, `score_job`, `research_company`, `tailor_cv`,
   `generate_cover_letter`, `generate_interview_questions`,

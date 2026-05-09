@@ -1,10 +1,65 @@
 # Current Phase
 
-Phase 2 complete (PR #2 awaiting merge); Phase 3 — profile setup, CV upload
-+ parse, onboarding wizard — unblocked once PR #2 lands on `main`.
+**Phase 3 — Profile setup, CV upload + parse, onboarding wizard —
+implementation complete; PR #3 open.**
 
-PR: https://github.com/bene1106/hired/pull/2
-Spec for the next phase: `.claude/specs/PHASE_3_profile.md`
+PR: https://github.com/bene1106/hired/pull/3
+Spec: `.claude/specs/PHASE_3_profile.md`
+
+## Phase 3 — completed checklist
+
+- [x] Migration `0003_phase3_profile_and_call_log.py` reshapes `profile`
+  to plural JSON columns (`target_roles_json`, `target_locations_json`,
+  `priorities_json`) and adds the `provider_call_log` table.
+- [x] `RecordingProvider` wraps every `LLMProvider` built by
+  `get_provider()`; one row per call written to `provider_call_log`,
+  best-effort write so observability never breaks the user flow.
+- [x] `services/provider_detection.py` + `POST /api/setup/detect-providers`
+  (env + keychain for Anthropic, `shutil.which` + `--version` for Claude
+  Code, `/api/tags` for Ollama; defensive — failures = `detected: false`).
+- [x] `services/provider_setup.py` + `POST /api/setup/test-provider`
+  (1-token round trip for Anthropic, trivial pass for Mock, classified
+  errors so the UI can render friendly messages).
+- [x] `POST /api/setup/select-provider` commits the wizard's choice to
+  `app_config`, stores the API key in the OS keychain, resets the cached
+  LLM provider.
+- [x] `services/cv_service.py` — pypdf extraction, 5 MB upload guard,
+  30 KB pre-LLM truncation, upsert that preserves user-edited
+  `name`/`email`. `POST /api/profile/cv` (text) and
+  `POST /api/profile/cv/upload` (multipart PDF).
+- [x] `GET /api/profile` (404 when empty), `POST /api/profile` (partial
+  upsert; missing fields are left untouched).
+- [x] `DELETE /api/data/all` truncates every user-owned table, re-seeds
+  `app_config`, deletes the Anthropic API key from the keychain, and
+  resets the provider cache. Idempotent.
+- [x] Frontend foundation: React Router v6, typed API client
+  (`src/lib/api.ts`), msw test server, shadcn primitives (Card, Input,
+  Label, Textarea, Select, Badge, Button).
+- [x] Onboarding wizard — Welcome, Provider, CV, Review, Done — with a
+  stepper and shared `OnboardingProvider` context.
+- [x] Main app shell + Settings (active provider, edit profile, switch
+  provider, two-step "Delete everything").
+- [x] Backend tests: 88 passing + 1 integration skipped. Frontend tests:
+  13 passing across App routing, all four wizard steps, and Settings.
+- [x] CHANGELOG updated.
+
+## Phase 3 — scope notes / deferrals logged
+
+- **ClaudeCodeAdapter and OllamaAdapter** are still Phase 6. Detection
+  works for both (informational), but `select-provider` returns 400 if
+  the user picks one. The UI marks those cards `aria-disabled`.
+- **Provider stats panel in Settings** is wired in the backend
+  (`services/provider_stats.py`) but the Settings UI shows only the
+  basic profile/provider buttons in Phase 3. The latency + call-count
+  display lands in Phase 4 once we have meaningful traffic.
+- **Tokens in/out** in `provider_call_log` are populated as `NULL` —
+  the column exists but threading `response.usage` through
+  `AnthropicAPIAdapter` is a Phase 4/6 concern.
+- **End-to-end `pnpm tauri dev`** smoke test is left to the human
+  reviewer; we did a backend-only HTTP round-trip across every Phase 3
+  route (wizard → CV parse → profile save → wipe → 404) and confirmed
+  it works against a real SQLite + the Anthropic detection on this
+  machine even picked up the locally-installed `claude.CMD`.
 
 ## Phase 2 — completed checklist
 

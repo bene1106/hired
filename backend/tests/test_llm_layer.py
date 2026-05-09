@@ -21,6 +21,7 @@ from db.session import get_session
 from llm import (
     LLMError,
     MockProvider,
+    RecordingProvider,
     get_provider,
     reset_provider_cache,
 )
@@ -177,10 +178,11 @@ class TestMockProvider:
 
 
 class TestProviderFactory:
-    def test_factory_returns_mock_provider_by_default(self) -> None:
+    def test_factory_returns_recording_mock_provider_by_default(self) -> None:
         run_migrations()
         provider = get_provider()
-        assert isinstance(provider, MockProvider)
+        assert isinstance(provider, RecordingProvider)
+        assert isinstance(provider.inner, MockProvider)
 
     def test_factory_caches_provider(self) -> None:
         run_migrations()
@@ -222,8 +224,9 @@ class TestProviderFactory:
         monkeypatch.setattr("llm.anthropic_api.get_credential", lambda _name: None)
 
         provider = get_provider()
-        assert isinstance(provider, AnthropicAPIAdapter)
-        assert provider.model == "claude-opus-4-7"
+        assert isinstance(provider, RecordingProvider)
+        assert isinstance(provider.inner, AnthropicAPIAdapter)
+        assert provider.inner.model == "claude-opus-4-7"
 
 
 # ---------------------------------------------------------------------------
@@ -299,6 +302,17 @@ class TestCredentials:
 
         def fake_delete(service: str, name: str) -> None:
             raise PasswordDeleteError("not found")
+
+        monkeypatch.setattr("llm.credentials.keyring.delete_password", fake_delete)
+        delete_credential("nope")  # should NOT raise
+
+    def test_delete_swallows_no_keyring_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Headless CI runners often have no keyring backend at all and raise
+        # NoKeyringError on any delete. The wipe path must still succeed.
+        from keyring.errors import NoKeyringError
+
+        def fake_delete(service: str, name: str) -> None:
+            raise NoKeyringError("no backend available")
 
         monkeypatch.setattr("llm.credentials.keyring.delete_password", fake_delete)
         delete_credential("nope")  # should NOT raise

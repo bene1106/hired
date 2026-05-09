@@ -22,6 +22,7 @@ from db.session import get_session
 from .base import LLMProvider
 from .errors import LLMAuthError, LLMError, LLMNetworkError, LLMRateLimitError, LLMResponseError
 from .mock import MockProvider
+from .recorder import RecordingProvider
 from .types import (
     AnswerFeedback,
     CompanyBrief,
@@ -67,7 +68,11 @@ def _read_config() -> tuple[str, str | None]:
 
 def _build_provider() -> LLMProvider:
     provider_name, model = _read_config()
+    inner = _build_inner_provider(provider_name, model)
+    return RecordingProvider(inner, provider_name)
 
+
+def _build_inner_provider(provider_name: str, model: str | None) -> LLMProvider:
     if provider_name == "mock":
         return MockProvider()
 
@@ -99,6 +104,7 @@ __all__ = [
     "LLMResponseError",
     "MockProvider",
     "Profile",
+    "RecordingProvider",
     "ScoreResult",
     "WorkExperience",
     "get_provider",

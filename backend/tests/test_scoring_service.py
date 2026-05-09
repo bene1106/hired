@@ -87,7 +87,11 @@ def test_score_jobs_uses_cache_on_second_call() -> None:
         rows = session.execute(select(JobScore)).scalars().all()
         for row in rows:
             row.score = 42
-            row.rationale_json = {**(row.rationale_json or {}), "score": 42, "rationale": "from cache"}
+            row.rationale_json = {
+                **(row.rationale_json or {}),
+                "score": 42,
+                "rationale": "from cache",
+            }
         session.commit()
 
     second = score_jobs(provider, job_ids)

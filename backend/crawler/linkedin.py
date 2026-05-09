@@ -7,7 +7,7 @@ explicitly best-effort: every Phase 4 entry point that uses it surfaces a
 "may break — paste URLs manually for reliable results" affordance.
 
 If Playwright is not installed (browser binaries missing), or LinkedIn
-returns a challenge page, ``fetch_jobs`` raises ``LinkedInUnavailable`` so
+returns a challenge page, ``fetch_jobs`` raises ``LinkedInUnavailableError`` so
 the caller can fall back to the manual-URL path without a hard failure.
 """
 
@@ -26,7 +26,7 @@ from .base import CrawlQuery, JobSource, RawJob
 logger = logging.getLogger(__name__)
 
 
-class LinkedInUnavailable(RuntimeError):
+class LinkedInUnavailableError(RuntimeError):
     """Raised when Playwright/LinkedIn is unreachable. Caller should fall back."""
 
 
@@ -61,15 +61,14 @@ class LinkedInSource(JobSource):
         page_factory = self._page_factory or _default_playwright_page_factory
         try:
             html = page_factory(url)
-        except LinkedInUnavailable:
+        except LinkedInUnavailableError:
             raise
         except Exception as exc:  # pragma: no cover — Playwright failure modes
-            raise LinkedInUnavailable(f"LinkedIn fetch failed: {exc}") from exc
+            raise LinkedInUnavailableError(f"LinkedIn fetch failed: {exc}") from exc
 
         time.sleep(random.uniform(*self._delay_range))
 
-        for raw in _parse_search_html(html, query.max_jobs):
-            yield raw
+        yield from _parse_search_html(html, query.max_jobs)
 
 
 def _default_playwright_page_factory(url: str) -> str:
@@ -77,13 +76,13 @@ def _default_playwright_page_factory(url: str) -> str:
 
     Imported lazily so the rest of the backend doesn't pay the Playwright
     cost on import. If the user hasn't run ``playwright install`` we raise
-    ``LinkedInUnavailable`` and the orchestrator falls back.
+    ``LinkedInUnavailableError`` and the orchestrator falls back.
     """
     try:
         from playwright.sync_api import Error as PlaywrightError
         from playwright.sync_api import sync_playwright
     except ImportError as exc:  # pragma: no cover
-        raise LinkedInUnavailable("Playwright is not installed.") from exc
+        raise LinkedInUnavailableError("Playwright is not installed.") from exc
 
     try:
         with sync_playwright() as p:
@@ -102,7 +101,7 @@ def _default_playwright_page_factory(url: str) -> str:
             finally:
                 browser.close()
     except PlaywrightError as exc:  # pragma: no cover
-        raise LinkedInUnavailable(f"Playwright error: {exc}") from exc
+        raise LinkedInUnavailableError(f"Playwright error: {exc}") from exc
 
 
 # ---------------------------------------------------------------------------
@@ -162,4 +161,4 @@ def hash_search_query(query: CrawlQuery) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:8]
 
 
-__all__ = ["LinkedInSource", "LinkedInUnavailable"]
+__all__ = ["LinkedInSource", "LinkedInUnavailableError"]

@@ -25,7 +25,7 @@ from sqlalchemy.orm import Session
 
 from api.dependencies import get_llm_provider
 from crawler.base import CrawlQuery
-from crawler.linkedin import LinkedInSource, LinkedInUnavailable
+from crawler.linkedin import LinkedInSource, LinkedInUnavailableError
 from crawler.manual_urls import ManualURLSource
 from crawler.service import crawl
 from db.models import Application, Job
@@ -256,7 +256,7 @@ def _run_crawl_pipeline(
         crawl_source = _build_source(source)
 
         crawl_result = crawl(crawl_source, query)
-    except LinkedInUnavailable as exc:
+    except LinkedInUnavailableError as exc:
         update_entry(
             job_id,
             state="error",

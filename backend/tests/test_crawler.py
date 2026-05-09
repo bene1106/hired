@@ -10,16 +10,15 @@ from textwrap import dedent
 
 import httpx
 import pytest
+from sqlalchemy import select
 
 from crawler.base import CrawlQuery
-from crawler.linkedin import LinkedInSource, LinkedInUnavailable
+from crawler.linkedin import LinkedInSource, LinkedInUnavailableError
 from crawler.manual_urls import ManualURLSource, parse_html_to_job
 from crawler.service import crawl
 from db.migrations import run_migrations
 from db.models import Job
 from db.session import get_session
-from sqlalchemy import select
-
 
 # ---------------------------------------------------------------------------
 # manual_urls — JSON-LD path
@@ -125,7 +124,8 @@ def test_manual_url_source_skips_failing_urls() -> None:
 
 
 def test_manual_url_source_respects_max_jobs() -> None:
-    client = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200, html=JSON_LD_HTML)))
+    transport = httpx.MockTransport(lambda r: httpx.Response(200, html=JSON_LD_HTML))
+    client = httpx.Client(transport=transport)
     source = ManualURLSource(client=client)
     query = CrawlQuery(
         urls=[f"https://acmeco.example/{i}" for i in range(10)], max_jobs=3
@@ -181,10 +181,10 @@ def test_linkedin_source_parses_search_html() -> None:
 
 def test_linkedin_source_propagates_unavailable() -> None:
     def boom(url: str) -> str:
-        raise LinkedInUnavailable("playwright not installed")
+        raise LinkedInUnavailableError("playwright not installed")
 
     source = LinkedInSource(delay_range=(0.0, 0.0), page_factory=boom)
-    with pytest.raises(LinkedInUnavailable):
+    with pytest.raises(LinkedInUnavailableError):
         list(source.fetch_jobs(CrawlQuery(max_jobs=1)))
 
 

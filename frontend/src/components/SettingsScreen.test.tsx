@@ -34,6 +34,7 @@ describe('SettingsScreen', () => {
         priorities: ['impact'],
         cv_text: 'cv',
         cv_parsed_json: null,
+        profile_version: 1,
       },
     })
 
@@ -56,6 +57,7 @@ describe('SettingsScreen', () => {
         priorities: [],
         cv_text: null,
         cv_parsed_json: null,
+        profile_version: 1,
       },
     })
 

@@ -162,3 +162,52 @@ def test_score_jobs_preserves_caller_order() -> None:
 
     results = score_jobs(MockProvider(), reversed_ids)
     assert [r.job.id for r in results] == reversed_ids
+
+
+def test_score_jobs_returns_empty_for_empty_input() -> None:
+    _seed_profile()
+    assert score_jobs(MockProvider(), []) == []
+
+
+def test_score_jobs_skips_provider_failures_per_job() -> None:
+    _seed_profile()
+    job_ids = _seed_jobs(2)
+
+    class FlakyProvider(MockProvider):
+        def __init__(self) -> None:
+            super().__init__()
+            self.calls = 0
+
+        def score_job(self, profile, job):
+            self.calls += 1
+            if self.calls == 1:
+                raise RuntimeError("transient model failure")
+            return super().score_job(profile, job)
+
+    results = score_jobs(FlakyProvider(), job_ids)
+    # One job got a usable score, the failing one is dropped silently.
+    assert len(results) == 1
+
+
+def test_score_jobs_recovers_from_corrupt_cache_row() -> None:
+    _seed_profile()
+    [job_id] = _seed_jobs(1)
+
+    # Seed a cached row with malformed rationale_json so the loader has to skip
+    # it and fall through to a live score_job call.
+    from db.models import JobScore as JobScoreRow
+
+    with get_session() as session:
+        session.add(
+            JobScoreRow(
+                job_id=job_id,
+                profile_version=0,
+                score=42,
+                rationale_json={"score": "not-a-number"},  # ScoreResult will reject this
+            )
+        )
+        session.commit()
+
+    [result] = score_jobs(MockProvider(), [job_id])
+    # Mock returns a valid stub at score=75; the corrupt row was discarded.
+    assert result.score == 75

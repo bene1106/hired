@@ -45,6 +45,7 @@ class ProfileResponse(BaseModel):
     priorities: list[str]
     cv_text: str | None
     cv_parsed_json: dict[str, Any] | None
+    profile_version: int
 
     @classmethod
     def from_row(cls, row: ProfileRow) -> ProfileResponse:
@@ -58,6 +59,7 @@ class ProfileResponse(BaseModel):
             priorities=row.priorities_json or [],
             cv_text=row.cv_text,
             cv_parsed_json=row.cv_parsed_json,
+            profile_version=row.profile_version or 0,
         )
 
 
@@ -153,18 +155,29 @@ def post_profile(payload: ProfileUpdate) -> ProfileResponse:
             row = ProfileRow()
             session.add(row)
 
+        mutated = False
         if payload.name is not None:
             row.name = payload.name
+            mutated = True
         if payload.email is not None:
             row.email = payload.email
+            mutated = True
         if payload.target_roles is not None:
             row.target_roles_json = payload.target_roles
+            mutated = True
         if payload.target_locations is not None:
             row.target_locations_json = payload.target_locations
+            mutated = True
         if payload.target_salary_min is not None:
             row.target_salary_min = payload.target_salary_min
+            mutated = True
         if payload.priorities is not None:
             row.priorities_json = payload.priorities
+            mutated = True
+
+        # Bump on any real change so the score cache invalidates.
+        if mutated:
+            row.profile_version = (row.profile_version or 0) + 1
 
         session.commit()
         session.refresh(row)

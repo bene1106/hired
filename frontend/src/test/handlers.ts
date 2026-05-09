@@ -49,6 +49,7 @@ const defaultState = (): MockState => ({
       priorities: [],
       cv_text: 'Pretend CV text',
       cv_parsed_json: null,
+      profile_version: 1,
     },
   },
 })
@@ -110,6 +111,7 @@ export const handlers = [
       priorities: (body.priorities as string[]) ?? state.profile?.priorities ?? [],
       cv_text: state.profile?.cv_text ?? null,
       cv_parsed_json: state.profile?.cv_parsed_json ?? null,
+      profile_version: (state.profile?.profile_version ?? 0) + 1,
     }
     state = { ...state, profile: next }
     return HttpResponse.json(next)

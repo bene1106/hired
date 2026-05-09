@@ -78,6 +78,7 @@ export interface ProfileResponse {
   priorities: string[]
   cv_text: string | null
   cv_parsed_json: CVParsedJson | null
+  profile_version: number
 }
 
 export interface CVParseResponse {

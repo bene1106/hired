@@ -91,6 +91,10 @@ def upsert_profile_with_cv(cv_text: str, parsed: dict[str, Any]) -> ProfileRow:
         if not row.email and parsed.get("email"):
             row.email = parsed["email"]
 
+        # CV re-upload changes the skill/experience signal the scorer sees,
+        # so bump profile_version to invalidate cached scores.
+        row.profile_version = (row.profile_version or 0) + 1
+
         session.commit()
         session.refresh(row)
         return row

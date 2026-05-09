@@ -87,6 +87,16 @@ def test_post_profile_rejects_negative_salary() -> None:
     assert response.status_code == 422
 
 
+def test_post_profile_bumps_profile_version_on_change() -> None:
+    first = client.post("/api/profile", json={"name": "Alex"}).json()
+    second = client.post("/api/profile", json={"target_roles": ["Backend"]}).json()
+    third = client.post("/api/profile", json={}).json()  # no-op — no bump
+
+    assert first["profile_version"] == 1
+    assert second["profile_version"] == 2
+    assert third["profile_version"] == 2
+
+
 # ---------------------------------------------------------------------------
 # DELETE /api/data/all
 # ---------------------------------------------------------------------------

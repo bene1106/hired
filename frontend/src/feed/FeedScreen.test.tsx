@@ -103,13 +103,9 @@ describe('FeedScreen', () => {
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: /^crawl$/i }))
 
-    expect(
-      screen.getByText(/LinkedIn scraping is unreliable/i),
-    ).toBeInTheDocument()
+    expect(screen.getByText(/LinkedIn scraping is unreliable/i)).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /start crawl/i }))
-    expect(
-      await screen.findByText(/paste at least one job url/i),
-    ).toBeInTheDocument()
+    expect(await screen.findByText(/paste at least one job url/i)).toBeInTheDocument()
   })
 })

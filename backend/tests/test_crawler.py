@@ -127,9 +127,7 @@ def test_manual_url_source_respects_max_jobs() -> None:
     transport = httpx.MockTransport(lambda r: httpx.Response(200, html=JSON_LD_HTML))
     client = httpx.Client(transport=transport)
     source = ManualURLSource(client=client)
-    query = CrawlQuery(
-        urls=[f"https://acmeco.example/{i}" for i in range(10)], max_jobs=3
-    )
+    query = CrawlQuery(urls=[f"https://acmeco.example/{i}" for i in range(10)], max_jobs=3)
     jobs = list(source.fetch_jobs(query))
     assert len(jobs) == 3
 

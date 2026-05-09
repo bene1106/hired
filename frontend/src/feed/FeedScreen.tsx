@@ -38,9 +38,7 @@ export function FeedScreen() {
     setFeedError(null)
     try {
       const params =
-        currentFilter === 'all'
-          ? { excludeStatus: 'skipped' }
-          : ({ excludeStatus: null } as const)
+        currentFilter === 'all' ? { excludeStatus: 'skipped' } : ({ excludeStatus: null } as const)
       const all = await api.getFeed(params)
       const filtered =
         currentFilter === 'all'
@@ -182,9 +180,7 @@ export function FeedScreen() {
               <div className="flex justify-end">
                 <Button
                   onClick={handleStartCrawl}
-                  disabled={
-                    activeCrawl?.state === 'queued' || activeCrawl?.state === 'running'
-                  }
+                  disabled={activeCrawl?.state === 'queued' || activeCrawl?.state === 'running'}
                 >
                   Start crawl
                 </Button>

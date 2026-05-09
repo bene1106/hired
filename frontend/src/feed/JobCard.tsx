@@ -67,20 +67,10 @@ export function JobCard({ item, onAction, pending = false }: JobCardProps) {
             <span />
           )}
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={pending}
-              onClick={() => onAction('skip')}
-            >
+            <Button variant="outline" size="sm" disabled={pending} onClick={() => onAction('skip')}>
               Skip
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={pending}
-              onClick={() => onAction('save')}
-            >
+            <Button variant="outline" size="sm" disabled={pending} onClick={() => onAction('save')}>
               Save
             </Button>
             <Button size="sm" disabled={pending} onClick={() => onAction('apply')}>

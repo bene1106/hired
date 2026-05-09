@@ -28,9 +28,7 @@ from .base import CrawlQuery, JobSource, RawJob
 logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT_SECONDS = 15.0
-USER_AGENT = (
-    "Mozilla/5.0 (compatible; HiredApp/0.1; +https://github.com/bene1106/hired)"
-)
+USER_AGENT = "Mozilla/5.0 (compatible; HiredApp/0.1; +https://github.com/bene1106/hired)"
 MAX_DESCRIPTION_CHARS = 30_000
 
 
@@ -165,9 +163,7 @@ def _fallback_meta(soup: BeautifulSoup, url: str) -> RawJob:
 
 
 def _meta(soup: BeautifulSoup, prop: str) -> str | None:
-    tag = soup.find("meta", attrs={"property": prop}) or soup.find(
-        "meta", attrs={"name": prop}
-    )
+    tag = soup.find("meta", attrs={"property": prop}) or soup.find("meta", attrs={"name": prop})
     if tag is None:
         return None
     content = tag.get("content")

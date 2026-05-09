@@ -1,8 +1,9 @@
 # Current Phase
 
 **Phase 4 — Job ingestion, scoring pipeline, ranked feed —
-implementation complete on `main`. First end-to-end demo milestone.**
+implementation complete; PR #5 open. First end-to-end demo milestone.**
 
+PR: https://github.com/bene1106/hired/pull/5
 Spec: `.claude/specs/PHASE_4_jobs.md`
 ADR: `docs/adr/0006-crawler-fragility.md` (manual URL paste = primary path)
 

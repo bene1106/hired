@@ -7,8 +7,8 @@ import { DoneStep } from '@/components/onboarding/DoneStep'
 import { ProviderStep } from '@/components/onboarding/ProviderStep'
 import { ReviewStep } from '@/components/onboarding/ReviewStep'
 import { WelcomeStep } from '@/components/onboarding/WelcomeStep'
-import { MainShell } from '@/components/MainShell'
 import { SettingsScreen } from '@/components/SettingsScreen'
+import { FeedScreen } from '@/feed/FeedScreen'
 
 // Phase 3 routing.
 //
@@ -29,7 +29,7 @@ export function AppRouter() {
         <Route path="done" element={<DoneStep />} />
       </Route>
       <Route path="/app" element={<Outlet />}>
-        <Route index element={<MainShell />} />
+        <Route index element={<FeedScreen />} />
         <Route path="settings" element={<SettingsScreen />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

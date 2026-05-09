@@ -1,5 +1,11 @@
 import type {
   CVParseResponse,
+  CrawlRequest,
+  CrawlResponse,
+  CrawlStatus,
+  FeedItem,
+  JobAction,
+  JobActionStatus,
   ProfileResponse,
   ProfileUpdate,
   ProviderDetectionResult,
@@ -95,4 +101,34 @@ export const api = {
 
   deleteAllData: (): Promise<{ deleted: boolean }> =>
     request('/api/data/all', { method: 'DELETE' }),
+
+  triggerCrawl: (payload: CrawlRequest): Promise<CrawlResponse> =>
+    request('/api/jobs/crawl', { method: 'POST', body: JSON.stringify(payload) }),
+
+  getCrawlStatus: (jobId: string): Promise<CrawlStatus> =>
+    request(`/api/jobs/crawl/status/${jobId}`),
+
+  getFeed: (
+    options: { limit?: number; minScore?: number; excludeStatus?: string | null } = {},
+  ): Promise<FeedItem[]> => {
+    const params = new URLSearchParams()
+    if (options.limit !== undefined) params.set('limit', String(options.limit))
+    if (options.minScore !== undefined) params.set('min_score', String(options.minScore))
+    if (options.excludeStatus !== undefined && options.excludeStatus !== null) {
+      params.set('exclude_status', options.excludeStatus)
+    } else if (options.excludeStatus === null) {
+      params.set('exclude_status', '')
+    }
+    const qs = params.toString()
+    return request(`/api/jobs/feed${qs ? `?${qs}` : ''}`)
+  },
+
+  postJobAction: (
+    jobId: number,
+    action: JobAction,
+  ): Promise<{ job_id: number; status: JobActionStatus }> =>
+    request(`/api/jobs/${jobId}/action`, {
+      method: 'POST',
+      body: JSON.stringify({ action }),
+    }),
 }

@@ -1,10 +1,79 @@
 # Current Phase
 
-**Phase 3 — Profile setup, CV upload + parse, onboarding wizard —
-implementation complete; PR #3 open.**
+**Phase 4 — Job ingestion, scoring pipeline, ranked feed —
+implementation complete on `main`. First end-to-end demo milestone.**
 
-PR: https://github.com/bene1106/hired/pull/3
-Spec: `.claude/specs/PHASE_3_profile.md`
+Spec: `.claude/specs/PHASE_4_jobs.md`
+ADR: `docs/adr/0006-crawler-fragility.md` (manual URL paste = primary path)
+
+## Phase 4 — completed checklist
+
+- [x] Migration `0004_phase4_jobs_scoring.py` adds `remote_policy`,
+  `salary_min`, `salary_max`, `currency` to `jobs`, and a
+  `profile_version` integer to `profile` (mirrored on `job_scores`)
+  so cached scores invalidate automatically when the profile is edited.
+- [x] `backend/crawler/`: `JobSource` ABC + `RawJob` shape; primary
+  `ManualURLSource` (httpx + BeautifulSoup, JSON-LD `JobPosting` first
+  with Open Graph fallback); experimental `LinkedInSource` (Playwright,
+  raises `LinkedInUnavailable` so callers fall back); `service.crawl()`
+  orchestrator handles dedup on `(source, source_id)` and persistence.
+- [x] `services/profile_mapper.py` converts DB rows to `llm.types`
+  shapes (Profile, Job) so the scoring/eval/feed paths share one
+  conversion.
+- [x] `services/scoring_service.py` reads cached scores at the current
+  `profile_version`, scores misses through a 5-thread pool, and persists
+  one row per (profile_version, job_id). Profile updates and CV
+  re-uploads bump `profile_version`.
+- [x] `services/crawl_progress.py` — bounded in-process registry; the
+  status endpoint reads from it. Resets on backend restart (documented
+  constraint, MVP-acceptable).
+- [x] `POST /api/jobs/crawl` (BackgroundTasks), `GET /api/jobs/crawl/
+  status/{job_id}`, `GET /api/jobs/feed` (filter + min-score + exclude
+  status), `POST /api/jobs/{id}/action` (apply/save/skip → upsert
+  Application row).
+- [x] Frontend: `frontend/src/feed/{FeedScreen,JobCard}.tsx` replaces
+  the Phase 3 "no jobs yet" main shell. Inline crawl panel with a
+  multiline URL paste box and a clear "LinkedIn scraping is unreliable"
+  notice; status polls every 1.5s until done; filter row toggles
+  All/Saved/Applied/Skipped; cards render score badges (green ≥75 /
+  yellow ≥50 / gray) plus skill chips and action buttons.
+- [x] `eval/goldset.json` expanded from 3 → 20 entries (4 SWE, 3 data,
+  3 design, 3 PM, 3 marketing+sales, 4 borderline — location, salary,
+  partial skill, visa).
+- [x] `eval/run_eval.py` reports in-range rate, MAE, precision@5, and
+  must-mention coverage; `eval/bias_audit.py` swaps each candidate's
+  name to a paired alternative and flags any pair with >10pt variance.
+  Both default to the `app_config` provider with `--provider` override.
+- [x] `Makefile` at repo root with `eval`, `bias-audit`, `backend-test`,
+  `frontend-test`, and `test` targets (PROVIDER=mock|anthropic_api).
+- [x] Backend tests: 122 passing + 1 integration skipped. Frontend
+  tests: 18 passing including five new FeedScreen/JobCard tests.
+- [x] CHANGELOG updated.
+- [x] ADR-0006 records the manual-URL-first decision.
+
+## Phase 4 — scope notes / deferrals logged
+
+- **Live LinkedIn scraping** works against today's DOM but is fragile
+  by design. The UI calls it out explicitly. The default crawl source
+  is `manual_url`; LinkedIn is a `?source=linkedin` opt-in.
+- **Background-task progress** lives in an in-process dict that resets
+  on backend restart. We intentionally did not persist it. If a real
+  user reports lost progress, persistence is a small change in
+  `services/crawl_progress.py`.
+- **Scoring concurrency** is a 5-worker thread pool, well below any
+  Anthropic rate limit at the 20-job MVP scale. Phase 6 may revisit if
+  we add larger crawls.
+- **Eval against `MockProvider`** is structurally meaningful (the
+  harness runs and computes metrics) but the numbers are not — the mock
+  returns 75 for everything. Real evaluation runs require
+  `make eval PROVIDER=anthropic_api` with a configured API key.
+- **End-to-end `pnpm tauri dev`** smoke test is left to the human
+  reviewer; backend + frontend tests are green and the in-process
+  TestClient round-trip exercises the full Crawl → Score → Feed →
+  Action flow against a fresh SQLite per test.
+
+PR for Phase 3 (kept here for context): https://github.com/bene1106/hired/pull/3
+Spec for Phase 3: `.claude/specs/PHASE_3_profile.md`
 
 ## Phase 3 — completed checklist
 

@@ -153,6 +153,14 @@ class TestMockProvider:
         assert isinstance(feedback, AnswerFeedback)
         assert feedback.what_to_improve  # min_length=1 enforced by the model
 
+    def test_summarize_role_returns_two_paragraphs(self, sample_job: Job) -> None:
+        provider = MockProvider()
+        summary = provider.summarize_role(sample_job)
+        assert isinstance(summary, str)
+        # Two paragraphs separated by exactly one blank line.
+        assert summary.count("\n\n") == 1
+        assert sample_job.title in summary
+
     def test_set_response_overrides_method(self, sample_profile: Profile, sample_job: Job) -> None:
         provider = MockProvider()
         custom = ScoreResult(score=42, rationale="Test override.")
@@ -451,6 +459,12 @@ class TestAnthropicAPIAdapter:
         adapter = _make_adapter(response_text='{"name": "Alex", "skills": []}')
         result = adapter.parse_cv("...")
         assert result["name"] == "Alex"
+
+    def test_summarize_role_returns_stripped_plain_text(self, sample_job: Job) -> None:
+        text = "Para one.\n\nPara two.\n"
+        adapter = _make_adapter(response_text=text)
+        result = adapter.summarize_role(sample_job)
+        assert result == "Para one.\n\nPara two."
 
     def test_translates_authentication_error(
         self, sample_profile: Profile, sample_job: Job

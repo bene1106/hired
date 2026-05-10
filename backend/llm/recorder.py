@@ -83,6 +83,9 @@ class RecordingProvider:
             "evaluate_answer", lambda: self._inner.evaluate_answer(question, answer)
         )
 
+    def summarize_role(self, job: Job) -> str:
+        return self._record("summarize_role", lambda: self._inner.summarize_role(job))
+
     def _record(self, method: str, call: Callable[[], T]) -> T:
         # Clear any stale usage left over from a previous call so we never
         # attribute one method's tokens to another.

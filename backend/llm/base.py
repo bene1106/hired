@@ -1,9 +1,9 @@
 """LLMProvider Protocol — the contract the rest of the app talks to.
 
 Business logic ALWAYS depends on this interface, never on a concrete adapter.
-Two implementations ship in Phase 2: MockProvider (deterministic, default in
-tests) and AnthropicAPIAdapter. Phase 6 adds ClaudeCodeAdapter and
-OllamaAdapter — they only need to satisfy this Protocol.
+Phase 2 shipped MockProvider + AnthropicAPIAdapter. Phase 6 adds
+ClaudeCodeAdapter and OllamaAdapter, plus ``summarize_role`` so the
+interview-prep view can show a synthesized 2-paragraph role explanation.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ from .types import (
 
 @runtime_checkable
 class LLMProvider(Protocol):
-    """Every LLM adapter implements these seven methods."""
+    """Every LLM adapter implements these eight methods."""
 
     def parse_cv(self, cv_text: str) -> dict:
         """Extract a structured profile dict from raw CV text."""
@@ -51,6 +51,10 @@ class LLMProvider(Protocol):
 
     def evaluate_answer(self, question: str, answer: str) -> AnswerFeedback:
         """Give feedback on a candidate's answer to a practice question."""
+        ...
+
+    def summarize_role(self, job: Job) -> str:
+        """Two-paragraph plain-text summary of what the role actually involves."""
         ...
 
 

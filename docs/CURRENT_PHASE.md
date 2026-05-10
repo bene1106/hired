@@ -1,9 +1,15 @@
 # Current Phase
 
-**Phase 6 — Multi-provider, packaging & polish — implementation
-complete on `feat/phase-6-multi-provider`. v1.0 RC. PR pending.**
+**Phase 6 complete; v1.0.0 release pipeline live.**
 
-Branch: `feat/phase-6-multi-provider`
+The MVP is feature-complete across all six phases. Track A
+(multi-provider), Track B (packaging), and Track C (polish) all
+landed on `feat/phase-6-multi-provider`. The first `v*` tag push
+exercises `.github/workflows/release.yml`, which builds installers
+for macOS / Linux / Windows via PyInstaller + tauri-action and
+uploads them to a draft GitHub release.
+
+Branch: `feat/phase-6-multi-provider` (merged → main after PR)
 Spec: `.claude/specs/PHASE_6_polish.md`
 
 ## Phase 6 — completed checklist

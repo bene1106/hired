@@ -12,11 +12,20 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
+
+def _prompts_dir() -> Path:
+    """Resolve the prompts directory, matching the PyInstaller bundle layout."""
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS) / "prompts"
+    return Path(__file__).parent.parent / "prompts"
+
+
+PROMPTS_DIR = _prompts_dir()
 
 
 @dataclass

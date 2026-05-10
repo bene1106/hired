@@ -61,6 +61,11 @@ Cargo.lock.bak
 src-tauri/target/
 src-tauri/gen/
 src-tauri/WixTools/
+src-tauri/binaries/
+
+# PyInstaller artifacts (rebuilt per platform from backend/hired-sidecar.spec)
+backend/build/
+backend/dist/
 
 # ─────────────────────────────────────────────
 #  OS

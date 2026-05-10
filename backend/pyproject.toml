@@ -33,6 +33,9 @@ dev = [
     "pytest-asyncio>=0.24",
     "pytest-cov>=6.0",
     "ruff>=0.8",
+    # Phase 6: bundle the FastAPI sidecar into a single binary that
+    # Tauri can ship as an externalBin per platform.
+    "pyinstaller>=6.10",
 ]
 
 [tool.uv]

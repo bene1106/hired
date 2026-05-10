@@ -37,6 +37,7 @@
     ],
     "android": {
       "debugApplicationIdSuffix": ".debug"
-    }
+    },
+    "externalBin": ["binaries/hired-sidecar"]
   }
 }

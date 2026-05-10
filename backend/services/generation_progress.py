@@ -50,9 +50,7 @@ class _ProgressRegistry:
 
     def create(self, application_id: int) -> GenerationProgress:
         with self._lock:
-            entry = GenerationProgress(
-                task_id=uuid.uuid4().hex, application_id=application_id
-            )
+            entry = GenerationProgress(task_id=uuid.uuid4().hex, application_id=application_id)
             self._entries[entry.task_id] = entry
             while len(self._entries) > _MAX_ENTRIES:
                 self._entries.popitem(last=False)

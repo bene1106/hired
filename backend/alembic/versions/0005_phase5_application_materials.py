@@ -91,9 +91,7 @@ def downgrade() -> None:
     op.drop_index("ix_practice_attempts_application_id", table_name="practice_attempts")
     op.drop_table("practice_attempts")
     op.drop_table("company_briefs")
-    op.drop_index(
-        "ix_application_materials_application_type", table_name="application_materials"
-    )
+    op.drop_index("ix_application_materials_application_type", table_name="application_materials")
     with op.batch_alter_table("application_materials") as batch_op:
         batch_op.drop_column("profile_version")
         batch_op.drop_column("source_meta_json")

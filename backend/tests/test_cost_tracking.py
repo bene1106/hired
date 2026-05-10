@@ -79,11 +79,7 @@ def test_recording_provider_persists_token_counts() -> None:
     recorder.score_job(_profile(), _job())
 
     with get_session() as session:
-        row = (
-            session.query(ProviderCallLog)
-            .order_by(ProviderCallLog.id.desc())
-            .first()
-        )
+        row = session.query(ProviderCallLog).order_by(ProviderCallLog.id.desc()).first()
     assert row is not None
     assert row.tokens_in == 300
     assert row.tokens_out == 80

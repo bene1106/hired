@@ -104,9 +104,7 @@ class Application(Base):
 
 class ApplicationMaterial(Base):
     __tablename__ = "application_materials"
-    __table_args__ = (
-        Index("ix_application_materials_application_type", "application_id", "type"),
-    )
+    __table_args__ = (Index("ix_application_materials_application_type", "application_id", "type"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     application_id: Mapped[int] = mapped_column(
@@ -132,9 +130,7 @@ class CompanyBrief(Base):
     """Cached company research keyed by case-insensitive company name."""
 
     __tablename__ = "company_briefs"
-    __table_args__ = (
-        UniqueConstraint("company_lower", name="uq_company_briefs_company_lower"),
-    )
+    __table_args__ = (UniqueConstraint("company_lower", name="uq_company_briefs_company_lower"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     company_lower: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -147,9 +143,7 @@ class CompanyBrief(Base):
 
 class PracticeAttempt(Base):
     __tablename__ = "practice_attempts"
-    __table_args__ = (
-        Index("ix_practice_attempts_application_id", "application_id"),
-    )
+    __table_args__ = (Index("ix_practice_attempts_application_id", "application_id"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     application_id: Mapped[int] = mapped_column(

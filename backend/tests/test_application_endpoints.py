@@ -171,9 +171,7 @@ def test_regenerate_returns_fresh_material(mock_provider: MockProvider) -> None:
     started = client.post(f"/api/applications/{job_id}").json()
     app_id = started["application_id"]
 
-    res = client.post(
-        f"/api/applications/{app_id}/materials/cover_letter/regenerate"
-    )
+    res = client.post(f"/api/applications/{app_id}/materials/cover_letter/regenerate")
     assert res.status_code == 200
     body = res.json()
     assert body["type"] == "cover_letter"
@@ -369,7 +367,5 @@ def test_data_wipe_clears_company_briefs_and_practice(
     materials = client.get(f"/api/applications/{app_id_after}/materials").json()
     assert materials["company_brief"] is not None
 
-    attempts = client.get(
-        f"/api/applications/{app_id_after}/interview/attempts"
-    ).json()
+    attempts = client.get(f"/api/applications/{app_id_after}/interview/attempts").json()
     assert attempts == []

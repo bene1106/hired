@@ -33,8 +33,10 @@ from sqlalchemy import desc, func, select
 from db.models import (
     Application,
     ApplicationMaterial,
-    CompanyBrief as CompanyBriefRow,
     Job,
+)
+from db.models import (
+    CompanyBrief as CompanyBriefRow,
 )
 from db.models import Profile as ProfileRow
 from db.session import get_session
@@ -96,9 +98,7 @@ def generate_application_materials(
 
     # ----- Step 1: company brief --------------------------------------------------
     brief: CompanyBrief
-    if "company_brief" not in force and company and (
-        cached := _load_company_brief_cache(company)
-    ):
+    if "company_brief" not in force and company and (cached := _load_company_brief_cache(company)):
         brief = cached
         _set_step(task_id, "company_brief", "cached")
     elif not company:
@@ -196,9 +196,7 @@ def regenerate_material(
     generate_application_materials(provider, application_id, force=(material_type,))
     view = get_latest_material(application_id, material_type)
     if view is None:
-        raise ApplicationServiceError(
-            f"Regeneration succeeded but {material_type} row is missing."
-        )
+        raise ApplicationServiceError(f"Regeneration succeeded but {material_type} row is missing.")
     return view
 
 
@@ -225,9 +223,7 @@ def get_or_create_application(job_id: int) -> Application:
         return application
 
 
-def get_latest_material(
-    application_id: int, material_type: MaterialType
-) -> MaterialView | None:
+def get_latest_material(application_id: int, material_type: MaterialType) -> MaterialView | None:
     with get_session() as session:
         row = session.execute(
             select(ApplicationMaterial)

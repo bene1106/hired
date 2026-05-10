@@ -105,7 +105,7 @@ class MaterialResponse(BaseModel):
     edit_count: int
 
     @classmethod
-    def from_view(cls, view: MaterialView) -> "MaterialResponse":
+    def from_view(cls, view: MaterialView) -> MaterialResponse:
         return cls(
             type=view.type,
             content=view.content,
@@ -244,7 +244,9 @@ def regenerate(
         raise HTTPException(status_code=400, detail=f"Unknown material type '{material_type}'.")
     try:
         generate_application_materials(
-            provider, application_id, force=(material_type,)  # type: ignore[arg-type]
+            provider,
+            application_id,
+            force=(material_type,),  # type: ignore[arg-type]
         )
     except ApplicationServiceError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -283,7 +285,9 @@ def edit_material(
     _require_application(application_id)
     try:
         view = save_material_edit(
-            application_id, material_type, payload.content  # type: ignore[arg-type]
+            application_id,
+            material_type,
+            payload.content,  # type: ignore[arg-type]
         )
     except ApplicationServiceError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

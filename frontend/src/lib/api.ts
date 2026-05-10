@@ -1,15 +1,26 @@
 import type {
+  ApplicationDetail,
+  ApplicationStatus,
+  ApplicationSummary,
   CVParseResponse,
+  CostSummary,
   CrawlRequest,
   CrawlResponse,
   CrawlStatus,
   FeedItem,
+  GenerationStatus,
+  InterviewQuestionBundle,
   JobAction,
   JobActionStatus,
+  MaterialType,
+  MaterialView,
+  MaterialsBundle,
+  PracticeAttempt,
   ProfileResponse,
   ProfileUpdate,
   ProviderDetectionResult,
   ProviderId,
+  StartGenerationResponse,
   TestProviderResult,
 } from './types'
 
@@ -131,4 +142,68 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ action }),
     }),
+
+  startGeneration: (jobId: number): Promise<StartGenerationResponse> =>
+    request(`/api/applications/${jobId}`, { method: 'POST' }),
+
+  getGenerationStatus: (applicationId: number, taskId: string): Promise<GenerationStatus> =>
+    request(`/api/applications/${applicationId}/generation/${taskId}`),
+
+  getMaterials: (applicationId: number): Promise<MaterialsBundle> =>
+    request(`/api/applications/${applicationId}/materials`),
+
+  saveMaterial: (
+    applicationId: number,
+    type: MaterialType,
+    content: string,
+  ): Promise<MaterialView> =>
+    request(`/api/applications/${applicationId}/materials/${type}`, {
+      method: 'PUT',
+      body: JSON.stringify({ content }),
+    }),
+
+  regenerateMaterial: (applicationId: number, type: MaterialType): Promise<MaterialView> =>
+    request(`/api/applications/${applicationId}/materials/${type}/regenerate`, {
+      method: 'POST',
+    }),
+
+  listApplications: (status?: ApplicationStatus): Promise<ApplicationSummary[]> => {
+    const qs = status ? `?status=${encodeURIComponent(status)}` : ''
+    return request(`/api/applications${qs}`)
+  },
+
+  getApplication: (applicationId: number): Promise<ApplicationDetail> =>
+    request(`/api/applications/${applicationId}`),
+
+  updateApplicationStatus: (
+    applicationId: number,
+    status: ApplicationStatus,
+    notes?: string | null,
+  ): Promise<ApplicationSummary> =>
+    request(`/api/applications/${applicationId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status, notes: notes ?? null }),
+    }),
+
+  getInterviewQuestions: (
+    applicationId: number,
+    options: { refresh?: boolean } = {},
+  ): Promise<InterviewQuestionBundle> => {
+    const qs = options.refresh ? '?refresh=true' : ''
+    return request(`/api/applications/${applicationId}/interview/questions${qs}`)
+  },
+
+  submitPracticeAnswer: (
+    applicationId: number,
+    payload: { question: string; category: string | null; answer: string },
+  ): Promise<PracticeAttempt> =>
+    request(`/api/applications/${applicationId}/interview/practice`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  listPracticeAttempts: (applicationId: number): Promise<PracticeAttempt[]> =>
+    request(`/api/applications/${applicationId}/interview/attempts`),
+
+  getCostSummary: (): Promise<CostSummary> => request('/api/stats/cost'),
 }

@@ -22,9 +22,11 @@ from db.models import (
     AppConfig,
     Application,
     ApplicationMaterial,
+    CompanyBrief,
     InterviewSession,
     Job,
     JobScore,
+    PracticeAttempt,
     Profile,
     ProviderCallLog,
 )
@@ -40,11 +42,13 @@ router = APIRouter(prefix="/api", tags=["data"])
 # Order matters: child rows before parents, even with ON DELETE CASCADE,
 # so the DELETE statements remain straightforward to reason about.
 _TABLES_IN_DELETE_ORDER = (
+    PracticeAttempt,
     InterviewSession,
     ApplicationMaterial,
     Application,
     JobScore,
     Job,
+    CompanyBrief,
     Profile,
     ProviderCallLog,
 )

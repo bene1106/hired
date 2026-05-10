@@ -8,6 +8,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Phase 5 — Application materials, dashboard & interview prep: clicking
+  **Apply** on a feed job now opens a dedicated generation page that
+  triggers a background pipeline producing three artefacts in sequence
+  (company brief → CV tailoring → cover letter). A side-by-side
+  textarea + react-markdown preview lets the user edit the cover
+  letter inline; every save appends a new `application_materials` row
+  and the visible edit count tracks revisions since generation. **Mark
+  applied** flips the application to `applied` and lands on the new
+  Dashboard, a filterable/sortable table over the full status union
+  (`saved | applied | skipped | interview | offer | rejected`). The
+  detail view exposes status transitions (with optional rejection
+  notes) and a tabbed Interview Prep panel with a categorised question
+  bank (technical / behavioural / role-specific / company-fit), a
+  practice mode that calls `LLMProvider.evaluate_answer`, and a
+  "✓ Practiced" indicator backed by the new `practice_attempts` table.
+  Two layered caches keep generation cheap: company briefs are keyed
+  by `lower(company)` (three jobs at the same company → one research
+  call) and CV tailoring + cover letters fall out of cache when
+  `profile_version` bumps. Settings gains a Cost panel that handles
+  every provider label — real cents for `anthropic_api`,
+  `$0.00 (subscription)` for the upcoming Claude Code adapter,
+  `$0.00 (local)` for Ollama, and an em-dash for `mock`. To support
+  this, `AnthropicAPIAdapter` now publishes `response.usage` through a
+  new `llm.usage` contextvar so `RecordingProvider` can persist
+  `tokens_in` / `tokens_out` per call. Migration `0005` adds
+  `source_meta_json` and `profile_version` to `application_materials`,
+  the `company_briefs` cache table, and the `practice_attempts`
+  history table. The synthesised "role explanation" from spec §5.6 is
+  deferred to Phase 6; the interview view renders the existing job
+  description as the role context to keep the `LLMProvider` Protocol
+  stable.
 - Phase 4 — Job ingestion & ranked feed: clicking **Crawl** opens an
   inline panel where the user pastes job URLs (one per line); the
   backend fetches each URL, extracts metadata via JSON-LD (`JobPosting`

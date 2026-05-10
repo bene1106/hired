@@ -15,10 +15,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api import VERSION
 from api.health import router as health_router
+from api.routes.applications import router as applications_router
 from api.routes.data import router as data_router
 from api.routes.jobs import router as jobs_router
 from api.routes.profile import router as profile_router
 from api.routes.setup import router as setup_router
+from api.routes.stats import router as stats_router
 from db.migrations import run_migrations
 
 
@@ -45,4 +47,6 @@ app.include_router(health_router)
 app.include_router(setup_router)
 app.include_router(profile_router)
 app.include_router(jobs_router)
+app.include_router(applications_router)
+app.include_router(stats_router)
 app.include_router(data_router)

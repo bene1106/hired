@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { api } from '@/lib/api'
-import type { ProfileResponse } from '@/lib/types'
+import type { CostSummary, ProfileResponse } from '@/lib/types'
 
 // Phase 3 Settings: enough to satisfy the spec's acceptance criteria —
 // see the active provider, walk back through the wizard to switch it,
@@ -16,12 +16,17 @@ export function SettingsScreen() {
   const [profile, setProfile] = useState<ProfileResponse | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [cost, setCost] = useState<CostSummary | null>(null)
 
   useEffect(() => {
     api
       .getProfile()
       .then(setProfile)
       .catch(() => setProfile(null))
+    api
+      .getCostSummary()
+      .then(setCost)
+      .catch(() => setCost(null))
   }, [])
 
   async function handleWipe() {
@@ -88,6 +93,22 @@ export function SettingsScreen() {
           </CardContent>
         </Card>
 
+        <Card data-testid="cost-panel">
+          <CardHeader>
+            <CardTitle>Cost</CardTitle>
+            <CardDescription>
+              Token spend on generation calls. Local providers cost nothing per request.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2 text-sm">
+            {cost === null ? (
+              <p className="text-muted-foreground">Loading…</p>
+            ) : (
+              <CostDisplay cost={cost} />
+            )}
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>Delete everything</CardTitle>
@@ -124,4 +145,55 @@ export function SettingsScreen() {
       </div>
     </main>
   )
+}
+
+function CostDisplay({ cost }: { cost: CostSummary }) {
+  if (cost.label === 'subscription') {
+    return (
+      <div>
+        <p className="font-medium">$0.00 (subscription)</p>
+        <p className="text-xs text-muted-foreground">
+          {cost.calls_today} calls today · {cost.calls_week} this week. Claude Code is billed via
+          your Claude.ai plan.
+        </p>
+      </div>
+    )
+  }
+  if (cost.label === 'local') {
+    return (
+      <div>
+        <p className="font-medium">$0.00 (local)</p>
+        <p className="text-xs text-muted-foreground">
+          {cost.calls_today} calls today · {cost.calls_week} this week. Ollama runs on your
+          hardware.
+        </p>
+      </div>
+    )
+  }
+  if (cost.label === 'unknown') {
+    return (
+      <div>
+        <p className="font-medium">—</p>
+        <p className="text-xs text-muted-foreground">
+          {cost.calls_today} calls today · {cost.calls_week} this week. The mock provider
+          doesn&rsquo;t produce token counts.
+        </p>
+      </div>
+    )
+  }
+  return (
+    <div>
+      <p className="font-medium">
+        Today: {formatUsd(cost.today_usd)} · This week: {formatUsd(cost.week_usd)}
+      </p>
+      <p className="text-xs text-muted-foreground">
+        {cost.calls_today} calls today · {cost.calls_week} this week
+      </p>
+    </div>
+  )
+}
+
+function formatUsd(value: number | null): string {
+  if (value === null) return '—'
+  return `$${value.toFixed(2)}`
 }

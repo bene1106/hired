@@ -1,11 +1,20 @@
 import { http, HttpResponse } from 'msw'
 
 import type {
+  ApplicationDetail,
+  ApplicationStatus,
+  ApplicationSummary,
   CVParseResponse,
+  CostSummary,
   CrawlStatus,
   FeedItem,
+  GenerationStatus,
+  InterviewQuestionBundle,
   JobAction,
   JobActionStatus,
+  MaterialView,
+  MaterialsBundle,
+  PracticeAttempt,
   ProfileResponse,
   ProviderDetectionResult,
   TestProviderResult,
@@ -17,6 +26,19 @@ const BACKEND = 'http://localhost:8765'
 // Tests can mutate via `setMockState({...})` to drive specific scenarios.
 // `resetMockState()` is called by handlers in beforeEach (test/setup.ts).
 
+interface ApplicationRow {
+  id: number
+  job_id: number
+  title: string
+  company: string | null
+  location: string | null
+  url: string | null
+  status: ApplicationStatus
+  applied_at: string | null
+  notes: string | null
+  materials: MaterialsBundle
+}
+
 interface MockState {
   detect: ProviderDetectionResult
   testProvider: TestProviderResult
@@ -24,6 +46,12 @@ interface MockState {
   cvParse: CVParseResponse
   feed: FeedItem[]
   crawl: CrawlStatus | null
+  applications: ApplicationRow[]
+  generationByTask: Record<string, GenerationStatus>
+  interviewQuestions: Record<number, InterviewQuestionBundle>
+  practiceAttempts: Record<number, PracticeAttempt[]>
+  cost: CostSummary
+  generationCallCount: Record<number, number>
 }
 
 const defaultState = (): MockState => ({
@@ -36,6 +64,19 @@ const defaultState = (): MockState => ({
   profile: null,
   feed: [],
   crawl: null,
+  applications: [],
+  generationByTask: {},
+  interviewQuestions: {},
+  practiceAttempts: {},
+  cost: {
+    provider: 'mock',
+    label: 'unknown',
+    today_usd: null,
+    week_usd: null,
+    calls_today: 0,
+    calls_week: 0,
+  },
+  generationCallCount: {},
   cvParse: {
     parsed: {
       name: 'Alex K.',
@@ -182,4 +223,288 @@ export const handlers = [
     }
     return HttpResponse.json({ job_id: jobId, status: newStatus })
   }),
+
+  // ----- Phase 5 application generation ------------------------------------
+
+  http.post<{ jobId: string }>(`${BACKEND}/api/applications/:jobId`, ({ params }) => {
+    const jobId = Number(params.jobId)
+    const feedItem = state.feed.find((item) => item.job_id === jobId)
+    let row = state.applications.find((a) => a.job_id === jobId)
+    if (!row) {
+      row = {
+        id: state.applications.length + 1,
+        job_id: jobId,
+        title: feedItem?.title ?? `Job ${jobId}`,
+        company: feedItem?.company ?? `Company ${jobId}`,
+        location: feedItem?.location ?? null,
+        url: feedItem?.url ?? null,
+        status: 'saved',
+        applied_at: null,
+        notes: null,
+        materials: {
+          application_id: state.applications.length + 1,
+          company_brief: makeMaterial('company_brief', `# ${feedItem?.company ?? 'Mock'} brief`),
+          cv_suggestions: makeMaterial(
+            'cv_suggestions',
+            '## CV tailoring\n\n- Emphasise FastAPI experience.',
+          ),
+          cover_letter: makeMaterial('cover_letter', 'Dear hiring team,\n\nI would love to apply.'),
+        },
+      }
+      state = { ...state, applications: [...state.applications, row] }
+    }
+    const taskId = `task-${row.id}-${Date.now()}`
+    const status: GenerationStatus = {
+      task_id: taskId,
+      application_id: row.id,
+      state: 'done',
+      company_brief: 'done',
+      cv_suggestions: 'done',
+      cover_letter: 'done',
+      error: null,
+    }
+    state = {
+      ...state,
+      generationByTask: { ...state.generationByTask, [taskId]: status },
+      generationCallCount: {
+        ...state.generationCallCount,
+        [jobId]: (state.generationCallCount[jobId] ?? 0) + 1,
+      },
+    }
+    return HttpResponse.json({ application_id: row.id, task_id: taskId })
+  }),
+
+  http.get(`${BACKEND}/api/applications/:applicationId/generation/:taskId`, ({ params }) => {
+    const status = state.generationByTask[String(params.taskId)]
+    if (!status) {
+      return HttpResponse.json({ detail: 'Unknown generation task.' }, { status: 404 })
+    }
+    return HttpResponse.json(status)
+  }),
+
+  http.get(`${BACKEND}/api/applications/:applicationId/materials`, ({ params }) => {
+    const id = Number(params.applicationId)
+    const row = state.applications.find((a) => a.id === id)
+    if (!row) {
+      return HttpResponse.json({ detail: 'Unknown application.' }, { status: 404 })
+    }
+    return HttpResponse.json(row.materials)
+  }),
+
+  http.put(
+    `${BACKEND}/api/applications/:applicationId/materials/:materialType`,
+    async ({ params, request }) => {
+      const id = Number(params.applicationId)
+      const type = String(params.materialType) as keyof Pick<
+        MaterialsBundle,
+        'company_brief' | 'cv_suggestions' | 'cover_letter'
+      >
+      const body = (await request.json()) as { content: string }
+      const row = state.applications.find((a) => a.id === id)
+      if (!row) {
+        return HttpResponse.json({ detail: 'Unknown application.' }, { status: 404 })
+      }
+      const previous = row.materials[type]
+      const updated: MaterialView = {
+        type,
+        content: body.content,
+        source_meta: previous?.source_meta ?? null,
+        created_at: new Date().toISOString(),
+        edit_count: (previous?.edit_count ?? 0) + 1,
+      }
+      const newRow: ApplicationRow = {
+        ...row,
+        materials: { ...row.materials, [type]: updated },
+      }
+      state = {
+        ...state,
+        applications: state.applications.map((a) => (a.id === id ? newRow : a)),
+      }
+      return HttpResponse.json(updated)
+    },
+  ),
+
+  http.post(
+    `${BACKEND}/api/applications/:applicationId/materials/:materialType/regenerate`,
+    ({ params }) => {
+      const id = Number(params.applicationId)
+      const type = String(params.materialType) as keyof Pick<
+        MaterialsBundle,
+        'company_brief' | 'cv_suggestions' | 'cover_letter'
+      >
+      const row = state.applications.find((a) => a.id === id)
+      if (!row) {
+        return HttpResponse.json({ detail: 'Unknown application.' }, { status: 404 })
+      }
+      const fresh: MaterialView = {
+        type,
+        content: `Regenerated ${type} for ${row.company ?? 'Company'}.`,
+        source_meta: null,
+        created_at: new Date().toISOString(),
+        edit_count: 0,
+      }
+      const newRow: ApplicationRow = {
+        ...row,
+        materials: { ...row.materials, [type]: fresh },
+      }
+      state = {
+        ...state,
+        applications: state.applications.map((a) => (a.id === id ? newRow : a)),
+      }
+      return HttpResponse.json(fresh)
+    },
+  ),
+
+  http.get(`${BACKEND}/api/applications`, ({ request }) => {
+    const url = new URL(request.url)
+    const status = url.searchParams.get('status')
+    const filtered = status
+      ? state.applications.filter((a) => a.status === status)
+      : state.applications
+    const summaries: ApplicationSummary[] = filtered.map((a) => ({
+      id: a.id,
+      job_id: a.job_id,
+      title: a.title,
+      company: a.company,
+      location: a.location,
+      url: a.url,
+      status: a.status,
+      applied_at: a.applied_at,
+      notes: a.notes,
+    }))
+    return HttpResponse.json(summaries)
+  }),
+
+  http.get(`${BACKEND}/api/applications/:applicationId`, ({ params }) => {
+    const id = Number(params.applicationId)
+    const row = state.applications.find((a) => a.id === id)
+    if (!row) {
+      return HttpResponse.json({ detail: 'Unknown application.' }, { status: 404 })
+    }
+    const detail: ApplicationDetail = {
+      id: row.id,
+      status: row.status,
+      applied_at: row.applied_at,
+      notes: row.notes,
+      job: {
+        title: row.title,
+        company: row.company,
+        location: row.location,
+        url: row.url,
+        description: 'Build APIs.',
+      },
+      materials: row.materials,
+    }
+    return HttpResponse.json(detail)
+  }),
+
+  http.put(`${BACKEND}/api/applications/:applicationId/status`, async ({ params, request }) => {
+    const id = Number(params.applicationId)
+    const body = (await request.json()) as { status: ApplicationStatus; notes: string | null }
+    const row = state.applications.find((a) => a.id === id)
+    if (!row) {
+      return HttpResponse.json({ detail: 'Unknown application.' }, { status: 404 })
+    }
+    const updated: ApplicationRow = {
+      ...row,
+      status: body.status,
+      notes: body.notes ?? row.notes,
+      applied_at:
+        body.status === 'applied' && row.applied_at === null
+          ? new Date().toISOString()
+          : row.applied_at,
+    }
+    state = {
+      ...state,
+      applications: state.applications.map((a) => (a.id === id ? updated : a)),
+    }
+    return HttpResponse.json({
+      id: updated.id,
+      job_id: updated.job_id,
+      title: updated.title,
+      company: updated.company,
+      location: updated.location,
+      url: updated.url,
+      status: updated.status,
+      applied_at: updated.applied_at,
+      notes: updated.notes,
+    })
+  }),
+
+  http.get(`${BACKEND}/api/applications/:applicationId/interview/questions`, ({ params }) => {
+    const id = Number(params.applicationId)
+    const cached = state.interviewQuestions[id]
+    if (cached) return HttpResponse.json(cached)
+    const bundle: InterviewQuestionBundle = {
+      application_id: id,
+      questions: [
+        {
+          category: 'behavioral',
+          question: 'Tell me about a tough debugging session.',
+          what_theyre_assessing: 'Problem solving',
+          difficulty: 'standard',
+        },
+        {
+          category: 'technical',
+          question: 'How would you design an idempotent endpoint?',
+          what_theyre_assessing: 'API design',
+          difficulty: 'standard',
+        },
+      ],
+      role_context: 'Build Python APIs.',
+    }
+    state = {
+      ...state,
+      interviewQuestions: { ...state.interviewQuestions, [id]: bundle },
+    }
+    return HttpResponse.json(bundle)
+  }),
+
+  http.post(
+    `${BACKEND}/api/applications/:applicationId/interview/practice`,
+    async ({ params, request }) => {
+      const id = Number(params.applicationId)
+      const body = (await request.json()) as {
+        question: string
+        category: string | null
+        answer: string
+      }
+      const attempt: PracticeAttempt = {
+        id: Date.now(),
+        question: body.question,
+        category: body.category,
+        answer: body.answer,
+        feedback: {
+          what_worked: ['Clear structure'],
+          what_to_improve: [{ issue: 'Could be more specific', fix: 'Add a metric.' }],
+          sample_stronger_answer: 'Stronger version stub.',
+          off_topic: false,
+        },
+        created_at: new Date().toISOString(),
+      }
+      const list = state.practiceAttempts[id] ?? []
+      state = {
+        ...state,
+        practiceAttempts: { ...state.practiceAttempts, [id]: [attempt, ...list] },
+      }
+      return HttpResponse.json(attempt)
+    },
+  ),
+
+  http.get(`${BACKEND}/api/applications/:applicationId/interview/attempts`, ({ params }) => {
+    const id = Number(params.applicationId)
+    return HttpResponse.json(state.practiceAttempts[id] ?? [])
+  }),
+
+  http.get(`${BACKEND}/api/stats/cost`, () => HttpResponse.json(state.cost)),
 ]
+
+function makeMaterial(type: MaterialView['type'], content: string): MaterialView {
+  return {
+    type,
+    content,
+    source_meta: null,
+    created_at: new Date().toISOString(),
+    edit_count: 0,
+  }
+}

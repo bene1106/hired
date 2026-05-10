@@ -1,10 +1,87 @@
 # Current Phase
 
-**Phase 4 — Job ingestion, scoring pipeline, ranked feed —
-implementation complete; PR #5 open. First end-to-end demo milestone.**
+**Phase 5 — Application materials, dashboard & interview prep —
+implementation complete on `feat/phase-5-applications`. MVP feature-
+complete. PR pending.**
 
-PR: https://github.com/bene1106/hired/pull/5
-Spec: `.claude/specs/PHASE_4_jobs.md`
+Branch: `feat/phase-5-applications`
+Spec: `.claude/specs/PHASE_5_applications.md`
+
+## Phase 5 — completed checklist
+
+- [x] Migration `0005_phase5_application_materials.py` adds
+  `source_meta_json` and `profile_version` to `application_materials`,
+  creates the `company_briefs` cache table (case-insensitive unique
+  `company_lower`), and the `practice_attempts` history table.
+- [x] `services/application_service.py` orchestrates the three-step
+  apply pipeline (research → tailor CV → cover letter) with two
+  layered caches: company briefs keyed by `lower(company)` (three
+  jobs at the same company → one research call) and CV tailoring +
+  cover letters keyed by `(application_id, type, profile_version)`
+  so a profile bump forces re-generation.
+- [x] `services/generation_progress.py` mirrors `crawl_progress` —
+  per-task in-process state, sequentially marking each step
+  `running` → `done | cached | error`.
+- [x] `api/routes/applications.py` exposes 11 endpoints powering the
+  apply / dashboard / interview-prep flows; status accepts the union
+  `saved | applied | skipped | interview | offer | rejected`.
+- [x] `llm/usage.py` adds a contextvar seam; `AnthropicAPIAdapter`
+  publishes `response.usage` and `RecordingProvider` persists
+  `tokens_in` / `tokens_out` to `provider_call_log`.
+- [x] `services/pricing.py` carries per-model USD/Mtok rates and
+  returns `None` for unknown models so the UI shows "—".
+- [x] `services/cost_service.py` rolls up today + this-week totals
+  with explicit labels (`priced` / `subscription` / `local` /
+  `unknown`).
+- [x] `GET /api/stats/cost` and `/api/stats/provider` expose the
+  rollups; the cost endpoint substitutes the right label so the
+  frontend doesn't need per-provider semantics.
+- [x] Frontend `applications/GeneratePage.tsx` triggers generation,
+  polls progress, reveals each section as it lands, and supports
+  inline cover-letter editing with a side-by-side textarea +
+  react-markdown preview. "Mark applied" flips status and lands on
+  the dashboard.
+- [x] `applications/Dashboard.tsx` renders a filterable, sortable
+  table with status pills.
+- [x] `applications/ApplicationDetail.tsx` composes materials view +
+  status transitions + an interview-prep tab.
+- [x] `applications/InterviewPrep.tsx` groups the cached question
+  bank by category, runs practice mode against
+  `LLMProvider.evaluate_answer`, and marks practiced questions.
+- [x] Settings gains a Cost panel handling every provider label
+  with the right copy.
+- [x] FeedScreen `Apply` now navigates to `/app/apply/:jobId`; status
+  transitions live in the generation flow / dashboard.
+- [x] msw handlers cover every Phase 5 endpoint.
+- [x] Backend tests: 168 passing + 1 integration skipped (43 new for
+  Phase 5: 13 application-service, 17 application endpoints, 13
+  cost tracking). Frontend tests: 32 passing including 14 new for
+  Phase 5 screens.
+- [x] CHANGELOG updated.
+
+## Phase 5 — scope notes / deferrals logged
+
+- **Synthesised role explanation** (§5.6, "2 paragraphs synthesized
+  from job description, one LLM call, cached") deferred to Phase 6.
+  Adding `LLMProvider.summarize_role` would force every adapter to
+  grow a method mid-phase; the interview view renders the existing
+  job description as the role context instead. Documented inline in
+  `api/routes/applications.py`.
+- **Pricing rates** in `services/pricing.py` are placeholders for
+  Anthropic's published rates as of Jan 2026; update the dict when
+  rates change. Unknown models return `None` so the UI safely shows
+  an em-dash.
+- **End-to-end `pnpm tauri dev`** smoke test is left to the human
+  reviewer; backend + frontend tests are green and the in-process
+  TestClient round-trip exercises the full Apply → Generate →
+  Edit → Mark applied → Dashboard → Interview-prep flow.
+- **Generation progress** lives in the same kind of in-process dict
+  as crawl progress and resets on backend restart. Acceptable for
+  MVP; promote to a persisted table if a real user reports lost
+  progress mid-generation.
+
+PR for Phase 4 (kept here for context): https://github.com/bene1106/hired/pull/5
+Spec for Phase 4: `.claude/specs/PHASE_4_jobs.md`
 ADR: `docs/adr/0006-crawler-fragility.md` (manual URL paste = primary path)
 
 ## Phase 4 — completed checklist

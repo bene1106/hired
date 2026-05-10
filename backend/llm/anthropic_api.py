@@ -45,6 +45,7 @@ from .types import (
     Profile,
     ScoreResult,
 )
+from .usage import TokenUsage, record_usage
 
 logger = logging.getLogger(__name__)
 
@@ -195,6 +196,7 @@ class AnthropicAPIAdapter:
         except anthropic.APIError as e:
             raise LLMResponseError(f"Anthropic API error: {e}") from e
 
+        _record_usage_from_response(response)
         return _extract_text(response)
 
 
@@ -203,6 +205,27 @@ class AnthropicAPIAdapter:
 # ---------------------------------------------------------------------------
 
 _FENCED_JSON_RE = re.compile(r"```(?:json)?\s*\n(.*?)\n```", re.DOTALL)
+
+
+def _record_usage_from_response(response: Any) -> None:
+    """Publish token usage from a Messages response so RecordingProvider sees it."""
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        return
+    record_usage(
+        TokenUsage(
+            input_tokens=_optional_int(getattr(usage, "input_tokens", None)),
+            output_tokens=_optional_int(getattr(usage, "output_tokens", None)),
+        )
+    )
+
+
+def _optional_int(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    return None
 
 
 def _extract_text(response: Any) -> str:

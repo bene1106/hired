@@ -5,11 +5,14 @@ For every method call we measure wall-clock latency and append a row to
 them) but the recording itself is best-effort: a DB error during the log
 write is logged-and-ignored so observability never breaks the user flow.
 
-The Settings UI later reads this table to render "calls today / latency".
+The Settings UI later reads this table to render "calls today / latency"
+and the per-call token / cost rollups added in Phase 5.
 
-Token usage (``tokens_in``/``tokens_out``) is left ``None`` in Phase 3 —
-the Anthropic SDK exposes ``response.usage`` but threading it through the
-adapter is a Phase 4/6 concern.
+Token usage flows through ``llm.usage``: the adapter publishes the
+response's input/output token counts via ``record_usage`` immediately
+after the API call returns, and this wrapper consumes them in
+``_record``. Adapters that don't publish usage (Mock, Ollama) simply
+record ``None`` for both columns, which is what we want.
 """
 
 from __future__ import annotations
@@ -33,6 +36,7 @@ from .types import (
     Profile,
     ScoreResult,
 )
+from .usage import consume_usage
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +84,9 @@ class RecordingProvider:
         )
 
     def _record(self, method: str, call: Callable[[], T]) -> T:
+        # Clear any stale usage left over from a previous call so we never
+        # attribute one method's tokens to another.
+        consume_usage()
         started = time.perf_counter()
         success = True
         error_type: str | None = None
@@ -95,12 +102,15 @@ class RecordingProvider:
             raise
         finally:
             latency_ms = int((time.perf_counter() - started) * 1000)
+            usage = consume_usage()
             _safe_insert_log(
                 provider=self._provider_name,
                 method=method,
                 latency_ms=latency_ms,
                 success=success,
                 error_type=error_type,
+                tokens_in=usage.input_tokens if usage else None,
+                tokens_out=usage.output_tokens if usage else None,
             )
 
 
@@ -111,6 +121,8 @@ def _safe_insert_log(
     latency_ms: int,
     success: bool,
     error_type: str | None,
+    tokens_in: int | None,
+    tokens_out: int | None,
 ) -> None:
     """Insert one row. Best-effort: DB errors are logged, never raised."""
     try:
@@ -121,6 +133,8 @@ def _safe_insert_log(
                 latency_ms=latency_ms,
                 success=success,
                 error_type=error_type,
+                tokens_in=tokens_in,
+                tokens_out=tokens_out,
             )
             session.add(row)
             session.commit()

@@ -183,8 +183,7 @@ def test_summarize_role_strips_whitespace(monkeypatch: pytest.MonkeyPatch) -> No
 
 def test_research_company_extracts_sources(monkeypatch: pytest.MonkeyPatch) -> None:
     markdown = (
-        "## What they do\nstuff\n"
-        "## Sources\n- https://acme.example/a\n- https://news.example/b\n"
+        "## What they do\nstuff\n## Sources\n- https://acme.example/a\n- https://news.example/b\n"
     )
     runner = _success_run({"result": markdown})
     adapter = _adapter(monkeypatch, runner)

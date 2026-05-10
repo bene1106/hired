@@ -418,9 +418,7 @@ def get_interview_questions(
     )
 
 
-def _safe_summarize_role(
-    provider: LLMProvider, llm_job, *, fallback: str | None
-) -> str | None:
+def _safe_summarize_role(provider: LLMProvider, llm_job, *, fallback: str | None) -> str | None:
     """Summarize the role; fall back to the raw description if the call fails."""
     try:
         summary = provider.summarize_role(llm_job)

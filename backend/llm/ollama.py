@@ -204,9 +204,7 @@ class OllamaAdapter:
             # Ollama returns 404 with body like
             # {"error":"model 'qwen2.5:14b' not found, try pulling it first"}.
             message = _safe_error_message(response, default="not found")
-            raise LLMResponseError(
-                f"Model '{self.model}' not available locally. {message}"
-            )
+            raise LLMResponseError(f"Model '{self.model}' not available locally. {message}")
         if response.status_code >= 400:
             message = _safe_error_message(response, default=str(response.status_code))
             raise LLMResponseError(f"Ollama returned {response.status_code}: {message}")

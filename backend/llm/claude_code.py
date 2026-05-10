@@ -206,9 +206,7 @@ class ClaudeCodeAdapter:
                 check=False,
             )
         except subprocess.TimeoutExpired as exc:
-            raise LLMNetworkError(
-                f"claude CLI timed out after {self._timeout_s:.0f}s."
-            ) from exc
+            raise LLMNetworkError(f"claude CLI timed out after {self._timeout_s:.0f}s.") from exc
         except OSError as exc:
             raise LLMNetworkError(f"Failed to launch claude CLI: {exc}") from exc
 
@@ -246,10 +244,7 @@ def _flatten_for_single_turn(rendered: RenderedPrompt) -> str:
     blocks: list[str] = []
     for example in rendered.examples:
         blocks.append(
-            "Example input:\n"
-            f"{example.input_text}\n\n"
-            "Example output:\n"
-            f"{example.output_text}"
+            f"Example input:\n{example.input_text}\n\nExample output:\n{example.output_text}"
         )
     blocks.append(rendered.user)
     return "\n\n---\n\n".join(blocks)
@@ -270,9 +265,7 @@ def _extract_result_text(stdout: str) -> str:
         raise LLMResponseError(f"claude CLI stdout was not JSON: {exc}") from exc
 
     if not isinstance(payload, dict):
-        raise LLMResponseError(
-            f"claude CLI returned non-object JSON: {type(payload).__name__}"
-        )
+        raise LLMResponseError(f"claude CLI returned non-object JSON: {type(payload).__name__}")
 
     if payload.get("is_error") is True:
         message = payload.get("error") or payload.get("result") or "<no message>"

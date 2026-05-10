@@ -236,6 +236,42 @@ class TestProviderFactory:
         assert isinstance(provider.inner, AnthropicAPIAdapter)
         assert provider.inner.model == "claude-opus-4-7"
 
+    def test_factory_builds_claude_code_adapter_when_configured(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from llm.claude_code import ClaudeCodeAdapter
+
+        run_migrations()
+        with get_session() as session:
+            session.execute(
+                update(AppConfig).where(AppConfig.key == "provider").values(value="claude_code")
+            )
+            session.commit()
+
+        monkeypatch.setattr("llm.claude_code.shutil.which", lambda _name: "/fake/claude")
+        provider = get_provider()
+        assert isinstance(provider, RecordingProvider)
+        assert isinstance(provider.inner, ClaudeCodeAdapter)
+
+    def test_factory_builds_ollama_adapter_when_configured(self) -> None:
+        from llm.ollama import OllamaAdapter
+
+        run_migrations()
+        with get_session() as session:
+            session.execute(
+                update(AppConfig).where(AppConfig.key == "provider").values(value="ollama")
+            )
+            session.execute(
+                update(AppConfig).where(AppConfig.key == "model").values(value="llama3.2:3b")
+            )
+            session.commit()
+
+        provider = get_provider()
+        assert isinstance(provider, RecordingProvider)
+        assert isinstance(provider.inner, OllamaAdapter)
+        assert provider.inner.model == "llama3.2:3b"
+        provider.inner.close()
+
 
 # ---------------------------------------------------------------------------
 # Typed-output Pydantic validation

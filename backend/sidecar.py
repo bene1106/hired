@@ -28,7 +28,6 @@ renames it with a Tauri target-triple suffix before copying it into
 from __future__ import annotations
 
 import os
-import sys
 
 
 def main() -> int:

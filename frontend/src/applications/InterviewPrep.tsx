@@ -80,10 +80,18 @@ export function InterviewPrep({ applicationId }: InterviewPrepProps) {
   }
 
   if (error) {
-    return <p className="text-sm text-destructive">{error}</p>
+    return (
+      <p role="alert" className="text-sm text-destructive">
+        {error}
+      </p>
+    )
   }
   if (bundle === null) {
-    return <p className="text-sm text-muted-foreground">Loading interview prep…</p>
+    return (
+      <p className="text-sm text-muted-foreground" aria-live="polite">
+        Loading interview prep…
+      </p>
+    )
   }
 
   const grouped = groupByCategory(bundle.questions)

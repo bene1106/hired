@@ -15,7 +15,7 @@ interface ProviderCardProps {
   id: ProviderId
   title: string
   subtitle: string
-  badge: string | null
+  badges: Array<{ label: string; variant?: 'secondary' | 'destructive' | 'default' }>
   disabled: boolean
   selected: boolean
   onSelect: () => void
@@ -26,7 +26,7 @@ function ProviderCard({
   id,
   title,
   subtitle,
-  badge,
+  badges,
   disabled,
   selected,
   onSelect,
@@ -48,9 +48,15 @@ function ProviderCard({
       }
     >
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-base">{title}</CardTitle>
-          {badge !== null && <Badge variant="secondary">{badge}</Badge>}
+          <div className="flex items-center gap-1">
+            {badges.map((b) => (
+              <Badge key={b.label} variant={b.variant ?? 'secondary'}>
+                {b.label}
+              </Badge>
+            ))}
+          </div>
         </div>
         <CardDescription>{subtitle}</CardDescription>
       </CardHeader>
@@ -67,6 +73,7 @@ export function ProviderStep() {
   const [detectionError, setDetectionError] = useState<string | null>(null)
   const [selected, setSelected] = useState<ProviderId | null>(onboarding.selectedProvider)
   const [apiKeyInput, setApiKeyInput] = useState<string>('')
+  const [ollamaModel, setOllamaModel] = useState<string>('qwen2.5:14b')
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'ok' | 'error'>('idle')
   const [testMessage, setTestMessage] = useState<string | null>(null)
 
@@ -101,11 +108,11 @@ export function ProviderStep() {
 
   const apiHasKey = detection.anthropic_api.key_in_env || detection.anthropic_api.key_in_keychain
 
-  async function runTest(provider: ProviderId, key: string | null) {
+  async function runTest(provider: ProviderId, key: string | null, model: string | null) {
     setTestStatus('testing')
     setTestMessage(null)
     try {
-      const result = await api.testProvider(provider, key ?? undefined)
+      const result = await api.testProvider(provider, key ?? undefined, model ?? undefined)
       if (result.ok) {
         setTestStatus('ok')
         setTestMessage(`Connected (${result.latency_ms} ms).`)
@@ -126,22 +133,30 @@ export function ProviderStep() {
     if (provider !== 'anthropic_api') {
       setApiKeyInput('')
     }
+    // Pick a sensible default if Ollama is the choice and the user has
+    // models installed. We prefer the recommended model, falling back to
+    // whatever's first in the detected list.
+    if (provider === 'ollama' && detection?.ollama.models.length) {
+      const preferred = detection.ollama.models.find((m) => m === 'qwen2.5:14b')
+      setOllamaModel(preferred ?? detection.ollama.models[0])
+    }
   }
 
   function canContinue(): boolean {
     if (selected === null) return false
-    if (selected === 'anthropic_api') return testStatus === 'ok'
-    return selected === 'mock'
+    if (selected === 'mock') return true
+    return testStatus === 'ok'
   }
 
   async function continueToCV() {
     if (selected === null) return
     const apiKey = selected === 'anthropic_api' ? apiKeyInput.trim() || null : null
+    const model = selected === 'ollama' ? ollamaModel : null
     onboarding.setProvider(selected, apiKey)
     setTestStatus('testing')
     setTestMessage(null)
     try {
-      await api.selectProvider(selected, apiKey ?? undefined)
+      await api.selectProvider(selected, apiKey, model)
       navigate('/onboarding/cv')
     } catch (err) {
       setTestStatus('error')
@@ -154,8 +169,8 @@ export function ProviderStep() {
       <CardHeader>
         <CardTitle>Pick an LLM provider</CardTitle>
         <CardDescription>
-          Hired. supports several backends. The Anthropic API is the most reliable; the others are
-          coming in v0.6.
+          Hired. supports several backends. The Anthropic API is the most reliable; Claude Code and
+          Ollama are both fully supported alternatives.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -164,7 +179,7 @@ export function ProviderStep() {
             id="anthropic_api"
             title="Anthropic API"
             subtitle="Recommended. Highest quality. Pay-per-use."
-            badge={apiHasKey ? 'Key found' : null}
+            badges={apiHasKey ? [{ label: 'Key found' }] : []}
             disabled={false}
             selected={selected === 'anthropic_api'}
             onSelect={() => pick('anthropic_api')}
@@ -190,7 +205,7 @@ export function ProviderStep() {
                     variant="outline"
                     size="sm"
                     disabled={testStatus === 'testing' || (!apiHasKey && apiKeyInput.length < 5)}
-                    onClick={() => runTest('anthropic_api', apiKeyInput || null)}
+                    onClick={() => runTest('anthropic_api', apiKeyInput || null, null)}
                   >
                     {testStatus === 'testing' ? 'Testing…' : 'Test connection'}
                   </Button>
@@ -211,34 +226,116 @@ export function ProviderStep() {
           <ProviderCard
             id="claude_code"
             title="Claude Code"
-            subtitle="Use the Claude CLI on your machine. Coming in v0.6."
-            badge={
+            subtitle="Use the local Claude CLI. Calls count against your Claude subscription."
+            badges={[
+              { label: 'Experimental', variant: 'destructive' },
               detection.claude_code.detected
-                ? `Detected${detection.claude_code.version ? ` (${detection.claude_code.version})` : ''}`
-                : 'Not installed'
-            }
-            disabled
-            selected={false}
-            onSelect={() => undefined}
-          />
+                ? {
+                    label: `Detected${
+                      detection.claude_code.version ? ` (${detection.claude_code.version})` : ''
+                    }`,
+                  }
+                : { label: 'Not installed' },
+            ]}
+            disabled={!detection.claude_code.detected}
+            selected={selected === 'claude_code'}
+            onSelect={() => pick('claude_code')}
+          >
+            {selected === 'claude_code' && (
+              <div className="flex flex-col gap-2">
+                <p className="text-xs text-muted-foreground">
+                  Hired. shells out to your local <code>claude</code> CLI. Usage counts against your
+                  Claude.ai subscription. Subject to Anthropic&rsquo;s terms.
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={testStatus === 'testing'}
+                    onClick={() => runTest('claude_code', null, null)}
+                  >
+                    {testStatus === 'testing' ? 'Testing…' : 'Test CLI'}
+                  </Button>
+                  {testMessage !== null && (
+                    <span
+                      className={
+                        'text-xs ' + (testStatus === 'ok' ? 'text-foreground' : 'text-destructive')
+                      }
+                    >
+                      {testMessage}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </ProviderCard>
 
           <ProviderCard
             id="ollama"
-            title="Ollama"
-            subtitle="Fully offline. Coming in v0.6."
-            badge={
-              detection.ollama.detected ? `${detection.ollama.models.length} models` : 'Not running'
-            }
-            disabled
-            selected={false}
-            onSelect={() => undefined}
-          />
+            title="Ollama (local)"
+            subtitle="Fully offline. Runs on your hardware; quality depends on the chosen model."
+            badges={[
+              detection.ollama.detected
+                ? { label: `${detection.ollama.models.length} models` }
+                : { label: 'Not running' },
+            ]}
+            disabled={!detection.ollama.detected}
+            selected={selected === 'ollama'}
+            onSelect={() => pick('ollama')}
+          >
+            {selected === 'ollama' && (
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="ollama-model">Model</Label>
+                <select
+                  id="ollama-model"
+                  value={ollamaModel}
+                  onChange={(e) => setOllamaModel(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                >
+                  {detection.ollama.models.length === 0 ? (
+                    <option value="qwen2.5:14b">qwen2.5:14b (not pulled)</option>
+                  ) : (
+                    detection.ollama.models.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))
+                  )}
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  Recommended: <code>qwen2.5:14b</code>. Low-end fallback: <code>llama3.2:3b</code>.
+                  Generation may take up to 90s per call locally.
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={testStatus === 'testing'}
+                    onClick={() => runTest('ollama', null, ollamaModel)}
+                  >
+                    {testStatus === 'testing' ? 'Testing…' : 'Test connection'}
+                  </Button>
+                  {testMessage !== null && (
+                    <span
+                      className={
+                        'text-xs ' + (testStatus === 'ok' ? 'text-foreground' : 'text-destructive')
+                      }
+                    >
+                      {testMessage}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </ProviderCard>
 
           <ProviderCard
             id="mock"
             title="Mock (offline demo)"
             subtitle="Deterministic stubs. Useful for trying out the app without an API key."
-            badge="Always available"
+            badges={[{ label: 'Always available' }]}
             disabled={false}
             selected={selected === 'mock'}
             onSelect={() => pick('mock')}

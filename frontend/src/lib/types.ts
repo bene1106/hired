@@ -31,6 +31,8 @@ export type TestProviderErrorKind =
   | 'rate_limited'
   | 'network_error'
   | 'bad_response'
+  | 'model_unavailable'
+  | 'binary_missing'
   | 'unknown'
   | 'unsupported_provider'
 
@@ -39,6 +41,27 @@ export interface TestProviderResult {
   latency_ms: number
   error: string | null
   error_kind: TestProviderErrorKind | null
+}
+
+export interface ProviderMetadata {
+  name: ProviderId
+  label: string
+  is_experimental: boolean
+  requires_api_key: boolean
+  default_model: string | null
+}
+
+export interface ProviderStats {
+  provider: ProviderId
+  last_latency_ms: number | null
+  last_success: boolean | null
+  calls_today: number
+  success_rate_today: number | null
+}
+
+export interface SelectProviderResponse {
+  provider: ProviderId
+  model: string | null
 }
 
 export interface CVParsedJson {

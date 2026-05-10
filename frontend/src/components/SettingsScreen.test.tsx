@@ -114,6 +114,44 @@ describe('SettingsScreen', () => {
     expect(await screen.findByText('$0.00 (local)')).toBeInTheDocument()
   })
 
+  it('shows live provider status with latency and call count', async () => {
+    setMockState({
+      providerStats: {
+        provider: 'anthropic_api',
+        last_latency_ms: 187,
+        last_success: true,
+        calls_today: 12,
+        success_rate_today: 1.0,
+      },
+    })
+
+    renderSettings()
+
+    const panel = await screen.findByTestId('provider-panel')
+    expect(panel).toHaveTextContent(/Currently using: Anthropic API/)
+    expect(panel).toHaveTextContent(/Healthy/)
+    expect(panel).toHaveTextContent(/187 ms/)
+    expect(panel).toHaveTextContent(/12 calls today/)
+  })
+
+  it('flags claude_code as Experimental in the provider status panel', async () => {
+    setMockState({
+      providerStats: {
+        provider: 'claude_code',
+        last_latency_ms: 1500,
+        last_success: true,
+        calls_today: 3,
+        success_rate_today: 1.0,
+      },
+    })
+
+    renderSettings()
+
+    const panel = await screen.findByTestId('provider-panel')
+    expect(panel).toHaveTextContent(/Claude Code/)
+    expect(panel).toHaveTextContent(/Experimental/)
+  })
+
   it('asks for confirmation before deleting everything and then bounces to the gate', async () => {
     const user = userEvent.setup()
     setMockState({

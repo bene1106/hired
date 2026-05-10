@@ -41,6 +41,60 @@ describe('ProviderStep', () => {
     expect(screen.getByTestId('provider-card-ollama')).toHaveAttribute('aria-disabled', 'true')
   })
 
+  it('shows an Experimental badge on the Claude Code card', async () => {
+    renderStep()
+    await waitFor(() => screen.getByTestId('provider-card-claude_code'))
+
+    const card = screen.getByTestId('provider-card-claude_code')
+    expect(card).toHaveTextContent(/experimental/i)
+  })
+
+  it('enables Claude Code selection when the CLI is detected', async () => {
+    setMockState({
+      detect: {
+        anthropic_api: { key_in_env: false, key_in_keychain: false },
+        claude_code: { detected: true, path: '/usr/local/bin/claude', version: 'claude 2.0.0' },
+        ollama: { detected: false, models: [] },
+      },
+    })
+    const user = userEvent.setup()
+    renderStep()
+
+    await waitFor(() => screen.getByTestId('provider-card-claude_code'))
+    expect(screen.getByTestId('provider-card-claude_code')).toHaveAttribute(
+      'aria-disabled',
+      'false',
+    )
+
+    await user.click(screen.getByTestId('provider-card-claude_code'))
+    // Continue stays gated on a successful test.
+    expect(screen.getByRole('button', { name: /continue/i })).toBeDisabled()
+
+    await user.click(screen.getByRole('button', { name: /test cli/i }))
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /continue/i })).not.toBeDisabled(),
+    )
+  })
+
+  it('lists the user’s installed Ollama models in the dropdown', async () => {
+    setMockState({
+      detect: {
+        anthropic_api: { key_in_env: false, key_in_keychain: false },
+        claude_code: { detected: false, path: null, version: null },
+        ollama: { detected: true, models: ['qwen2.5:14b', 'llama3.2:3b'] },
+      },
+    })
+    const user = userEvent.setup()
+    renderStep()
+
+    await waitFor(() => screen.getByTestId('provider-card-ollama'))
+    await user.click(screen.getByTestId('provider-card-ollama'))
+
+    const select = screen.getByLabelText(/model/i) as HTMLSelectElement
+    const options = Array.from(select.querySelectorAll('option')).map((o) => o.value)
+    expect(options).toEqual(['qwen2.5:14b', 'llama3.2:3b'])
+  })
+
   it('lets the user pick mock and continue without testing the API', async () => {
     const user = userEvent.setup()
     renderStep()

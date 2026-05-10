@@ -17,6 +17,8 @@ import type {
   PracticeAttempt,
   ProfileResponse,
   ProviderDetectionResult,
+  ProviderMetadata,
+  ProviderStats,
   TestProviderResult,
 } from '@/lib/types'
 
@@ -52,6 +54,8 @@ interface MockState {
   practiceAttempts: Record<number, PracticeAttempt[]>
   cost: CostSummary
   generationCallCount: Record<number, number>
+  providerMetadata: ProviderMetadata[]
+  providerStats: ProviderStats
 }
 
 const defaultState = (): MockState => ({
@@ -77,6 +81,43 @@ const defaultState = (): MockState => ({
     calls_week: 0,
   },
   generationCallCount: {},
+  providerMetadata: [
+    {
+      name: 'anthropic_api',
+      label: 'Anthropic API',
+      is_experimental: false,
+      requires_api_key: true,
+      default_model: 'claude-opus-4-7',
+    },
+    {
+      name: 'claude_code',
+      label: 'Claude Code',
+      is_experimental: true,
+      requires_api_key: false,
+      default_model: null,
+    },
+    {
+      name: 'ollama',
+      label: 'Ollama (local)',
+      is_experimental: false,
+      requires_api_key: false,
+      default_model: 'qwen2.5:14b',
+    },
+    {
+      name: 'mock',
+      label: 'Mock (dev only)',
+      is_experimental: false,
+      requires_api_key: false,
+      default_model: null,
+    },
+  ],
+  providerStats: {
+    provider: 'mock',
+    last_latency_ms: null,
+    last_success: null,
+    calls_today: 0,
+    success_rate_today: null,
+  },
   cvParse: {
     parsed: {
       name: 'Alex K.',
@@ -122,12 +163,22 @@ export function getMockState(): MockState {
 export const handlers = [
   http.post(`${BACKEND}/api/setup/detect-providers`, () => HttpResponse.json(state.detect)),
 
+  http.get(`${BACKEND}/api/setup/providers`, () => HttpResponse.json(state.providerMetadata)),
+
   http.post(`${BACKEND}/api/setup/test-provider`, () => HttpResponse.json(state.testProvider)),
 
   http.post(`${BACKEND}/api/setup/select-provider`, async ({ request }) => {
-    const body = (await request.json()) as { provider: string }
-    return HttpResponse.json({ provider: body.provider })
+    const body = (await request.json()) as {
+      provider: string
+      model?: string | null
+    }
+    return HttpResponse.json({
+      provider: body.provider,
+      model: body.model ?? null,
+    })
   }),
+
+  http.get(`${BACKEND}/api/stats/provider`, () => HttpResponse.json(state.providerStats)),
 
   http.post(`${BACKEND}/api/profile/cv`, async () => {
     state = { ...state, profile: state.cvParse.profile }

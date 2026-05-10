@@ -140,3 +140,118 @@ export interface FeedItem {
   red_flags: string[]
   status: JobActionStatus | null
 }
+
+// ----- Phase 5 applications, interview prep, cost --------------------------
+
+export type ApplicationStatus = 'saved' | 'applied' | 'skipped' | 'interview' | 'offer' | 'rejected'
+
+export type MaterialType = 'company_brief' | 'cv_suggestions' | 'cover_letter'
+
+export type StepState = 'pending' | 'running' | 'done' | 'error' | 'cached'
+
+export type GenerationState = 'queued' | 'running' | 'done' | 'error'
+
+export interface StartGenerationResponse {
+  application_id: number
+  task_id: string
+}
+
+export interface GenerationStatus {
+  task_id: string
+  application_id: number
+  state: GenerationState
+  company_brief: StepState
+  cv_suggestions: StepState
+  cover_letter: StepState
+  error: string | null
+}
+
+export interface MaterialView {
+  type: MaterialType
+  content: string
+  source_meta: Record<string, unknown> | null
+  created_at: string
+  edit_count: number
+}
+
+export interface MaterialsBundle {
+  application_id: number
+  company_brief: MaterialView | null
+  cv_suggestions: MaterialView | null
+  cover_letter: MaterialView | null
+}
+
+export interface ApplicationSummary {
+  id: number
+  job_id: number
+  title: string
+  company: string | null
+  location: string | null
+  url: string | null
+  status: ApplicationStatus
+  applied_at: string | null
+  notes: string | null
+}
+
+export interface ApplicationDetail {
+  id: number
+  job: {
+    title?: string
+    company?: string | null
+    location?: string | null
+    remote_policy?: string | null
+    salary_range?: string | null
+    description?: string | null
+    url?: string | null
+    posted_at?: string | null
+  }
+  status: ApplicationStatus
+  applied_at: string | null
+  notes: string | null
+  materials: MaterialsBundle
+}
+
+export interface InterviewQuestion {
+  category: string
+  question: string
+  what_theyre_assessing: string | null
+  difficulty: string | null
+}
+
+export interface InterviewQuestionBundle {
+  application_id: number
+  questions: InterviewQuestion[]
+  role_context: string | null
+}
+
+export interface ImprovementNote {
+  issue: string
+  fix: string
+}
+
+export interface PracticeFeedback {
+  what_worked: string[]
+  what_to_improve: ImprovementNote[]
+  sample_stronger_answer: string
+  off_topic: boolean
+}
+
+export interface PracticeAttempt {
+  id: number
+  question: string
+  category: string | null
+  answer: string
+  feedback: PracticeFeedback
+  created_at: string
+}
+
+export type CostLabel = 'priced' | 'subscription' | 'local' | 'unknown'
+
+export interface CostSummary {
+  provider: ProviderId
+  label: CostLabel
+  today_usd: number | null
+  week_usd: number | null
+  calls_today: number
+  calls_week: number
+}

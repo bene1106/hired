@@ -1,5 +1,8 @@
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 
+import { ApplicationDashboard } from '@/applications/Dashboard'
+import { ApplicationDetailScreen } from '@/applications/ApplicationDetail'
+import { GeneratePage } from '@/applications/GeneratePage'
 import { AppGate } from '@/components/AppGate'
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout'
 import { CVStep } from '@/components/onboarding/CVStep'
@@ -10,12 +13,15 @@ import { WelcomeStep } from '@/components/onboarding/WelcomeStep'
 import { SettingsScreen } from '@/components/SettingsScreen'
 import { FeedScreen } from '@/feed/FeedScreen'
 
-// Phase 3 routing.
+// Phase 5 routing.
 //
-//   /              → AppGate decides where to redirect (wizard vs main app)
-//   /onboarding/*  → wizard steps
-//   /app           → main shell ("no jobs yet")
-//   /app/settings  → provider + profile + delete-everything
+//   /                              → AppGate decides where to redirect
+//   /onboarding/*                  → wizard steps
+//   /app                           → ranked feed
+//   /app/apply/:jobId              → generate materials, edit, mark applied
+//   /app/applications              → dashboard table
+//   /app/applications/:id          → detail (materials + interview prep)
+//   /app/settings                  → provider + profile + cost panel
 export function AppRouter() {
   return (
     <Routes>
@@ -30,6 +36,9 @@ export function AppRouter() {
       </Route>
       <Route path="/app" element={<Outlet />}>
         <Route index element={<FeedScreen />} />
+        <Route path="apply/:jobId" element={<GeneratePage />} />
+        <Route path="applications" element={<ApplicationDashboard />} />
+        <Route path="applications/:applicationId" element={<ApplicationDetailScreen />} />
         <Route path="settings" element={<SettingsScreen />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

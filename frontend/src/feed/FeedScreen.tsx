@@ -116,6 +116,12 @@ export function FeedScreen() {
   }
 
   async function handleAction(jobId: number, action: JobAction) {
+    if (action === 'apply') {
+      // Apply jumps straight to the generation flow; the user is the one
+      // who flips status to "applied" later, after editing materials.
+      navigate(`/app/apply/${jobId}`)
+      return
+    }
     setPendingActions((prev) => new Set(prev).add(jobId))
     try {
       await api.postJobAction(jobId, action)
@@ -141,6 +147,9 @@ export function FeedScreen() {
             aria-controls="crawl-panel"
           >
             {crawlOpen ? 'Close crawl' : 'Crawl'}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => navigate('/app/applications')}>
+            Applications
           </Button>
           <Button
             size="icon"

@@ -104,6 +104,9 @@ class Application(Base):
 
 class ApplicationMaterial(Base):
     __tablename__ = "application_materials"
+    __table_args__ = (
+        Index("ix_application_materials_application_type", "application_id", "type"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     application_id: Mapped[int] = mapped_column(
@@ -111,6 +114,51 @@ class ApplicationMaterial(Base):
     )
     type: Mapped[str] = mapped_column(String(32), nullable=False)
     content: Mapped[str | None] = mapped_column(Text)
+    # Citations/URLs surfaced alongside the markdown body (company briefs use
+    # this; cv_suggestions and cover_letter rows leave it null).
+    source_meta_json: Mapped[dict | None] = mapped_column(JSON)
+    # Mirrors profile.profile_version at generation time. CV tailoring and
+    # cover letters fall out of cache when the profile bumps; company briefs
+    # ignore this column (they live in their own table, see CompanyBrief).
+    profile_version: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0", default=0
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
+
+
+class CompanyBrief(Base):
+    """Cached company research keyed by case-insensitive company name."""
+
+    __tablename__ = "company_briefs"
+    __table_args__ = (
+        UniqueConstraint("company_lower", name="uq_company_briefs_company_lower"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    company_lower: Mapped[str] = mapped_column(String(255), nullable=False)
+    markdown: Mapped[str] = mapped_column(Text, nullable=False)
+    sources_json: Mapped[list | None] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
+
+
+class PracticeAttempt(Base):
+    __tablename__ = "practice_attempts"
+    __table_args__ = (
+        Index("ix_practice_attempts_application_id", "application_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    application_id: Mapped[int] = mapped_column(
+        ForeignKey("applications.id", ondelete="CASCADE"), nullable=False
+    )
+    category: Mapped[str | None] = mapped_column(String(32))
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+    answer: Mapped[str] = mapped_column(Text, nullable=False)
+    feedback_json: Mapped[dict | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
     )

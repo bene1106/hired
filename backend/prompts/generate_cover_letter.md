@@ -2,9 +2,9 @@
 
 **Purpose:** Generate a tailored cover letter for a specific role.
 **Used by:** `LLMProvider.generate_cover_letter`
-**Last reviewed:** 2026-04-23
+**Last reviewed:** 2026-05-17
 **Owner:** AI Engineer
-**Version:** 1
+**Version:** 2
 
 ## Provider Notes
 
@@ -33,6 +33,7 @@ Honesty:
 - Only reference experience that is actually in the candidate's CV.
 - If a job requirement isn't met, do not lie. Either skip it or honestly acknowledge eagerness to learn.
 - Do not embellish years of experience or invent skills.
+- Acknowledge gaps neutrally and factually. Do NOT frame the candidate as a burden, cost, downside, or risk to the team. The line is: "I don't have X yet — I'd ramp up on it" (good) vs. "and that's a real cost to the team" / "I'd slow the team down" (bad). Honest is not the same as self-deprecating. State the gap, state the plan to close it, then move on. One sentence per gap, maximum. Never editorialize about what the gap means for the employer.
 
 Output: just the cover letter text. No subject line, no "[Your Name]" placeholder, no greetings beyond the salutation.
 ```
@@ -177,6 +178,74 @@ Best,
 Alex
 ```
 
+### Example 3: Junior applying to a senior role — gap acknowledged, no self-flagellation
+
+This example exists specifically to teach the *stopping point*. The
+candidate has a real, significant gap (student vs. senior role, doesn't
+know the company's stack). The letter names the gap once, states the
+plan, and stops. It never tells the employer the gap is "a cost" or
+that the candidate would "slow the team down" — that editorializing is
+the failure mode this example guards against.
+
+**Input — Profile (excerpt):**
+```
+Skills: Python, JavaScript, SQL. B.Sc. Computer Science (final year).
+Experience: Two internships (8 months total) building internal tools in
+Python/Flask. No Go, no Ruby, no production experience at scale.
+```
+
+**Input — Job:**
+```
+Title: Senior Backend Engineer
+Company: Qonto
+Description: Senior backend engineer, 5+ years. Our stack is Go and Ruby.
+You'll own a payments-adjacent service end to end and set technical
+direction for a squad.
+```
+
+**Input — Company Brief (excerpt):**
+```
+Qonto is a European business-banking platform (~500k SMB customers,
+founded 2016, Paris). Engineering writes publicly about their Go
+migration off a Ruby monolith and their strong incident-review culture.
+```
+
+**Output:**
+```
+Dear Qonto team,
+
+Your public writing about migrating off the Ruby monolith — and being
+candid about what the migration got wrong, not just what it got right —
+is what made me look closer. I want to learn from a team that reviews
+its own incidents in the open.
+
+I'll be direct about where I stand: I'm finishing my B.Sc. and my
+production experience is two internships building internal tools in
+Python and Flask, not five years owning a payments-adjacent service. I
+don't know Go or Ruby yet; I'd ramp up on both, and I learn languages
+quickly once I'm reading real code rather than tutorials. What I can
+point to is the work itself — at my last internship I took a brittle
+manual reconciliation script and turned it into a tested Flask service
+the finance team now relies on daily, including the boring parts:
+retries, idempotency, an audit trail.
+
+I'm not going to pretend the seniority gap isn't real. I'm applying
+because the work is exactly what I want to be doing and I'd rather make
+the case honestly than pad a CV. If there's a more junior opening on
+the same team, I'd be just as glad to talk about that.
+
+Thanks for reading.
+
+Best,
+Sam
+```
+
+Note what the letter does NOT say: it never says the gap is "a real
+cost to the team", never says Sam would "slow the squad down", never
+apologizes for applying. It states the gap as fact, states the plan,
+and redirects to concrete evidence and genuine motivation. That is the
+calibration target.
+
 ## Evaluation Notes
 
 - Reviewed manually against goldset entries `cl-001` through `cl-010`
@@ -190,6 +259,7 @@ Alex
 - **Over-claiming experience**: rare but happens when CV is sparse. Banned-phrase post-processing catches some ("extensive experience", "deep expertise").
 - **Cliché injection**: "passionate about", "team player". Banned-phrase list filters; if hit, regenerate.
 - **Length creep**: model exceeds 350 words ~10% of the time. Post-processor truncates to last full paragraph under 350 words; if that fails, regenerate.
+- **Self-deprecation creep**: when the candidate has a real gap, the model sometimes escalates past honest acknowledgment ("I'd ramp up on Go") into actively framing the candidate as a liability to the employer ("and that's a real cost to the team", "I'd slow the squad down", "I'd be a drain on resources"). Honest ≠ self-flagellating. Mitigated by the explicit honesty rule in the system prompt, Example 3 (which demonstrates the stopping point), and the burden-framing banned phrases. Found in manual testing of a B.Sc. student → senior Qonto role; fixed in v2.
 
 ## Banned Phrases
 
@@ -205,3 +275,5 @@ See `backend/llm/postprocess/banned_phrases.txt` for the full list. Highlights:
 - "perfect fit"
 - "dynamic environment"
 - "fast-paced"
+- "a real cost" / "cost to the team" (burden-framing — acknowledge gaps neutrally instead)
+- "slow the team down" / "drain on resources" (self-deprecation creep)

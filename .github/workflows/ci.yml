@@ -104,8 +104,25 @@ jobs:
     needs: [backend-checks, frontend-checks]
     strategy:
       fail-fast: false
+      # `tauri.conf.json` declares bundle.externalBin: ["binaries/hired-sidecar"],
+      # so EVERY `tauri build` (this gate build too, not just release.yml)
+      # needs the PyInstaller-built sidecar staged with the Rust
+      # target-triple suffix Tauri resolves at bundle time. The triple
+      # must match the host the build runs on:
+      #   ubuntu-latest  → x86_64-unknown-linux-gnu
+      #   macos-latest   → aarch64-apple-darwin (Apple-Silicon runners)
+      #   windows-latest → x86_64-pc-windows-msvc  (+ .exe)
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            target_triple: x86_64-unknown-linux-gnu
+            sidecar_ext: ""
+          - os: macos-latest
+            target_triple: aarch64-apple-darwin
+            sidecar_ext: ""
+          - os: windows-latest
+            target_triple: x86_64-pc-windows-msvc
+            sidecar_ext: ".exe"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -125,11 +142,48 @@ jobs:
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target_triple }}
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install backend deps (incl. pyinstaller)
+        run: uv sync --frozen
+        working-directory: backend
+
+      - name: Build sidecar with PyInstaller
+        run: uv run pyinstaller hired-sidecar.spec --clean --noconfirm
+        working-directory: backend
+
+      - name: Stage sidecar for Tauri (POSIX)
+        if: matrix.os != 'windows-latest'
+        shell: bash
+        run: |
+          mkdir -p src-tauri/binaries
+          cp backend/dist/hired-sidecar${{ matrix.sidecar_ext }} \
+             src-tauri/binaries/hired-sidecar-${{ matrix.target_triple }}${{ matrix.sidecar_ext }}
+          chmod +x src-tauri/binaries/hired-sidecar-${{ matrix.target_triple }}${{ matrix.sidecar_ext }}
+
+      - name: Stage sidecar for Tauri (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path src-tauri/binaries | Out-Null
+          Copy-Item `
+            "backend/dist/hired-sidecar${{ matrix.sidecar_ext }}" `
+            "src-tauri/binaries/hired-sidecar-${{ matrix.target_triple }}${{ matrix.sidecar_ext }}"
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
@@ -151,4 +205,4 @@ jobs:
         working-directory: frontend
 
       - name: Tauri build
-        run: pnpm tauri build
+        run: pnpm tauri build --target ${{ matrix.target_triple }}

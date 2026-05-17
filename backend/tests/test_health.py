@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from api import VERSION
 from api.main import app
 
 
@@ -15,8 +16,10 @@ async def test_health_returns_ok_and_db_connected() -> None:
         response = await client.get("/health")
 
     assert response.status_code == 200
+    # Assert against the package VERSION rather than a hardcoded string so
+    # a version bump doesn't need a test edit (it did for 0.1.1).
     assert response.json() == {
         "status": "ok",
         "db": "connected",
-        "version": "0.1.0",
+        "version": VERSION,
     }

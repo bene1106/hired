@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-05-17
+
+### Fixed
+- **Packaged app could not reach its own backend ("Backend not
+  reachable: Failed to fetch").** The bundled Windows build loads the
+  webview from the `http://tauri.localhost` origin (WebView2), which
+  was not in the FastAPI CORS allowlist — so every in-app request was
+  blocked by the browser even though the sidecar was running and
+  answering on `127.0.0.1:8765` (curl/browser worked, the app didn't).
+  The CORS origin allowlist now also permits `http(s)://tauri.localhost`
+  alongside the existing `tauri://localhost`, loopback, and dev
+  origins. This was invisible in `pnpm tauri dev` because dev serves
+  from `http://localhost:5173`, which was already allowed.
+- **Stale sidecar processes.** The Tauri shell never reaped the spawned
+  sidecar on app exit, so a closed app left `hired-sidecar` (and its
+  PyInstaller child) holding port 8765; the next launch's sidecar then
+  lost the bind race. The shell now kills the sidecar process tree on
+  exit, and a new single-instance guard stops a second launch from
+  spawning a competing sidecar.
+
+### Added (diagnostics)
+- Logging now works in **release** builds, not just `cargo` debug: the
+  Tauri log plugin writes to a file in the OS log dir, the sidecar
+  writes a rotating `~/.hired/logs/sidecar.log` (PID, migration, bind
+  result, and a loud error if it can't bind 8765), the backend logs the
+  inbound `Origin` of every request, and a failed frontend fetch now
+  reports the live webview origin and target URL in its error message.
+
+### Changed
+- Version bumped to `0.1.1` across the Tauri shell, sidecar `/health`,
+  and frontend.
+
 ### Added
 - Phase 6 — Multi-provider, packaging & polish: the `claude_code` and
   `ollama` adapters now ship as first-class options. Onboarding lets

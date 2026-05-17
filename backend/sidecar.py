@@ -27,11 +27,53 @@ renames it with a Tauri target-triple suffix before copying it into
 
 from __future__ import annotations
 
+import logging
+import logging.handlers
 import os
+import sys
+from pathlib import Path
+
+
+def _is_frozen() -> bool:
+    """True when running inside the PyInstaller bundle (vs. ``uv run``)."""
+    return getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS")
+
+
+def _setup_logging() -> Path:
+    """Send sidecar + app logs to ``~/.hired/logs/sidecar.log``.
+
+    A packaged GUI app has no console the user can read, and v0.1.0
+    registered the Tauri log plugin only in debug builds — so a frozen
+    sidecar that crashed or lost the port race left no trace anywhere.
+    A rotating file the user can attach to a bug report fixes that. We
+    also keep a stdout handler: the Tauri shell plugin drains the
+    sidecar's stdout, so these lines reach the Tauri log too.
+    """
+    log_dir = Path.home() / ".hired" / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_path = log_dir / "sidecar.log"
+
+    handlers: list[logging.Handler] = [
+        logging.handlers.RotatingFileHandler(
+            log_path, maxBytes=1_000_000, backupCount=3, encoding="utf-8"
+        ),
+        logging.StreamHandler(sys.stdout),
+    ]
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        handlers=handlers,
+        force=True,  # override any handler uvicorn/imports installed
+    )
+    return log_path
 
 
 def main() -> int:
     import traceback
+
+    log_path = _setup_logging()
+    log = logging.getLogger("hired.sidecar")
+    log.info("sidecar starting pid=%s frozen=%s log=%s", os.getpid(), _is_frozen(), log_path)
 
     import uvicorn
 
@@ -56,28 +98,44 @@ def main() -> int:
     # Doing it up-front means a packaging regression fails loudly with a
     # real traceback on stderr instead of a silent stuck process. The
     # lifespan still calls run_migrations() too; it's idempotent.
-    print("hired-sidecar: applying migrations…", flush=True)
+    log.info("applying migrations…")
     try:
         run_migrations()
     except Exception:  # noqa: BLE001 — surface the real cause, then exit non-zero
-        print("hired-sidecar: migrations FAILED", flush=True)
+        log.exception("migrations FAILED")
         traceback.print_exc()
         return 1
-    print("hired-sidecar: migrations applied", flush=True)
+    log.info("migrations applied")
 
-    # Print READY BEFORE we hand off to uvicorn — the marker needs to
-    # land before the blocking event loop starts. The Tauri readiness
-    # probe (when added) will look for this exact string.
-    print(f"hired-sidecar listening on http://{host}:{port}", flush=True)
+    # Log READY BEFORE we hand off to uvicorn — the marker needs to land
+    # before the blocking event loop starts. The Tauri readiness probe
+    # (when added) will look for this exact string.
+    log.info("hired-sidecar listening on http://%s:%s", host, port)
 
-    uvicorn.run(
-        app,
-        host=host,
-        port=port,
-        log_level=log_level,
-        reload=False,
-        access_log=False,
-    )
+    # Catch the bind failure explicitly. When a previous run's sidecar
+    # was orphaned (Tauri's shell plugin doesn't kill the child on app
+    # exit), a fresh sidecar can't bind 8765 and uvicorn raises
+    # OSError/WinError 10048. v0.1.0 let that exception escape into a
+    # silent non-zero exit with nothing in any log — exactly the
+    # "3 hired-sidecar.exe processes, backend still answers" symptom.
+    # Now it's a loud, attributable log line.
+    try:
+        uvicorn.run(
+            app,
+            host=host,
+            port=port,
+            log_level=log_level,
+            reload=False,
+            access_log=False,
+        )
+    except OSError:
+        log.exception(
+            "could not bind %s:%s — is another hired-sidecar already running?",
+            host,
+            port,
+        )
+        traceback.print_exc()
+        return 1
     return 0
 
 

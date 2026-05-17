@@ -31,24 +31,47 @@ import os
 
 
 def main() -> int:
-    # Defer the uvicorn import so a frozen binary boots fast and so a
-    # syntax error in api.* shows up in the bootloader logs rather than
-    # being lost in import-time noise.
+    import traceback
+
     import uvicorn
+
+    # Import the app OBJECT, not the "api.main:app" string. uvicorn's
+    # string form does a late importlib lookup that PyInstaller's static
+    # analysis can't see, so the frozen binary shipped without the `api`
+    # package and died with `ModuleNotFoundError: No module named 'api'`.
+    # Importing it here makes PyInstaller follow the full graph
+    # (api → routes → services → llm → db). We don't need reload, so
+    # passing the object loses nothing.
+    from api.main import app
+    from db.migrations import run_migrations
 
     host = os.environ.get("HIRED_HOST", "127.0.0.1")
     port = int(os.environ.get("HIRED_PORT", "8765"))
     log_level = os.environ.get("HIRED_LOG_LEVEL", "info")
+
+    # Run migrations HERE rather than relying solely on the FastAPI
+    # lifespan handler. uvicorn swallows a lifespan exception into a
+    # generic "Application startup failed" with no traceback, which made
+    # a frozen-binary migration failure look like an indefinite hang.
+    # Doing it up-front means a packaging regression fails loudly with a
+    # real traceback on stderr instead of a silent stuck process. The
+    # lifespan still calls run_migrations() too; it's idempotent.
+    print("hired-sidecar: applying migrations…", flush=True)
+    try:
+        run_migrations()
+    except Exception:  # noqa: BLE001 — surface the real cause, then exit non-zero
+        print("hired-sidecar: migrations FAILED", flush=True)
+        traceback.print_exc()
+        return 1
+    print("hired-sidecar: migrations applied", flush=True)
 
     # Print READY BEFORE we hand off to uvicorn — the marker needs to
     # land before the blocking event loop starts. The Tauri readiness
     # probe (when added) will look for this exact string.
     print(f"hired-sidecar listening on http://{host}:{port}", flush=True)
 
-    # Importing through the dotted string keeps reload semantics intact
-    # in dev mode; PyInstaller picks up the dependency via hidden imports.
     uvicorn.run(
-        "api.main:app",
+        app,
         host=host,
         port=port,
         log_level=log_level,

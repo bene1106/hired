@@ -13,9 +13,32 @@
 # `llm/prompts.py` already detect the PyInstaller `_MEIPASS` path so no
 # code changes are needed at runtime.
 
-# noqa: F821 — Analysis / PYZ / EXE are PyInstaller spec globals.
+# noqa: F821 — Analysis / PYZ / EXE / collect_submodules are PyInstaller
+# spec globals injected by PyInstaller's exec environment.
+
+from PyInstaller.utils.hooks import collect_submodules
 
 block_cipher = None
+
+# sidecar.py imports `from api.main import app`, so PyInstaller follows
+# api → routes → most of services/llm/db statically. But two graph
+# edges are invisible to static analysis and have to be forced:
+#   1. llm/__init__.py._build_inner_provider() does LAZY imports of the
+#      adapter modules INSIDE the function body (so MockProvider users
+#      don't pay the anthropic SDK import cost). PyInstaller doesn't
+#      follow imports inside function bodies.
+#   2. Alembic walks alembic/versions/ and imports each migration file
+#      dynamically at upgrade() time.
+# collect_submodules() sweeps every one of our app packages so a new
+# route/service/adapter/migration can't silently fall out of the bundle.
+_app_modules = (
+    collect_submodules("api")
+    + collect_submodules("db")
+    + collect_submodules("services")
+    + collect_submodules("llm")
+    + collect_submodules("crawler")
+    + collect_submodules("observability")
+)
 
 a = Analysis(
     ["sidecar.py"],
@@ -27,10 +50,17 @@ a = Analysis(
         ("prompts", "prompts"),
     ],
     hiddenimports=[
-        # uvicorn is imported by string in sidecar.main; PyInstaller's
-        # static analysis can't see the lazy submodules so list them
-        # explicitly. Missing any of these surfaces as a runtime
-        # ImportError after launch — slow to debug, cheap to prevent.
+        *_app_modules,
+        # Adapter modules imported lazily inside llm/__init__.py — named
+        # again here belt-and-suspenders even though collect_submodules
+        # ("llm") already covers them, so the intent is greppable.
+        "llm.anthropic_api",
+        "llm.claude_code",
+        "llm.ollama",
+        # uvicorn selects its loop/protocol/lifespan impls at runtime;
+        # static analysis can't see those. Missing any surfaces as a
+        # runtime ImportError after launch — slow to debug, cheap to
+        # prevent.
         "uvicorn.logging",
         "uvicorn.loops",
         "uvicorn.loops.auto",
@@ -43,8 +73,7 @@ a = Analysis(
         "uvicorn.lifespan.on",
         # Alembic loads migration modules dynamically — it walks the
         # versions/ dir and imports each file. The `datas` entry above
-        # ships them; PyInstaller doesn't need explicit hiddenimports
-        # for them because they're not imported during analysis.
+        # ships the files; these cover Alembic's own runtime machinery.
         "alembic",
         "alembic.config",
         "alembic.runtime.migration",

@@ -42,15 +42,30 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${BACKEND_URL}${path}`, {
-    ...init,
-    headers: {
-      ...(init?.body && !(init.body instanceof FormData)
-        ? { 'Content-Type': 'application/json' }
-        : {}),
-      ...(init?.headers ?? {}),
-    },
-  })
+  const url = `${BACKEND_URL}${path}`
+  let response: Response
+  try {
+    response = await fetch(url, {
+      ...init,
+      headers: {
+        ...(init?.body && !(init.body instanceof FormData)
+          ? { 'Content-Type': 'application/json' }
+          : {}),
+        ...(init?.headers ?? {}),
+      },
+    })
+  } catch (err) {
+    // A network-level failure ("Failed to fetch") is opaque on its own.
+    // The v0.1.0 packaged Windows build hit this because the webview's
+    // origin (`http://tauri.localhost`) wasn't in the backend CORS
+    // allowlist. Embed the live origin + target URL in the message so
+    // the AppGate error screen is itself a diagnostic — readable from a
+    // screenshot, no devtools needed.
+    const origin = typeof window !== 'undefined' ? window.location.origin : '<no window>'
+    const reason = err instanceof Error ? err.message : String(err)
+    console.error('[api] fetch failed', { url, origin, reason })
+    throw new ApiError(0, `Network request failed (origin ${origin} → ${url}): ${reason}`, err)
+  }
 
   if (response.status === 204) {
     return undefined as T

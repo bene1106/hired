@@ -1,6 +1,6 @@
 [package]
 name = "hired"
-version = "0.1.0"
+version = "0.1.1"
 description = "Hired. — local-first AI career agent (Tauri shell)"
 authors = ["Benedict Herrnleben"]
 license = "MIT"
@@ -25,3 +25,6 @@ tauri = { version = "2.11.0", features = [] }
 tauri-plugin-log = "2"
 # Phase 6: spawn the bundled hired-sidecar binary on app start.
 tauri-plugin-shell = "2"
+# v0.1.1 hotfix: guarantee a single app instance so a relaunch never
+# spawns a second sidecar that fights for port 8765.
+tauri-plugin-single-instance = "2"

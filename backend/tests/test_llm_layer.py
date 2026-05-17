@@ -153,6 +153,14 @@ class TestMockProvider:
         assert isinstance(feedback, AnswerFeedback)
         assert feedback.what_to_improve  # min_length=1 enforced by the model
 
+    def test_summarize_role_returns_two_paragraphs(self, sample_job: Job) -> None:
+        provider = MockProvider()
+        summary = provider.summarize_role(sample_job)
+        assert isinstance(summary, str)
+        # Two paragraphs separated by exactly one blank line.
+        assert summary.count("\n\n") == 1
+        assert sample_job.title in summary
+
     def test_set_response_overrides_method(self, sample_profile: Profile, sample_job: Job) -> None:
         provider = MockProvider()
         custom = ScoreResult(score=42, rationale="Test override.")
@@ -227,6 +235,42 @@ class TestProviderFactory:
         assert isinstance(provider, RecordingProvider)
         assert isinstance(provider.inner, AnthropicAPIAdapter)
         assert provider.inner.model == "claude-opus-4-7"
+
+    def test_factory_builds_claude_code_adapter_when_configured(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from llm.claude_code import ClaudeCodeAdapter
+
+        run_migrations()
+        with get_session() as session:
+            session.execute(
+                update(AppConfig).where(AppConfig.key == "provider").values(value="claude_code")
+            )
+            session.commit()
+
+        monkeypatch.setattr("llm.claude_code.shutil.which", lambda _name: "/fake/claude")
+        provider = get_provider()
+        assert isinstance(provider, RecordingProvider)
+        assert isinstance(provider.inner, ClaudeCodeAdapter)
+
+    def test_factory_builds_ollama_adapter_when_configured(self) -> None:
+        from llm.ollama import OllamaAdapter
+
+        run_migrations()
+        with get_session() as session:
+            session.execute(
+                update(AppConfig).where(AppConfig.key == "provider").values(value="ollama")
+            )
+            session.execute(
+                update(AppConfig).where(AppConfig.key == "model").values(value="llama3.2:3b")
+            )
+            session.commit()
+
+        provider = get_provider()
+        assert isinstance(provider, RecordingProvider)
+        assert isinstance(provider.inner, OllamaAdapter)
+        assert provider.inner.model == "llama3.2:3b"
+        provider.inner.close()
 
 
 # ---------------------------------------------------------------------------
@@ -451,6 +495,12 @@ class TestAnthropicAPIAdapter:
         adapter = _make_adapter(response_text='{"name": "Alex", "skills": []}')
         result = adapter.parse_cv("...")
         assert result["name"] == "Alex"
+
+    def test_summarize_role_returns_stripped_plain_text(self, sample_job: Job) -> None:
+        text = "Para one.\n\nPara two.\n"
+        adapter = _make_adapter(response_text=text)
+        result = adapter.summarize_role(sample_job)
+        assert result == "Para one.\n\nPara two."
 
     def test_translates_authentication_error(
         self, sample_profile: Profile, sample_job: Job

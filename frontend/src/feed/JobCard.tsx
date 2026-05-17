@@ -28,22 +28,30 @@ export function JobCard({ item, onAction, pending = false }: JobCardProps) {
           <p className="text-sm leading-relaxed line-clamp-3">{item.rationale}</p>
         ) : null}
 
-        <div className="flex flex-wrap gap-1.5">
-          {item.matched_skills.map((skill) => (
-            <Badge
-              key={`m-${skill}`}
-              variant="default"
-              className="bg-emerald-100 text-emerald-900 hover:bg-emerald-100"
-            >
-              {skill}
-            </Badge>
-          ))}
-          {item.missing_skills.map((skill) => (
-            <Badge key={`x-${skill}`} variant="outline" className="text-muted-foreground">
-              {skill}
-            </Badge>
-          ))}
-        </div>
+        {item.matched_skills.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            <span className="sr-only">Matched skills:</span>
+            {item.matched_skills.map((skill) => (
+              <Badge
+                key={`m-${skill}`}
+                variant="default"
+                className="bg-emerald-100 text-emerald-900 hover:bg-emerald-100"
+              >
+                {skill}
+              </Badge>
+            ))}
+          </div>
+        ) : null}
+        {item.missing_skills.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            <span className="sr-only">Missing skills:</span>
+            {item.missing_skills.map((skill) => (
+              <Badge key={`x-${skill}`} variant="outline" className="text-muted-foreground">
+                {skill}
+              </Badge>
+            ))}
+          </div>
+        ) : null}
 
         {item.red_flags.length > 0 ? (
           <ul className="list-disc pl-5 text-xs text-amber-700">

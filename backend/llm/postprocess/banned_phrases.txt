@@ -71,3 +71,18 @@ I feel that I am
 I might be a good fit
 perfect fit
 ideal candidate
+
+# Self-deprecation / burden-framing (acknowledge gaps neutrally instead)
+# Honest about a gap is good ("I'd ramp up on Go"); telling the employer
+# the gap is a liability to them is the failure mode these catch.
+a real cost
+cost to the team
+burden to the team
+burden on the team
+drain on the team
+drain on resources
+slow the team down
+slow the squad down
+hold the team back
+liability to the team
+a risk to the team

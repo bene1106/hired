@@ -1,22 +1,23 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { api } from '@/lib/api'
-import type { CostSummary, ProfileResponse } from '@/lib/types'
+import type { CostSummary, ProfileResponse, ProviderId, ProviderStats } from '@/lib/types'
 
-// Phase 3 Settings: enough to satisfy the spec's acceptance criteria —
-// see the active provider, walk back through the wizard to switch it,
-// edit the profile (re-uses Step 4), and "Delete everything" with a
-// two-step confirm. The provider-stats panel lands in Phase 4 once we
-// have multi-call traffic worth showing.
+// Phase 6 Settings: live provider status alongside the wizard re-entry,
+// profile editing, cost rollups, and the two-step "Delete everything"
+// confirm. The provider stats endpoint already exists; we just surface
+// it here so users can see latency / call count without leaving the app.
 export function SettingsScreen() {
   const navigate = useNavigate()
   const [profile, setProfile] = useState<ProfileResponse | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [cost, setCost] = useState<CostSummary | null>(null)
+  const [stats, setStats] = useState<ProviderStats | null>(null)
 
   useEffect(() => {
     api
@@ -27,6 +28,10 @@ export function SettingsScreen() {
       .getCostSummary()
       .then(setCost)
       .catch(() => setCost(null))
+    api
+      .getProviderStats()
+      .then(setStats)
+      .catch(() => setStats(null))
   }, [])
 
   async function handleWipe() {
@@ -79,17 +84,24 @@ export function SettingsScreen() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-testid="provider-panel">
           <CardHeader>
             <CardTitle>Provider</CardTitle>
             <CardDescription>
               Switch which LLM Hired. uses to score jobs and generate materials.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Button variant="outline" size="sm" onClick={() => navigate('/onboarding/provider')}>
-              Switch provider
-            </Button>
+          <CardContent className="flex flex-col gap-3">
+            {stats === null ? (
+              <p className="text-sm text-muted-foreground">Loading provider status…</p>
+            ) : (
+              <ProviderStatus stats={stats} />
+            )}
+            <div>
+              <Button variant="outline" size="sm" onClick={() => navigate('/onboarding/provider')}>
+                Switch provider
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -144,6 +156,44 @@ export function SettingsScreen() {
         </Card>
       </div>
     </main>
+  )
+}
+
+const PROVIDER_LABELS: Record<ProviderId, string> = {
+  anthropic_api: 'Anthropic API',
+  claude_code: 'Claude Code',
+  ollama: 'Ollama (local)',
+  mock: 'Mock (dev only)',
+}
+
+function ProviderStatus({ stats }: { stats: ProviderStats }) {
+  const label = PROVIDER_LABELS[stats.provider] ?? stats.provider
+  const healthy = stats.last_success === null ? null : stats.last_success
+  const latency = stats.last_latency_ms === null ? null : `${stats.last_latency_ms} ms`
+  const successRate =
+    stats.success_rate_today === null
+      ? null
+      : `${Math.round(stats.success_rate_today * 100)}% success`
+  return (
+    <div className="flex flex-col gap-1 text-sm" aria-live="polite">
+      <p className="font-medium">
+        Currently using: {label}
+        {stats.provider === 'claude_code' ? (
+          <Badge variant="destructive" className="ml-2 align-middle">
+            Experimental
+          </Badge>
+        ) : null}
+      </p>
+      <p className="text-xs text-muted-foreground">
+        {healthy === null
+          ? 'No calls yet — pick a job to score or generate to populate stats.'
+          : healthy
+            ? '✓ Healthy'
+            : '⚠ Last call failed'}
+        {latency ? ` · ${latency} latency` : ''} · {stats.calls_today} calls today
+        {successRate ? ` · ${successRate}` : ''}
+      </p>
+    </div>
   )
 }
 

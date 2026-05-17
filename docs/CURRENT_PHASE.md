@@ -1,13 +1,111 @@
 # Current Phase
 
-**Phase 5 — Application materials, dashboard & interview prep —
-implementation complete on `feat/phase-5-applications`. MVP feature-
-complete. PR pending.**
+**Phase 6 complete; v1.0.0 release pipeline live.**
 
-Branch: `feat/phase-5-applications`
-Spec: `.claude/specs/PHASE_5_applications.md`
+The MVP is feature-complete across all six phases. Track A
+(multi-provider), Track B (packaging), and Track C (polish) all
+landed on `feat/phase-6-multi-provider`. The first `v*` tag push
+exercises `.github/workflows/release.yml`, which builds installers
+for macOS / Linux / Windows via PyInstaller + tauri-action and
+uploads them to a draft GitHub release.
 
-## Phase 5 — completed checklist
+Branch: `feat/phase-6-multi-provider` (merged → main after PR)
+Spec: `.claude/specs/PHASE_6_polish.md`
+
+## Phase 6 — completed checklist
+
+- [x] `llm/claude_code.py` — subprocess wrapper around the local
+  `claude` CLI (`-p --output-format json --append-system-prompt`),
+  120s timeout, stdin-piped user prompt to dodge CLI length limits,
+  flattened few-shot examples for single-turn mode.
+- [x] `llm/ollama.py` — HTTP client to `localhost:11434/api/chat`,
+  default `qwen2.5:14b` (fallback `llama3.2:3b`), 180s timeout, token
+  usage from `prompt_eval_count` / `eval_count`.
+- [x] `llm/base.py` extended with `summarize_role`; new prompt template
+  `prompts/summarize_role.md` (two-paragraph plain text). Cached on
+  the latest `interview_questions` material's `source_meta_json` so a
+  profile bump or `refresh=true` regenerates both questions and
+  summary together. Falls back to the raw job description when the
+  call fails.
+- [x] Factory in `llm/__init__.py` builds the new adapters; the
+  Phase-3 selectability guard in `services/provider_setup.py` and
+  `api/routes/setup.py` is removed.
+- [x] `GET /api/setup/providers` exposes UI metadata (label,
+  `is_experimental`, `requires_api_key`, `default_model`) so the
+  onboarding wizard renders the "Experimental" badge for Claude Code
+  without hardcoding the list. `/select-provider` now persists model
+  alongside provider.
+- [x] Frontend onboarding `ProviderStep` enables Claude Code (when
+  the CLI is detected) and Ollama (when reachable) selection, with a
+  destructive "Experimental" badge + ToS notice on the Claude Code
+  card per ADR-0007 R-01, and a model dropdown populated from
+  `/api/tags` for Ollama.
+- [x] `SettingsScreen` shows live provider status sourced from
+  `/api/stats/provider` ("Currently using: X · ✓ Healthy · 187 ms
+  latency · 12 calls today"), with the Experimental badge surfaced on
+  Claude Code there too.
+- [x] `backend/sidecar.py` + `backend/hired-sidecar.spec` PyInstaller-
+  bundle the FastAPI sidecar. `db/migrations.py` and `llm/prompts.py`
+  resolve resource paths through `sys._MEIPASS` when frozen.
+- [x] Tauri sidecar wiring: `tauri.conf.json` declares
+  `bundle.externalBin: ["binaries/hired-sidecar"]`, `Cargo.toml`
+  picks up `tauri-plugin-shell`, `lib.rs` spawns the binary on app
+  start and drains stdout/stderr into the log plugin (skipped in
+  `pnpm tauri dev` so the existing `uvicorn` workflow stays).
+- [x] `.github/workflows/release.yml` — matrix build mac/linux/win on
+  `v*` tag pushes; PyInstaller-builds the sidecar, renames with the
+  Tauri target-triple suffix into `src-tauri/binaries/`, then
+  `tauri-action` ships installers to a draft GitHub release.
+- [x] `docs/install/{macos,windows,linux}.md` — first-launch
+  workarounds for unsigned builds (Gatekeeper right-click → Open,
+  SmartScreen More info → Run anyway, AppImage `chmod +x` +
+  `libfuse2`), data paths, uninstall steps.
+- [x] `README.md` rewritten with elevator pitch, OS-by-OS install
+  table, source build steps, architecture sketch + tech stack.
+- [x] `docs/architecture.md` — one-page diagram + invariants +
+  per-layer responsibility table.
+- [x] `docs/api.md` + committed `docs/api.openapi.json` — full REST
+  reference grouped by area.
+- [x] Accessibility pass: keyboard-activatable dashboard rows
+  (`role=button` + Enter/Space), `aria-live=polite` on loading
+  regions across screens, `role=alert` on inline errors, screen-
+  reader-only "Matched/Missing skills:" group prefixes on `JobCard`.
+  Findings + fixes logged in `docs/accessibility-audit.md`.
+- [x] ADR-0007 records the multi-provider rollout shape and ties it
+  back to ADR-0005 + Risk R-01.
+- [x] `docs/postmortem.md` — what worked, what didn't, lessons.
+- [x] Backend: 206 tests passing + 1 integration skipped (38 new for
+  Phase 6: 13 ClaudeCodeAdapter, 13 OllamaAdapter, 6 new
+  test-/select-provider cases, 2 new factory cases, 4 across the
+  summarize_role wiring). Frontend: 37 tests passing including 5 new
+  for ProviderStep + Settings.
+- [x] CHANGELOG updated.
+
+## Phase 6 — scope notes / deferrals logged
+
+- **Demo video, final bug bash** — explicitly skipped per the human
+  owner's call. The per-phase manual tests are the QA gate; a real
+  user reporting a regression is the trigger for fix work.
+- **Code signing** — unsigned builds. Apple Developer ID + Windows EV
+  cert wiring is documentation-only at this point; the install docs
+  cover the Gatekeeper / SmartScreen workarounds.
+- **Stretch goals** (mock interview chatbot, salary benchmark,
+  rejection pattern analysis, multi-language) — all deferred. They
+  may return as standalone issues post-MVP.
+- **Per-prompt few-shot drop knob for smaller Ollama models** —
+  documented in `OllamaAdapter` docstring as a follow-up if a real
+  user reports tight-context drift.
+- **First 1-2 release-workflow CI runs** are expected to surface
+  platform-specific PyInstaller hidden-import gaps; the spec gets
+  iterated as those land.
+- **Cold-start latency** for `claude` CLI invocations isn't
+  optimised. Long-lived stdin pipe was considered and rejected in
+  ADR-0007. Revisit if the bottleneck shows up.
+
+PR for Phase 5 (kept here for context): https://github.com/bene1106/hired/pull/6
+Spec for Phase 5: `.claude/specs/PHASE_5_applications.md`
+
+## Phase 5 — completed checklist (kept for reference)
 
 - [x] Migration `0005_phase5_application_materials.py` adds
   `source_meta_json` and `profile_version` to `application_materials`,

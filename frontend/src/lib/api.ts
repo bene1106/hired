@@ -20,6 +20,9 @@ import type {
   ProfileUpdate,
   ProviderDetectionResult,
   ProviderId,
+  ProviderMetadata,
+  ProviderStats,
+  SelectProviderResponse,
   StartGenerationResponse,
   TestProviderResult,
 } from './types'
@@ -77,17 +80,37 @@ export const api = {
   detectProviders: (): Promise<ProviderDetectionResult> =>
     request('/api/setup/detect-providers', { method: 'POST' }),
 
-  testProvider: (provider: ProviderId, apiKey?: string): Promise<TestProviderResult> =>
+  listProviders: (): Promise<ProviderMetadata[]> => request('/api/setup/providers'),
+
+  testProvider: (
+    provider: ProviderId,
+    apiKey?: string | null,
+    model?: string | null,
+  ): Promise<TestProviderResult> =>
     request('/api/setup/test-provider', {
       method: 'POST',
-      body: JSON.stringify({ provider, api_key: apiKey ?? null }),
+      body: JSON.stringify({
+        provider,
+        api_key: apiKey ?? null,
+        model: model ?? null,
+      }),
     }),
 
-  selectProvider: (provider: ProviderId, apiKey?: string): Promise<{ provider: string }> =>
+  selectProvider: (
+    provider: ProviderId,
+    apiKey?: string | null,
+    model?: string | null,
+  ): Promise<SelectProviderResponse> =>
     request('/api/setup/select-provider', {
       method: 'POST',
-      body: JSON.stringify({ provider, api_key: apiKey ?? null }),
+      body: JSON.stringify({
+        provider,
+        api_key: apiKey ?? null,
+        model: model ?? null,
+      }),
     }),
+
+  getProviderStats: (): Promise<ProviderStats> => request('/api/stats/provider'),
 
   postCvText: (cvText: string): Promise<CVParseResponse> =>
     request('/api/profile/cv', {

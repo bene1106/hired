@@ -107,9 +107,15 @@ export function ApplicationDashboard() {
       </section>
 
       <div className="px-6 py-6">
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {error ? (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        ) : null}
         {sorted === null ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <p className="text-sm text-muted-foreground" aria-live="polite">
+            Loading…
+          </p>
         ) : sorted.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             No applications yet. Apply to a job from the feed.
@@ -129,9 +135,22 @@ export function ApplicationDashboard() {
               {sorted.map((row) => (
                 <tr
                   key={row.id}
-                  className="cursor-pointer border-t border-border hover:bg-muted/40"
+                  // Whole-row click target needs to be reachable by
+                  // keyboard too. We mirror the click handler on Enter
+                  // and Space so screen-reader users can open the
+                  // detail view without grabbing the mouse-only button.
+                  role="button"
+                  tabIndex={0}
+                  className="cursor-pointer border-t border-border hover:bg-muted/40 focus-visible:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   data-testid={`application-row-${row.id}`}
                   onClick={() => navigate(`/app/applications/${row.id}`)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      navigate(`/app/applications/${row.id}`)
+                    }
+                  }}
+                  aria-label={`Open ${row.title} at ${row.company ?? 'unknown company'}`}
                 >
                   <td className="py-2 pr-4 font-medium">{row.company ?? '—'}</td>
                   <td className="py-2 pr-4">{row.title}</td>
@@ -142,9 +161,9 @@ export function ApplicationDashboard() {
                     <StatusPill status={row.status} />
                   </td>
                   <td className="py-2 text-right">
-                    <Button size="sm" variant="ghost">
+                    <span aria-hidden className="text-xs text-muted-foreground">
                       Open
-                    </Button>
+                    </span>
                   </td>
                 </tr>
               ))}

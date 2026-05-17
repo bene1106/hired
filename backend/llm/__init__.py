@@ -82,8 +82,20 @@ def _build_inner_provider(provider_name: str, model: str | None) -> LLMProvider:
 
         return AnthropicAPIAdapter(model=model or DEFAULT_MODEL)
 
+    if provider_name == "claude_code":
+        from .claude_code import ClaudeCodeAdapter
+
+        return ClaudeCodeAdapter()
+
+    if provider_name == "ollama":
+        from .ollama import DEFAULT_MODEL as OLLAMA_DEFAULT_MODEL
+        from .ollama import OllamaAdapter
+
+        return OllamaAdapter(model=model or OLLAMA_DEFAULT_MODEL)
+
     raise LLMError(
-        f"Unknown provider '{provider_name}'. Set app_config.provider to 'mock' or 'anthropic_api'."
+        f"Unknown provider '{provider_name}'. Set app_config.provider to one of "
+        "'mock', 'anthropic_api', 'claude_code', or 'ollama'."
     )
 
 

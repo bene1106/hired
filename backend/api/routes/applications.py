@@ -22,11 +22,12 @@ Interview prep::
     POST   /api/applications/{id}/interview/practice           submit answer + feedback
     GET    /api/applications/{id}/interview/attempts           past practice answers
 
-Role explanation note: Phase 5 spec mentions a synthesized 2-paragraph
-"role explanation" alongside the question bank. Adding a new
-``LLMProvider.summarize_role`` would force every adapter to grow a
-method, so the interview view renders the existing job description as
-the role context. Documented as a Phase 6 deferral.
+Role explanation: a synthesized two-paragraph summary of the role from
+``LLMProvider.summarize_role`` is cached in the latest
+``interview_questions`` material's ``source_meta_json`` under the key
+``role_summary``. It's regenerated alongside the questions when the
+caller passes ``refresh=true`` or when only one half of the cache is
+present.
 """
 
 from __future__ import annotations
@@ -165,9 +166,10 @@ class InterviewQuestionBundle(BaseModel):
     role_context: str | None = Field(
         default=None,
         description=(
-            "Raw job description used as the role context. The Phase 5 spec "
-            "calls for a synthesized 2-paragraph role explanation; that "
-            "needs a new LLMProvider method and is deferred to Phase 6."
+            "Two-paragraph synthesized role summary from "
+            "``LLMProvider.summarize_role``, cached on the latest "
+            "interview_questions material. Falls back to the raw job "
+            "description if synthesis fails."
         ),
     )
 
@@ -391,16 +393,39 @@ def get_interview_questions(
     refresh: bool = False,
 ) -> InterviewQuestionBundle:
     application, job = _require_application(application_id, with_job=True)
-    cached = None if refresh else _load_questions_cache(application_id)
-    if cached is None:
-        questions = provider.generate_interview_questions(job_row_to_llm(job))
-        _save_questions_cache(application_id, [q.model_dump() for q in questions])
-        cached = [q.model_dump() for q in questions]
+    cached_questions, cached_summary = (
+        (None, None) if refresh else _load_interview_cache(application_id)
+    )
+
+    if cached_questions is None:
+        llm_job = job_row_to_llm(job)
+        questions = provider.generate_interview_questions(llm_job)
+        cached_questions = [q.model_dump() for q in questions]
+    else:
+        llm_job = None  # only build the LLM Job if we actually need to call out
+
+    if cached_summary is None:
+        if llm_job is None:
+            llm_job = job_row_to_llm(job)
+        cached_summary = _safe_summarize_role(provider, llm_job, fallback=job.description)
+
+    _save_interview_cache(application_id, cached_questions, cached_summary)
+
     return InterviewQuestionBundle(
         application_id=application_id,
-        questions=[InterviewQuestionResponse(**q) for q in cached],
-        role_context=job.description,
+        questions=[InterviewQuestionResponse(**q) for q in cached_questions],
+        role_context=cached_summary,
     )
+
+
+def _safe_summarize_role(provider: LLMProvider, llm_job, *, fallback: str | None) -> str | None:
+    """Summarize the role; fall back to the raw description if the call fails."""
+    try:
+        summary = provider.summarize_role(llm_job)
+    except Exception:  # noqa: BLE001 — observability via RecordingProvider; UI gracefully falls back
+        logger.exception("summarize_role failed; falling back to raw job description.")
+        return fallback
+    return summary.strip() or fallback
 
 
 @router.post(
@@ -536,7 +561,10 @@ def _status_payload(entry: GenerationProgress) -> GenerationStatusResponse:
     )
 
 
-def _load_questions_cache(application_id: int) -> list[dict] | None:
+def _load_interview_cache(
+    application_id: int,
+) -> tuple[list[dict] | None, str | None]:
+    """Return (questions, role_summary) from the latest cached row; both may be None."""
     with get_session() as session:
         row = session.execute(
             select(ApplicationMaterial)
@@ -547,22 +575,35 @@ def _load_questions_cache(application_id: int) -> list[dict] | None:
             .order_by(desc(ApplicationMaterial.id))
             .limit(1)
         ).scalar_one_or_none()
-        if row is None or not row.content:
-            return None
-        try:
-            payload = json.loads(row.content)
-        except json.JSONDecodeError:
-            return None
-        return payload if isinstance(payload, list) else None
+        if row is None:
+            return None, None
+        questions: list[dict] | None = None
+        if row.content:
+            try:
+                parsed = json.loads(row.content)
+            except json.JSONDecodeError:
+                parsed = None
+            if isinstance(parsed, list):
+                questions = parsed
+        meta = row.source_meta_json or {}
+        summary = meta.get("role_summary") if isinstance(meta, dict) else None
+        if not isinstance(summary, str) or not summary.strip():
+            summary = None
+        return questions, summary
 
 
-def _save_questions_cache(application_id: int, payload: list[dict]) -> None:
+def _save_interview_cache(
+    application_id: int,
+    questions: list[dict],
+    role_summary: str | None,
+) -> None:
+    """Write a fresh cache row. Replacing rather than upserting keeps history."""
     with get_session() as session:
         row = ApplicationMaterial(
             application_id=application_id,
             type=INTERVIEW_QUESTIONS_TYPE,
-            content=json.dumps(payload),
-            source_meta_json=None,
+            content=json.dumps(questions),
+            source_meta_json={"role_summary": role_summary} if role_summary else None,
             profile_version=0,
         )
         session.add(row)

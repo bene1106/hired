@@ -8,6 +8,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Phase 6 — Multi-provider, packaging & polish: the `claude_code` and
+  `ollama` adapters now ship as first-class options. Onboarding lets
+  the user pick between Anthropic API, **Claude Code** (the local CLI;
+  yellow "Experimental" badge per ADR-0007 + Risk R-01), **Ollama**
+  (with a model dropdown sourced from `/api/tags`), and Mock. Each
+  carries its own end-to-end Test step — `claude --version` for the
+  CLI, `/api/tags` for Ollama (which also confirms the requested model
+  is pulled, with an `ollama pull <name>` hint when it's not). The
+  factory in `backend/llm/__init__.py` builds the right adapter on
+  `app_config` change and `reset_provider_cache()` reroutes the next
+  call without an app restart. Settings gains a live provider status
+  panel ("Currently using: X · ✓ Healthy · 187 ms latency · 12 calls
+  today") sourced from the existing `/api/stats/provider`. The Phase 5
+  deferral lands too: a new `LLMProvider.summarize_role` synthesises a
+  two-paragraph role explanation that the Interview Prep view shows
+  under "Role description"; the summary is cached alongside the
+  question bank in `interview_questions.source_meta_json` and falls
+  back to the raw job description if the call fails. Distribution
+  flips from "run uvicorn yourself" to a single bundled installer per
+  OS: `backend/hired-sidecar.spec` PyInstaller-packs the FastAPI
+  sidecar, and a new `.github/workflows/release.yml` builds installers
+  for macOS / Windows / Linux on `v*` tag pushes via `tauri-action`.
+  Builds are unsigned — see `docs/install/{macos,windows,linux}.md`
+  for the right-click-Open / SmartScreen / AppImage workarounds. The
+  README is rewritten with download links and an architecture sketch;
+  `docs/architecture.md` and `docs/api.md` join `api.openapi.json` for
+  the doc grade. An accessibility pass adds keyboard activation to
+  dashboard rows, `aria-live="polite"` on loading regions, and
+  `role="alert"` on inline errors — full audit + findings in
+  `docs/accessibility-audit.md`.
 - Phase 5 — Application materials, dashboard & interview prep: clicking
   **Apply** on a feed job now opens a dedicated generation page that
   triggers a background pipeline producing three artefacts in sequence

@@ -62,6 +62,7 @@ _MAX_TOKENS = {
     "generate_cover_letter": 2048,
     "generate_interview_questions": 2048,
     "evaluate_answer": 1024,
+    "summarize_role": 768,
 }
 
 
@@ -171,6 +172,11 @@ class AnthropicAPIAdapter:
         )
         text = self._call(rendered, max_tokens=_MAX_TOKENS["evaluate_answer"])
         return _parse_pydantic(text, AnswerFeedback)
+
+    def summarize_role(self, job: Job) -> str:
+        rendered = load_prompt("summarize_role", job=job.model_dump(mode="json"))
+        text = self._call(rendered, max_tokens=_MAX_TOKENS["summarize_role"])
+        return text.strip()
 
     # ------------------------------------------------------------------
     # Internals

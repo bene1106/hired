@@ -62,6 +62,9 @@ def test_recording_logs_failures_and_reraises() -> None:
         def evaluate_answer(self, *_a: object, **_k: object) -> object:  # pragma: no cover
             raise NotImplementedError
 
+        def summarize_role(self, *_a: object, **_k: object) -> object:  # pragma: no cover
+            raise NotImplementedError
+
     provider = RecordingProvider(ExplodingProvider(), "mock")  # type: ignore[arg-type]
 
     try:

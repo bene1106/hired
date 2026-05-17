@@ -188,7 +188,10 @@ export function GeneratePage() {
       </header>
 
       {error ? (
-        <div className="border-b border-border bg-destructive/10 px-6 py-2 text-sm text-destructive">
+        <div
+          role="alert"
+          className="border-b border-border bg-destructive/10 px-6 py-2 text-sm text-destructive"
+        >
           {error}
         </div>
       ) : null}
@@ -233,9 +236,11 @@ function Section({ meta, stepState, material, onEdit, onRegenerate }: SectionPro
       </CardHeader>
       <CardContent>
         {!ready && !failed ? (
-          <p className="text-sm text-muted-foreground">Generating…</p>
+          <p className="text-sm text-muted-foreground" aria-live="polite">
+            Generating…
+          </p>
         ) : failed ? (
-          <p className="text-sm text-destructive">
+          <p role="alert" className="text-sm text-destructive">
             This step failed. You can keep going — try Regenerate after the others finish.
           </p>
         ) : material === null ? (

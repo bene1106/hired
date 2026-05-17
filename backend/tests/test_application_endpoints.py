@@ -264,21 +264,32 @@ def test_interview_questions_are_cached_after_first_call(
     job_id = _seed_job()
     app_id = client.post(f"/api/applications/{job_id}").json()["application_id"]
 
-    calls: list[None] = []
-    real = mock_provider.generate_interview_questions
+    question_calls: list[None] = []
+    summary_calls: list[None] = []
+    real_questions = mock_provider.generate_interview_questions
+    real_summary = mock_provider.summarize_role
 
-    def counting(job):  # type: ignore[no-redef]
-        calls.append(None)
-        return real(job)
+    def counting_questions(job):  # type: ignore[no-redef]
+        question_calls.append(None)
+        return real_questions(job)
 
-    mock_provider.generate_interview_questions = counting  # type: ignore[assignment]
+    def counting_summary(job):  # type: ignore[no-redef]
+        summary_calls.append(None)
+        return real_summary(job)
+
+    mock_provider.generate_interview_questions = counting_questions  # type: ignore[assignment]
+    mock_provider.summarize_role = counting_summary  # type: ignore[assignment]
 
     first = client.get(f"/api/applications/{app_id}/interview/questions").json()
     second = client.get(f"/api/applications/{app_id}/interview/questions").json()
 
-    assert len(calls) == 1, "second call should hit the cache"
+    assert len(question_calls) == 1, "second call should hit the cache"
+    assert len(summary_calls) == 1, "summarize_role should also be cached"
     assert first["questions"] == second["questions"]
-    assert first["role_context"] == "Build Python APIs."
+    assert first["role_context"] == second["role_context"]
+    assert first["role_context"]
+    # MockProvider's summary mentions the job title and company by name.
+    assert "Backend Engineer" in first["role_context"]
 
 
 def test_interview_questions_refresh_param_forces_regeneration(
@@ -288,18 +299,42 @@ def test_interview_questions_refresh_param_forces_regeneration(
     job_id = _seed_job()
     app_id = client.post(f"/api/applications/{job_id}").json()["application_id"]
 
-    calls: list[None] = []
-    real = mock_provider.generate_interview_questions
+    question_calls: list[None] = []
+    summary_calls: list[None] = []
+    real_questions = mock_provider.generate_interview_questions
+    real_summary = mock_provider.summarize_role
 
-    def counting(job):  # type: ignore[no-redef]
-        calls.append(None)
-        return real(job)
+    def counting_questions(job):  # type: ignore[no-redef]
+        question_calls.append(None)
+        return real_questions(job)
 
-    mock_provider.generate_interview_questions = counting  # type: ignore[assignment]
+    def counting_summary(job):  # type: ignore[no-redef]
+        summary_calls.append(None)
+        return real_summary(job)
+
+    mock_provider.generate_interview_questions = counting_questions  # type: ignore[assignment]
+    mock_provider.summarize_role = counting_summary  # type: ignore[assignment]
 
     client.get(f"/api/applications/{app_id}/interview/questions")
     client.get(f"/api/applications/{app_id}/interview/questions?refresh=true")
-    assert len(calls) == 2
+    assert len(question_calls) == 2
+    assert len(summary_calls) == 2
+
+
+def test_interview_role_summary_falls_back_when_provider_raises(
+    mock_provider: MockProvider,
+) -> None:
+    _seed_profile()
+    job_id = _seed_job()  # default description: "Build Python APIs."
+    app_id = client.post(f"/api/applications/{job_id}").json()["application_id"]
+
+    def boom(job):  # type: ignore[no-redef]
+        raise RuntimeError("transient model error")
+
+    mock_provider.summarize_role = boom  # type: ignore[assignment]
+
+    body = client.get(f"/api/applications/{app_id}/interview/questions").json()
+    assert body["role_context"] == "Build Python APIs."
 
 
 def test_practice_attempt_persists_feedback(mock_provider: MockProvider) -> None:

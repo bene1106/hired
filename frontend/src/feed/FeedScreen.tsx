@@ -214,9 +214,13 @@ export function FeedScreen() {
 
       <main className="flex-1 px-6 py-6">
         {feedError ? (
-          <p className="text-sm text-destructive">{feedError}</p>
+          <p role="alert" className="text-sm text-destructive">
+            {feedError}
+          </p>
         ) : items === null ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <p className="text-sm text-muted-foreground" aria-live="polite">
+            Loading…
+          </p>
         ) : items.length === 0 ? (
           <EmptyState filter={filter} />
         ) : (

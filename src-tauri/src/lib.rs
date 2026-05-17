@@ -1,4 +1,3 @@
-use tauri::Manager;
 use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
 
@@ -8,7 +7,14 @@ use tauri_plugin_shell::ShellExt;
 // target-triple suffix before `tauri build` picks it up. We spawn it
 // here on the Tokio runtime that Tauri owns and drain its stdout/stderr
 // so the events end up in the Tauri log plugin during development.
-fn spawn_sidecar(app: &tauri::AppHandle) -> tauri::Result<()> {
+//
+// Returns Box<dyn Error> rather than tauri::Result because
+// tauri_plugin_shell::Error does not implement From<_> for tauri::Error,
+// so `?` can't auto-convert it. A boxed error accepts anything that
+// implements std::error::Error, and a sidecar spawn failure at startup
+// is fatal anyway — the caller just logs and the app is dead in the
+// water without its backend.
+fn spawn_sidecar(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let sidecar = app.shell().sidecar("hired-sidecar")?;
     let (mut rx, _child) = sidecar.spawn()?;
 

@@ -206,3 +206,17 @@ jobs:
 
       - name: Tauri build
         run: pnpm tauri build --target ${{ matrix.target_triple }}
+
+      # Make the PR-gate build downloadable. Without this the gate only
+      # proves the build compiles — there's no installer to hand-test.
+      # Needed for the v0.1.1 sidecar-fetch hotfix loop (push → CI →
+      # download → test) without spamming release tags. The bundle dir
+      # holds the per-OS installer(s): NSIS/MSI on Windows, dmg/app on
+      # macOS, AppImage/deb on Linux.
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ matrix.target_triple }}
+          path: src-tauri/target/${{ matrix.target_triple }}/release/bundle/
+          if-no-files-found: error
+          retention-days: 14

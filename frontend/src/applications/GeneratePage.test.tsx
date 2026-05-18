@@ -37,17 +37,25 @@ function renderRoutes(initialPath: string) {
   )
 }
 
-describe('GeneratePage', () => {
-  it('renders all three material sections after generation finishes', async () => {
+// The Phase 7 merge folds GeneratePage into the unified MaterialsScreen
+// (tabbed). DOM changed, so these were rewritten — every prior behaviour
+// is still asserted: all three materials are produced, the cover letter
+// is editable with an edit count, and Mark applied lands on the dashboard.
+describe('GeneratePage (generate mode)', () => {
+  it('produces cover letter, CV tailoring, and company research', async () => {
     setMockState({ feed: [seed()] })
     renderRoutes('/app/apply/42')
 
-    await waitFor(() => {
-      expect(screen.getByTestId('section-company_brief')).toBeInTheDocument()
-    })
+    // Cover letter is the default tab and editable once generation lands.
+    const textarea = (await screen.findByLabelText(/edit/i)) as HTMLTextAreaElement
+    expect(textarea.value).toMatch(/Dear hiring team/i)
+
+    // Company brief is retained as a secondary "Company research" block.
     expect(await screen.findByText(/AcmeCo brief/i)).toBeInTheDocument()
-    expect(screen.getByTestId('section-cv_suggestions')).toBeInTheDocument()
-    expect(screen.getByTestId('section-cover_letter')).toBeInTheDocument()
+
+    // CV tailoring lives behind its own tab.
+    await userEvent.click(screen.getByRole('button', { name: /^cv$/i }))
+    expect(await screen.findByText(/Emphasise FastAPI experience/i)).toBeInTheDocument()
   })
 
   it('saves an edited cover letter and increments the edit count', async () => {
@@ -57,7 +65,6 @@ describe('GeneratePage', () => {
     const textarea = await screen.findByLabelText(/edit/i)
     await userEvent.clear(textarea)
     await userEvent.type(textarea, 'My edited cover letter.')
-
     await userEvent.click(screen.getByRole('button', { name: /save edits/i }))
 
     await waitFor(() => {
@@ -69,9 +76,10 @@ describe('GeneratePage', () => {
     setMockState({ feed: [seed()] })
     renderRoutes('/app/apply/42')
 
-    await screen.findByTestId('section-cover_letter')
-
-    await userEvent.click(screen.getByRole('button', { name: /mark applied/i }))
+    await screen.findByLabelText(/edit/i)
+    const markApplied = await screen.findByRole('button', { name: /mark applied/i })
+    await waitFor(() => expect(markApplied).toBeEnabled())
+    await userEvent.click(markApplied)
 
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: /applications/i })).toBeInTheDocument()

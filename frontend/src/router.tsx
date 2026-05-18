@@ -1,9 +1,10 @@
-import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 
 import { ApplicationDashboard } from '@/applications/Dashboard'
 import { ApplicationDetailScreen } from '@/applications/ApplicationDetail'
 import { GeneratePage } from '@/applications/GeneratePage'
 import { AppGate } from '@/components/AppGate'
+import { AppShell } from '@/components/shell/AppShell'
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout'
 import { CVStep } from '@/components/onboarding/CVStep'
 import { DoneStep } from '@/components/onboarding/DoneStep'
@@ -34,7 +35,7 @@ export function AppRouter() {
         <Route path="review" element={<ReviewStep />} />
         <Route path="done" element={<DoneStep />} />
       </Route>
-      <Route path="/app" element={<Outlet />}>
+      <Route path="/app" element={<AppShell />}>
         <Route index element={<FeedScreen />} />
         <Route path="apply/:jobId" element={<GeneratePage />} />
         <Route path="applications" element={<ApplicationDashboard />} />

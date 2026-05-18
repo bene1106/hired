@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Phase 7 (PR B — app shell + sidebar): the main app now renders inside
+  a two-column shell — a fixed 244px sidebar plus the existing screens
+  in the flexible main column. The sidebar carries the brand lockup,
+  data-driven navigation (Job Feed, Applications, Settings — the routes
+  that exist today; it grows as later PRs land their screens), a
+  profile footer sourced from the saved profile, and a theme toggle
+  wired to the PR A `useTheme` hook. A strict-union `Icon` set
+  (ported from the design package, extended per-PR) backs the nav.
+  Onboarding and the boot gate stay outside the shell. No screen or
+  backend changes — existing screens render unchanged; their
+  redundant in-screen headers are stripped when each is restyled in
+  PRs C–G.
 - Phase 7 (PR A — design foundation): the visual token system from the
   Phase 7 redesign package now backs the app. Tailwind and the global
   stylesheet carry the warm off-white / deep-ink / muted-green palette,

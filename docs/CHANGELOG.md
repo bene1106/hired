@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Phase 7 (PR A — design foundation): the visual token system from the
+  Phase 7 redesign package now backs the app. Tailwind and the global
+  stylesheet carry the warm off-white / deep-ink / muted-green palette,
+  the Inter Tight · JetBrains Mono · Fraunces · Archivo type stack
+  (self-hosted woff2 — no runtime web-font CDN, keeping the app
+  local-first and offline-clean), the warm shadow + radius scale, and
+  the design's keyframes (fade-up, shimmer, pulse-dot, subtle-bounce).
+  A single `data-theme` attribute on `<html>` drives both light and
+  dark mode for the design tokens **and** the shadcn primitives, which
+  were remapped onto the new palette so they restyle without edits; an
+  inline boot script applies the saved theme before first paint to
+  avoid a flash. New `useTheme` hook (localStorage-persisted) and the
+  reusable brand assets — `HiredMark`, `HiredWordmark`, `HiredLockup`,
+  `HiredStacked` — with dark-mode mark inversion handled at the token
+  layer. No screen or behaviour changes yet: every existing screen
+  renders unchanged inside the new foundation.
+
 ## [0.1.1] - 2026-05-17
 
 ### Fixed

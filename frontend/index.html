@@ -4,6 +4,29 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Hired.</title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%231a1a1a'/><text x='50' y='72' font-family='Georgia,serif' font-weight='900' font-size='68' text-anchor='middle' fill='white' letter-spacing='-3'>h</text><circle cx='76' cy='74' r='9' fill='%23ff6b35'/></svg>"
+    />
+    <link
+      rel="preload"
+      href="/fonts/inter-tight-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <!-- Apply the saved theme before first paint to avoid a flash. -->
+    <script>
+      ;(function () {
+        try {
+          var t = localStorage.getItem('hired-theme')
+          document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light')
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'light')
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+import { Icon } from '@/components/icons/Icon'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { api } from '@/lib/api'
 import type { ProviderDetectionResult, ProviderId } from '@/lib/types'
+import { cn } from '@/lib/utils'
 
 import { useOnboarding } from './OnboardingContext'
 
@@ -33,7 +35,7 @@ function ProviderCard({
   children,
 }: ProviderCardProps) {
   return (
-    <Card
+    <div
       role="radio"
       aria-checked={selected}
       aria-disabled={disabled}
@@ -41,27 +43,29 @@ function ProviderCard({
       onClick={() => {
         if (!disabled) onSelect()
       }}
-      className={
-        'cursor-pointer transition-colors ' +
-        (selected ? 'border-primary' : '') +
-        (disabled ? ' opacity-50 cursor-not-allowed' : ' hover:border-primary/50')
-      }
+      className={cn(
+        'rounded-[10px] border p-4 transition-colors',
+        disabled
+          ? 'cursor-not-allowed border-line opacity-50'
+          : 'cursor-pointer hover:border-line-strong',
+        selected ? 'border-brand-green bg-brand-green-tint' : 'border-line bg-surface',
+      )}
     >
-      <CardHeader>
-        <div className="flex items-center justify-between gap-2">
-          <CardTitle className="text-base">{title}</CardTitle>
-          <div className="flex items-center gap-1">
-            {badges.map((b) => (
-              <Badge key={b.label} variant={b.variant ?? 'secondary'}>
-                {b.label}
-              </Badge>
-            ))}
-          </div>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-[14px] font-semibold tracking-[-0.01em] text-ink">{title}</div>
+          <div className="mt-0.5 text-[12px] text-ink-3">{subtitle}</div>
         </div>
-        <CardDescription>{subtitle}</CardDescription>
-      </CardHeader>
-      {children !== undefined && <CardContent>{children}</CardContent>}
-    </Card>
+        <div className="flex shrink-0 items-center gap-1">
+          {badges.map((b) => (
+            <Badge key={b.label} variant={b.variant ?? 'secondary'}>
+              {b.label}
+            </Badge>
+          ))}
+        </div>
+      </div>
+      {children !== undefined && <div className="mt-3">{children}</div>}
+    </div>
   )
 }
 
@@ -87,8 +91,8 @@ export function ProviderStep() {
   if (detectionError !== null) {
     return (
       <Card>
-        <CardContent className="pt-6">
-          <p role="alert" className="text-sm text-destructive">
+        <CardContent className="p-8">
+          <p role="alert" className="text-[13px] text-warn">
             Could not reach the backend: {detectionError}
           </p>
         </CardContent>
@@ -99,8 +103,8 @@ export function ProviderStep() {
   if (detection === null) {
     return (
       <Card>
-        <CardContent className="pt-6">
-          <p className="text-sm text-muted-foreground">Checking what you have installed…</p>
+        <CardContent className="p-8">
+          <p className="text-[13px] text-ink-3">Checking what you have installed…</p>
         </CardContent>
       </Card>
     )
@@ -164,17 +168,22 @@ export function ProviderStep() {
     }
   }
 
+  const testMsgClass = cn('text-[12px]', testStatus === 'ok' ? 'text-brand-green' : 'text-warn')
+
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Pick an LLM provider</CardTitle>
-        <CardDescription>
-          Hired. supports several backends. The Anthropic API is the most reliable; Claude Code and
-          Ollama are both fully supported alternatives.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        <div className="grid grid-cols-1 gap-3">
+      <CardContent className="flex flex-col gap-5 p-8">
+        <div>
+          <h2 className="mb-1.5 text-[18px] font-semibold tracking-[-0.01em] text-ink">
+            Pick an LLM provider
+          </h2>
+          <p className="text-[13px] leading-relaxed text-ink-3">
+            Hired. supports several backends. The Anthropic API is the most reliable; Claude Code
+            and Ollama are both fully supported alternatives.
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-3">
           <ProviderCard
             id="anthropic_api"
             title="Anthropic API"
@@ -209,15 +218,7 @@ export function ProviderStep() {
                   >
                     {testStatus === 'testing' ? 'Testing…' : 'Test connection'}
                   </Button>
-                  {testMessage !== null && (
-                    <span
-                      className={
-                        'text-xs ' + (testStatus === 'ok' ? 'text-foreground' : 'text-destructive')
-                      }
-                    >
-                      {testMessage}
-                    </span>
-                  )}
+                  {testMessage !== null && <span className={testMsgClass}>{testMessage}</span>}
                 </div>
               </div>
             )}
@@ -243,7 +244,7 @@ export function ProviderStep() {
           >
             {selected === 'claude_code' && (
               <div className="flex flex-col gap-2">
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[12px] text-ink-3">
                   Hired. shells out to your local <code>claude</code> CLI. Usage counts against your
                   Claude.ai subscription. Subject to Anthropic&rsquo;s terms.
                 </p>
@@ -257,15 +258,7 @@ export function ProviderStep() {
                   >
                     {testStatus === 'testing' ? 'Testing…' : 'Test CLI'}
                   </Button>
-                  {testMessage !== null && (
-                    <span
-                      className={
-                        'text-xs ' + (testStatus === 'ok' ? 'text-foreground' : 'text-destructive')
-                      }
-                    >
-                      {testMessage}
-                    </span>
-                  )}
+                  {testMessage !== null && <span className={testMsgClass}>{testMessage}</span>}
                 </div>
               </div>
             )}
@@ -303,7 +296,7 @@ export function ProviderStep() {
                     ))
                   )}
                 </select>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[12px] text-ink-3">
                   Recommended: <code>qwen2.5:14b</code>. Low-end fallback: <code>llama3.2:3b</code>.
                   Generation may take up to 90s per call locally.
                 </p>
@@ -317,15 +310,7 @@ export function ProviderStep() {
                   >
                     {testStatus === 'testing' ? 'Testing…' : 'Test connection'}
                   </Button>
-                  {testMessage !== null && (
-                    <span
-                      className={
-                        'text-xs ' + (testStatus === 'ok' ? 'text-foreground' : 'text-destructive')
-                      }
-                    >
-                      {testMessage}
-                    </span>
-                  )}
+                  {testMessage !== null && <span className={testMsgClass}>{testMessage}</span>}
                 </div>
               </div>
             )}
@@ -344,7 +329,7 @@ export function ProviderStep() {
 
         <div className="flex justify-end">
           <Button disabled={!canContinue()} onClick={continueToCV}>
-            Continue
+            Continue <Icon name="arrowRight" size={14} />
           </Button>
         </div>
       </CardContent>

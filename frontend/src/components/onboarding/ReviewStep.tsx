@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+import { Icon } from '@/components/icons/Icon'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { api, ApiError } from '@/lib/api'
@@ -80,15 +81,36 @@ export function ReviewStep() {
     }
   }
 
+  const parsedSkills = parsed?.skills ?? []
+
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Confirm your profile</CardTitle>
-        <CardDescription>
-          We pre-filled what we could from your CV. Edit anything that's off.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+      <CardContent className="flex flex-col gap-5 p-8">
+        <div>
+          <h2 className="mb-1.5 text-[18px] font-semibold tracking-[-0.01em] text-ink">
+            Confirm your profile
+          </h2>
+          <p className="text-[13px] leading-relaxed text-ink-3">
+            We pre-filled what we could from your CV. Edit anything that's off — your agent uses
+            this to match jobs.
+          </p>
+        </div>
+
+        {parsedSkills.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-3">
+              Skills detected ({parsedSkills.length})
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {parsedSkills.map((s) => (
+                <span key={s} className="chip">
+                  {s}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         <Field id="name" label="Name" value={name} onChange={setName} required />
         <Field id="email" label="Email" type="email" value={email} onChange={setEmail} />
         <Field
@@ -115,23 +137,29 @@ export function ReviewStep() {
         />
 
         <fieldset className="flex flex-col gap-2">
-          <legend className="text-sm font-medium">Priorities</legend>
-          <div className="grid grid-cols-2 gap-2">
+          <legend className="text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-3">
+            Priorities
+          </legend>
+          <div className="flex flex-wrap gap-1.5">
             {PRIORITY_OPTIONS.map((option) => {
               const checked = priorities.includes(option)
               return (
                 <label
                   key={option}
                   className={
-                    'flex items-center gap-2 rounded-md border px-3 py-2 text-sm cursor-pointer ' +
-                    (checked ? 'border-primary bg-primary/5' : 'border-input')
+                    'chip cursor-pointer ' +
+                    (checked
+                      ? '!border-brand-green-soft !bg-brand-green-tint !text-brand-green'
+                      : '')
                   }
                 >
                   <input
                     type="checkbox"
+                    className="sr-only"
                     checked={checked}
                     onChange={() => togglePriority(option)}
                   />
+                  {checked && <Icon name="check" size={11} />}
                   {option}
                 </label>
               )
@@ -140,17 +168,17 @@ export function ReviewStep() {
         </fieldset>
 
         {error !== null && (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-[13px] text-warn">
             {error}
           </p>
         )}
 
         <div className="flex justify-between">
           <Button variant="outline" onClick={() => navigate('/onboarding/cv')}>
-            Back
+            <Icon name="arrowLeft" size={14} /> Back
           </Button>
           <Button onClick={submit} disabled={busy}>
-            {busy ? 'Saving…' : 'Save and continue'}
+            {busy ? 'Saving…' : 'Save and continue'} <Icon name="arrowRight" size={14} />
           </Button>
         </div>
       </CardContent>
@@ -174,14 +202,14 @@ function Field({ id, label, value, onChange, type = 'text', required, hint }: Fi
       <Label htmlFor={id}>
         {label}
         {required && (
-          <span aria-hidden className="text-destructive">
+          <span aria-hidden className="text-warn">
             {' '}
             *
           </span>
         )}
       </Label>
       <Input id={id} type={type} value={value} onChange={(e) => onChange(e.target.value)} />
-      {hint !== undefined && <p className="text-xs text-muted-foreground">{hint}</p>}
+      {hint !== undefined && <p className="text-[12px] text-ink-3">{hint}</p>}
     </div>
   )
 }

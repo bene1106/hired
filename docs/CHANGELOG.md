@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Phase 7 (PR C — onboarding redesign): the 5-step wizard (Welcome →
+  Provider → Upload CV → Review → Done) is restyled in the new visual
+  language — a `HiredStacked` hero with a Fraunces headline, a
+  display-only numbered stepper (guard-railed: no step-jumping), and
+  the design's card/drop-zone/parsing-ring patterns. The Provider
+  screen is designed from first principles (the design package has no
+  equivalent); Welcome and Done are built from scratch with Done
+  lifting the design's "your agent is ready" success block. Routes,
+  wizard state, every API contract, and all guard-rails are unchanged;
+  the CV paste path is kept alongside the drop-zone. Copy is honest
+  (no autonomous-agent claims) and emoji-free. No backend changes.
 - Phase 7 (PR B — app shell + sidebar): the main app now renders inside
   a two-column shell — a fixed 244px sidebar plus the existing screens
   in the flexible main column. The sidebar carries the brand lockup,

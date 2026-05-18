@@ -127,8 +127,12 @@ describe('SettingsScreen', () => {
 
     renderSettings()
 
+    // The panel mounts immediately in a "Loading provider status…"
+    // state while the stats request is in flight, so findByTestId
+    // resolves before the data arrives. Wait for the loaded content,
+    // then assert the rest synchronously on the settled panel.
     const panel = await screen.findByTestId('provider-panel')
-    expect(panel).toHaveTextContent(/Currently using: Anthropic API/)
+    await waitFor(() => expect(panel).toHaveTextContent(/Currently using: Anthropic API/))
     expect(panel).toHaveTextContent(/Healthy/)
     expect(panel).toHaveTextContent(/187 ms/)
     expect(panel).toHaveTextContent(/12 calls today/)
@@ -147,8 +151,10 @@ describe('SettingsScreen', () => {
 
     renderSettings()
 
+    // Same pre-load race as the status test — wait for the loaded
+    // content before asserting against the panel.
     const panel = await screen.findByTestId('provider-panel')
-    expect(panel).toHaveTextContent(/Claude Code/)
+    await waitFor(() => expect(panel).toHaveTextContent(/Claude Code/))
     expect(panel).toHaveTextContent(/Experimental/)
   })
 

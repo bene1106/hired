@@ -1,6 +1,7 @@
-import { Badge } from '@/components/ui/badge'
+import { CompanyMark } from '@/components/CompanyMark'
+import { MatchRing } from '@/components/MatchRing'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import type { FeedItem, JobAction } from '@/lib/types'
 
 interface JobCardProps {
@@ -10,101 +11,92 @@ interface JobCardProps {
 }
 
 export function JobCard({ item, onAction, pending = false }: JobCardProps) {
-  return (
-    <Card data-testid={`job-card-${item.job_id}`}>
-      <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pb-3">
-        <div className="flex flex-col gap-1">
-          <CardTitle className="text-base">{item.title}</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            {[item.company, item.location].filter(Boolean).join(' · ') || '—'}
-            {item.remote_policy ? ` · ${item.remote_policy}` : ''}
-          </p>
-        </div>
-        <ScoreBadge score={item.score} />
-      </CardHeader>
+  const meta = [item.location, item.remote_policy].filter(Boolean).join(' · ')
 
-      <CardContent className="flex flex-col gap-3">
+  return (
+    <Card
+      data-testid={`job-card-${item.job_id}`}
+      className="grid grid-cols-[auto_1fr_auto] gap-4 p-[18px]"
+    >
+      <CompanyMark company={item.company} size={40} />
+
+      <div className="min-w-0">
+        <div className="mb-1 flex flex-wrap items-baseline gap-2">
+          <h3 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">{item.title}</h3>
+          {item.company ? (
+            <>
+              <span className="text-[13px] text-ink-3">·</span>
+              <span className="text-[13px] font-medium text-ink-2">{item.company}</span>
+            </>
+          ) : null}
+        </div>
+
+        {meta ? (
+          <div className="mb-2.5 flex items-center gap-1 text-[12px] text-ink-3">
+            <span>{meta}</span>
+          </div>
+        ) : null}
+
         {item.rationale ? (
-          <p className="text-sm leading-relaxed line-clamp-3">{item.rationale}</p>
+          <p className="mb-2.5 line-clamp-3 text-[13px] leading-relaxed text-ink-2">
+            {item.rationale}
+          </p>
         ) : null}
 
         {item.matched_skills.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5">
+          <div className="mb-1.5 flex flex-wrap gap-1.5">
             <span className="sr-only">Matched skills:</span>
             {item.matched_skills.map((skill) => (
-              <Badge
-                key={`m-${skill}`}
-                variant="default"
-                className="bg-emerald-100 text-emerald-900 hover:bg-emerald-100"
-              >
+              <span key={`m-${skill}`} className="chip chip-green">
                 {skill}
-              </Badge>
+              </span>
             ))}
           </div>
         ) : null}
         {item.missing_skills.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5">
+          <div className="mb-1.5 flex flex-wrap gap-1.5">
             <span className="sr-only">Missing skills:</span>
             {item.missing_skills.map((skill) => (
-              <Badge key={`x-${skill}`} variant="outline" className="text-muted-foreground">
+              <span key={`x-${skill}`} className="chip">
                 {skill}
-              </Badge>
+              </span>
             ))}
           </div>
         ) : null}
-
         {item.red_flags.length > 0 ? (
-          <ul className="list-disc pl-5 text-xs text-amber-700">
+          <ul className="mt-1 list-disc pl-5 text-[12px] text-warn">
             {item.red_flags.map((flag) => (
               <li key={flag}>{flag}</li>
             ))}
           </ul>
         ) : null}
 
-        <div className="flex items-center justify-between gap-2 pt-1">
-          {item.url ? (
-            <a
-              href={item.url}
-              target="_blank"
-              rel="noreferrer"
-              className="text-xs text-muted-foreground underline-offset-2 hover:underline"
-            >
-              View posting
-            </a>
-          ) : (
-            <span />
-          )}
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" disabled={pending} onClick={() => onAction('skip')}>
-              Skip
-            </Button>
-            <Button variant="outline" size="sm" disabled={pending} onClick={() => onAction('save')}>
-              Save
-            </Button>
-            <Button size="sm" disabled={pending} onClick={() => onAction('apply')}>
-              Apply
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
+        {item.url ? (
+          <a
+            href={item.url}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 inline-block text-[12px] text-ink-3 underline-offset-2 hover:underline"
+          >
+            View posting
+          </a>
+        ) : null}
+      </div>
 
-function ScoreBadge({ score }: { score: number }) {
-  const tone =
-    score >= 75
-      ? 'bg-emerald-500 text-white'
-      : score >= 50
-        ? 'bg-amber-400 text-amber-900'
-        : 'bg-muted text-muted-foreground'
-  return (
-    <div
-      data-testid="score-badge"
-      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-semibold ${tone}`}
-      aria-label={`Match score ${score} out of 100`}
-    >
-      {score}
-    </div>
+      <div className="flex min-w-[120px] flex-col items-end gap-3">
+        <MatchRing score={item.score} size={60} stroke={4} />
+        <div className="flex gap-1.5">
+          <Button variant="outline" size="sm" disabled={pending} onClick={() => onAction('skip')}>
+            Skip
+          </Button>
+          <Button variant="outline" size="sm" disabled={pending} onClick={() => onAction('save')}>
+            Save
+          </Button>
+          <Button size="sm" disabled={pending} onClick={() => onAction('apply')}>
+            Apply
+          </Button>
+        </div>
+      </div>
+    </Card>
   )
 }

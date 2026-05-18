@@ -20,6 +20,9 @@ export type IconName =
   | 'arrowRight'
   | 'arrowLeft'
   | 'sparkle'
+  | 'pin'
+  | 'refresh'
+  | 'filter'
 
 const PATHS: Record<IconName, ReactElement> = {
   feed: <path d="M4 7h16M4 12h16M4 17h10" />,
@@ -42,6 +45,19 @@ const PATHS: Record<IconName, ReactElement> = {
   arrowRight: <path d="M5 12h14M12 5l7 7-7 7" />,
   arrowLeft: <path d="M19 12H5M12 19l-7-7 7-7" />,
   sparkle: <path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" />,
+  pin: (
+    <>
+      <path d="M12 22s7-7 7-12a7 7 0 0 0-14 0c0 5 7 12 7 12z" />
+      <circle cx="12" cy="10" r="2.5" />
+    </>
+  ),
+  refresh: (
+    <>
+      <path d="M4 4v6h6M20 20v-6h-6" />
+      <path d="M20 10A8 8 0 0 0 6 6M4 14a8 8 0 0 0 14 4" />
+    </>
+  ),
+  filter: <path d="M4 5h16M7 12h10M10 19h4" />,
 }
 
 export interface IconProps {

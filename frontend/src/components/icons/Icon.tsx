@@ -9,7 +9,17 @@ import type { ReactElement } from 'react'
  * than a magic string. Later PRs extend `PATHS` (and the union) with the
  * icons their screens need.
  */
-export type IconName = 'feed' | 'kanban' | 'settings' | 'sun' | 'moon'
+export type IconName =
+  | 'feed'
+  | 'kanban'
+  | 'settings'
+  | 'sun'
+  | 'moon'
+  | 'upload'
+  | 'check'
+  | 'arrowRight'
+  | 'arrowLeft'
+  | 'sparkle'
 
 const PATHS: Record<IconName, ReactElement> = {
   feed: <path d="M4 7h16M4 12h16M4 17h10" />,
@@ -27,6 +37,11 @@ const PATHS: Record<IconName, ReactElement> = {
     </>
   ),
   moon: <path d="M20 15.5A8 8 0 1 1 8.5 4 7 7 0 0 0 20 15.5z" />,
+  upload: <path d="M12 15V3M7 8l5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" />,
+  check: <path d="M4 12l5 5L20 6" />,
+  arrowRight: <path d="M5 12h14M12 5l7 7-7 7" />,
+  arrowLeft: <path d="M19 12H5M12 19l-7-7 7-7" />,
+  sparkle: <path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" />,
 }
 
 export interface IconProps {

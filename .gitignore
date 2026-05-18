@@ -121,3 +121,5 @@ credentials.json
 logs/
 *.tsbuildinfo
 .claude/local/
+
+.claude/settings.local.json

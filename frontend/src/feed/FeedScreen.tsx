@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Settings } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
+import { Icon } from '@/components/icons/Icon'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { ApiError, api } from '@/lib/api'
 import type { CrawlStatus, FeedItem, JobAction, JobActionStatus } from '@/lib/types'
+import { cn } from '@/lib/utils'
 
 import { JobCard } from './JobCard'
 
@@ -136,38 +137,38 @@ export function FeedScreen() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground">
-      <header className="flex items-center justify-between border-b border-border px-6 py-3">
-        <h1 className="text-lg font-semibold tracking-tight">Hired.</h1>
-        <div className="flex items-center gap-2">
+    <div className="screen mx-auto max-w-[1120px] px-10 py-8">
+      {/* Header */}
+      <div className="mb-7">
+        <div className="mb-2 flex items-end justify-between gap-4">
+          <div>
+            <div className="mb-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-3">
+              Job Feed
+            </div>
+            <h1 className="text-[28px] font-semibold tracking-[-0.025em] text-ink">
+              Today&rsquo;s matches
+            </h1>
+          </div>
           <Button
-            size="sm"
             onClick={() => setCrawlOpen((open) => !open)}
             aria-expanded={crawlOpen}
             aria-controls="crawl-panel"
           >
+            <Icon name="refresh" size={14} />
             {crawlOpen ? 'Close crawl' : 'Crawl'}
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => navigate('/app/applications')}>
-            Applications
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            aria-label="Settings"
-            onClick={() => navigate('/app/settings')}
-          >
-            <Settings />
-          </Button>
         </div>
-      </header>
+        <p className="max-w-[640px] text-[13px] text-ink-3">
+          Ranked by how well each job matches your profile and preferences.
+        </p>
+      </div>
 
       {crawlOpen ? (
-        <div id="crawl-panel" className="border-b border-border bg-muted/30 px-6 py-4">
+        <div id="crawl-panel" className="mb-6">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Paste job URLs</CardTitle>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-ink-3">
                 One per line. Works against LinkedIn, Greenhouse, Lever, Workday, and most career
                 pages.
                 <br />
@@ -184,7 +185,7 @@ export function FeedScreen() {
                 rows={5}
                 aria-label="Job URLs"
               />
-              {crawlError ? <p className="text-xs text-destructive">{crawlError}</p> : null}
+              {crawlError ? <p className="text-xs text-warn">{crawlError}</p> : null}
               {activeCrawl ? <CrawlStatusLine status={activeCrawl} /> : null}
               <div className="flex justify-end">
                 <Button
@@ -199,63 +200,71 @@ export function FeedScreen() {
         </div>
       ) : null}
 
-      <div className="border-b border-border px-6 py-3 flex items-center gap-2">
-        {FILTER_OPTIONS.map((option) => (
-          <Button
-            key={option.id}
-            size="sm"
-            variant={filter === option.id ? 'default' : 'outline'}
-            onClick={() => setFilter(option.id)}
-          >
-            {option.label}
-          </Button>
-        ))}
+      {/* Filters */}
+      <div className="mb-5 flex items-center gap-2">
+        <Icon name="filter" size={13} className="text-ink-3" />
+        {FILTER_OPTIONS.map((option) => {
+          const active = filter === option.id
+          return (
+            <button
+              key={option.id}
+              onClick={() => setFilter(option.id)}
+              className={cn(
+                'rounded-md border px-2.5 py-1 text-[12px] transition-colors',
+                active
+                  ? 'border-ink bg-ink text-background'
+                  : 'border-line bg-surface text-ink-2 hover:bg-surface-2',
+              )}
+            >
+              {option.label}
+            </button>
+          )
+        })}
       </div>
 
-      <main className="flex-1 px-6 py-6">
-        {feedError ? (
-          <p role="alert" className="text-sm text-destructive">
-            {feedError}
-          </p>
-        ) : items === null ? (
-          <p className="text-sm text-muted-foreground" aria-live="polite">
-            Loading…
-          </p>
-        ) : items.length === 0 ? (
-          <EmptyState filter={filter} />
-        ) : (
-          <div className="mx-auto flex max-w-3xl flex-col gap-4">
-            {items.map((item) => (
-              <JobCard
-                key={item.job_id}
-                item={item}
-                pending={pendingActions.has(item.job_id)}
-                onAction={(action) => handleAction(item.job_id, action)}
-              />
-            ))}
-          </div>
-        )}
-      </main>
+      {/* List */}
+      {feedError ? (
+        <p role="alert" className="text-sm text-warn">
+          {feedError}
+        </p>
+      ) : items === null ? (
+        <p className="text-sm text-ink-3" aria-live="polite">
+          Loading…
+        </p>
+      ) : items.length === 0 ? (
+        <EmptyState filter={filter} />
+      ) : (
+        <div className="flex flex-col gap-3">
+          {items.map((item) => (
+            <JobCard
+              key={item.job_id}
+              item={item}
+              pending={pendingActions.has(item.job_id)}
+              onAction={(action) => handleAction(item.job_id, action)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
 function CrawlStatusLine({ status }: { status: CrawlStatus }) {
   if (status.state === 'queued') {
-    return <p className="text-xs text-muted-foreground">Queued…</p>
+    return <p className="text-xs text-ink-3">Queued…</p>
   }
   if (status.state === 'running') {
     return (
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-ink-3">
         Crawling… fetched {status.fetched}/{status.total}
       </p>
     )
   }
   if (status.state === 'error') {
-    return <p className="text-xs text-destructive">Error: {status.error ?? 'unknown'}</p>
+    return <p className="text-xs text-warn">Error: {status.error ?? 'unknown'}</p>
   }
   return (
-    <p className="text-xs text-emerald-700">
+    <p className="text-xs text-brand-green">
       Done. {status.new} new, {status.duplicates} duplicate, {status.scored} scored.
     </p>
   )
@@ -264,20 +273,16 @@ function CrawlStatusLine({ status }: { status: CrawlStatus }) {
 function EmptyState({ filter }: { filter: Filter }) {
   if (filter === 'all') {
     return (
-      <div className="mx-auto max-w-md text-center pt-12">
-        <h2 className="text-xl font-medium">No jobs yet.</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
+      <div className="mx-auto max-w-md pt-12 text-center">
+        <h2 className="text-xl font-medium text-ink">No jobs yet.</h2>
+        <p className="mt-2 text-sm text-ink-3">
           Click <strong>Crawl</strong>, paste a few job URLs, and we&rsquo;ll score them against
           your profile.
         </p>
       </div>
     )
   }
-  return (
-    <p className="mx-auto max-w-md text-center pt-12 text-sm text-muted-foreground">
-      No {filter} jobs.
-    </p>
-  )
+  return <p className="mx-auto max-w-md pt-12 text-center text-sm text-ink-3">No {filter} jobs.</p>
 }
 
 function filterToStatus(filter: Filter): JobActionStatus | null {

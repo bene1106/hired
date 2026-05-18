@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Phase 7 (PR D — feed + job card): the job feed and cards are
+  restyled in the new visual language. A new shared `MatchRing`
+  (animated arc, score shown final-immediately for screen-reader and
+  test stability) replaces the score bubble, and a shared
+  `CompanyMark` (deterministic initial) anchors each card. Matched /
+  missing / red-flag chips carry the real `FeedItem` data (richer than
+  the design's generic tags; `sr-only` labels kept for a11y). The
+  feed's redundant in-screen global nav is removed now that the
+  sidebar owns it (Crawl stays — it's feed-specific). No up/down
+  feedback (Phase 9) and no Save toast (PR H). Scoring, feed, crawl,
+  and action APIs are untouched; no backend changes.
 - Phase 7 (PR C — onboarding redesign): the 5-step wizard (Welcome →
   Provider → Upload CV → Review → Done) is restyled in the new visual
   language — a `HiredStacked` hero with a Fraunces headline, a

@@ -94,4 +94,16 @@ describe('MaterialsScreen (detail mode)', () => {
       expect(screen.getByRole('button', { name: 'applied' }).className).toMatch(/bg-ink/)
     })
   })
+
+  it('shows a toast after saving the cover letter (PR D feedback gap)', async () => {
+    seedApplication()
+    renderDetail()
+
+    const editor = await screen.findByLabelText(/edit/i)
+    await userEvent.type(editor, ' — edited')
+    await userEvent.click(screen.getByRole('button', { name: /save edits/i }))
+
+    const toast = await screen.findByRole('status')
+    expect(toast).toHaveTextContent(/cover letter saved/i)
+  })
 })

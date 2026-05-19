@@ -4,6 +4,8 @@ import ReactMarkdown from 'react-markdown'
 
 import { CompanyMark } from '@/components/CompanyMark'
 import { Icon } from '@/components/icons/Icon'
+import { SuggestionRenderer } from '@/components/SuggestionRenderer'
+import { Toast, useToast } from '@/components/Toast'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
@@ -59,6 +61,8 @@ export function MaterialsScreen({ mode, jobId, applicationId }: MaterialsScreenP
   const [marking, setMarking] = useState(false)
   const [savingStatus, setSavingStatus] = useState(false)
   const [rejectionNote, setRejectionNote] = useState('')
+  const [regenerating, setRegenerating] = useState<MaterialType | null>(null)
+  const { message: toastMsg, show: showToast } = useToast()
 
   const startedRef = useRef(false)
 
@@ -141,8 +145,15 @@ export function MaterialsScreen({ mode, jobId, applicationId }: MaterialsScreenP
   const onRegenerate = useCallback(
     async (type: MaterialType) => {
       if (appId === null) return
-      const updated = await api.regenerateMaterial(appId, type)
-      setDetail((cur) => (cur ? { ...cur, materials: { ...cur.materials, [type]: updated } } : cur))
+      setRegenerating(type)
+      try {
+        const updated = await api.regenerateMaterial(appId, type)
+        setDetail((cur) =>
+          cur ? { ...cur, materials: { ...cur.materials, [type]: updated } } : cur,
+        )
+      } finally {
+        setRegenerating(null)
+      }
     },
     [appId],
   )
@@ -154,8 +165,9 @@ export function MaterialsScreen({ mode, jobId, applicationId }: MaterialsScreenP
       setDetail((cur) =>
         cur ? { ...cur, materials: { ...cur.materials, cover_letter: updated } } : cur,
       )
+      showToast('Cover letter saved')
     },
-    [appId],
+    [appId, showToast],
   )
 
   async function handleMarkApplied() {
@@ -345,6 +357,7 @@ export function MaterialsScreen({ mode, jobId, applicationId }: MaterialsScreenP
                   material={materials.cover_letter}
                   onSave={onSaveCover}
                   onRegenerate={() => onRegenerate('cover_letter')}
+                  regenerating={regenerating === 'cover_letter'}
                 />
               ) : (
                 <p className="text-[13px] text-ink-3">No cover letter yet.</p>
@@ -352,16 +365,20 @@ export function MaterialsScreen({ mode, jobId, applicationId }: MaterialsScreenP
             ) : tab === 'cv' ? (
               materials?.cv_suggestions ? (
                 <div className="flex flex-col gap-3">
-                  <div className="prose prose-sm max-w-none">
-                    <ReactMarkdown>{materials.cv_suggestions.content}</ReactMarkdown>
-                  </div>
+                  <SuggestionRenderer content={materials.cv_suggestions.content} />
                   <div className="flex justify-end">
                     <Button
                       size="sm"
                       variant="outline"
+                      disabled={regenerating === 'cv_suggestions'}
                       onClick={() => onRegenerate('cv_suggestions')}
                     >
-                      <Icon name="refresh" size={12} /> Regenerate
+                      <Icon
+                        name="refresh"
+                        size={12}
+                        className={regenerating === 'cv_suggestions' ? 'animate-spin' : ''}
+                      />{' '}
+                      {regenerating === 'cv_suggestions' ? 'Regenerating…' : 'Regenerate'}
                     </Button>
                   </div>
                 </div>
@@ -374,6 +391,8 @@ export function MaterialsScreen({ mode, jobId, applicationId }: MaterialsScreenP
           </div>
         </Card>
       </div>
+
+      <Toast message={toastMsg} />
     </div>
   )
 }
@@ -466,9 +485,15 @@ interface CoverLetterEditorProps {
   material: MaterialView
   onSave: (content: string) => Promise<void>
   onRegenerate: () => Promise<void>
+  regenerating: boolean
 }
 
-function CoverLetterEditor({ material, onSave, onRegenerate }: CoverLetterEditorProps) {
+function CoverLetterEditor({
+  material,
+  onSave,
+  onRegenerate,
+  regenerating,
+}: CoverLetterEditorProps) {
   const [draft, setDraft] = useState(material.content)
   const [saving, setSaving] = useState(false)
   const [savedHash, setSavedHash] = useState(material.content)
@@ -509,8 +534,9 @@ function CoverLetterEditor({ material, onSave, onRegenerate }: CoverLetterEditor
               : 'No edits yet.'}
           </span>
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={onRegenerate}>
-              <Icon name="refresh" size={12} /> Regenerate
+            <Button size="sm" variant="outline" disabled={regenerating} onClick={onRegenerate}>
+              <Icon name="refresh" size={12} className={regenerating ? 'animate-spin' : ''} />{' '}
+              {regenerating ? 'Regenerating…' : 'Regenerate'}
             </Button>
             <Button size="sm" disabled={!dirty || saving} onClick={handleSave}>
               {saving ? 'Saving…' : 'Save edits'}

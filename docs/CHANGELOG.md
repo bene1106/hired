@@ -5,9 +5,27 @@ All notable user-visible changes to Hired. are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.0] - 2026-05-19
+
+Phase 7 — frontend redesign. The app now uses the new warm
+off-white / deep-ink / muted-green design language across every
+screen, with light + dark mode. Backend and business logic
+untouched.
 
 ### Added
+- Phase 7 (PR H — polish + v0.2.0): a brand-green `Toast` (fires on
+  cover-letter save — the carried-over PR D feedback gap), a
+  structured `SuggestionRenderer` for the CV tab (one card per
+  suggestion with a typed eyebrow; falls back to markdown for
+  legacy/plain content), a Regenerate loading state (disabled +
+  spinner + "Regenerating…"), and a Fraunces preload to kill the
+  onboarding hero FOUT. Accessibility re-audit: the provider tiles
+  (`role="radio"`) are now keyboard-operable (`tabIndex` +
+  Enter/Space); Feed and Applications get shimmer skeletons with
+  `aria-busy`/`sr-only` while loading. Dark-mode audit passed (all
+  raw colours are intentional/dark-stable). ADR-0008 records the
+  redesign. Version bumped to 0.2.0 across the frontend, the Tauri
+  shell, and the lockfile.
 - Phase 7 (PR G — interview prep + settings restyle): both screens
   adopt the new visual language with zero behaviour change. Interview
   Prep keeps the question bank (4 categories, practice mode via

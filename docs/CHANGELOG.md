@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Phase 7 (PR G — interview prep + settings restyle): both screens
+  adopt the new visual language with zero behaviour change. Interview
+  Prep keeps the question bank (4 categories, practice mode via
+  `evaluate_answer`) and gets token-styled cards, a green accent-tint
+  feedback bubble, and chip-styled "✓ Practiced" markers — no chat
+  coach (that stays Phase 8). Settings restyles the Profile / Provider
+  / Cost / Delete-everything cards, drops the redundant in-screen
+  "Back to app" button (sidebar owns global nav, consistent with PR
+  D/F), and keeps the provider-panel loading→loaded contract intact.
+  No backend changes; `InterviewPrep.test` and `SettingsScreen.test`
+  pass unmodified.
 - Phase 7 (PR F — dashboard → Kanban): the applications table is
   replaced by a 5-column drag-and-drop board (Saved → Applied →
   Interview → Offer → Rejected). `skipped` has no column (Skip is the

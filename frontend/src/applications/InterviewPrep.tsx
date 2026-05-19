@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { api } from '@/lib/api'
 import type {
@@ -81,14 +81,14 @@ export function InterviewPrep({ applicationId }: InterviewPrepProps) {
 
   if (error) {
     return (
-      <p role="alert" className="text-sm text-destructive">
+      <p role="alert" className="text-[13px] text-warn">
         {error}
       </p>
     )
   }
   if (bundle === null) {
     return (
-      <p className="text-sm text-muted-foreground" aria-live="polite">
+      <p className="text-[13px] text-ink-3" aria-live="polite">
         Loading interview prep…
       </p>
     )
@@ -98,18 +98,18 @@ export function InterviewPrep({ applicationId }: InterviewPrepProps) {
   const practicedSet = new Set(attempts.map((a) => a.question))
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Question bank</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
+    <div className="grid gap-4 lg:grid-cols-2">
+      <Card className="flex flex-col p-5">
+        <div className="mb-4 font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-3">
+          Question bank
+        </div>
+        <div className="flex flex-col gap-5">
           {Object.entries(grouped).map(([category, questions]) => (
             <div key={category} className="flex flex-col gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <span className="text-[12px] font-semibold tracking-[-0.01em] text-ink">
                 {CATEGORY_LABELS[category] ?? category}
               </span>
-              <ul className="flex flex-col gap-1">
+              <ul className="flex flex-col gap-1.5">
                 {questions.map((q) => {
                   const practiced = practicedSet.has(q.question)
                   const active = activeQuestion?.question === q.question
@@ -119,20 +119,20 @@ export function InterviewPrep({ applicationId }: InterviewPrepProps) {
                         type="button"
                         onClick={() => pickQuestion(q)}
                         data-testid={`question-${q.question}`}
-                        className={`w-full rounded-md border border-border px-3 py-2 text-left text-sm hover:bg-muted/40 ${
-                          active ? 'bg-muted/40' : ''
+                        className={`w-full rounded-md border px-3 py-2.5 text-left text-[13px] leading-relaxed transition-colors ${
+                          active
+                            ? 'border-line-strong bg-surface-2 text-ink'
+                            : 'border-line bg-surface text-ink-2 hover:bg-surface-2'
                         }`}
                       >
                         <span className="block">{q.question}</span>
                         {q.what_theyre_assessing ? (
-                          <span className="mt-1 block text-xs text-muted-foreground">
+                          <span className="mt-1 block text-[12px] text-ink-3">
                             Assesses: {q.what_theyre_assessing}
                           </span>
                         ) : null}
                         {practiced ? (
-                          <span className="mt-1 inline-block text-xs text-emerald-700">
-                            ✓ Practiced
-                          </span>
+                          <span className="chip chip-green mt-1.5">✓ Practiced</span>
                         ) : null}
                       </button>
                     </li>
@@ -141,21 +141,23 @@ export function InterviewPrep({ applicationId }: InterviewPrepProps) {
               </ul>
             </div>
           ))}
-        </CardContent>
+        </div>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Practice</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
+      <Card className="flex flex-col p-5">
+        <div className="mb-4 font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-3">
+          Practice
+        </div>
+        <div className="flex flex-col gap-3">
           {activeQuestion === null ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-[13px] text-ink-3">
               Pick a question on the left to draft an answer.
             </p>
           ) : (
             <>
-              <p className="text-sm font-medium">{activeQuestion.question}</p>
+              <p className="text-[14px] font-medium tracking-[-0.01em] text-ink">
+                {activeQuestion.question}
+              </p>
               <Textarea
                 value={answer}
                 onChange={(event) => setAnswer(event.target.value)}
@@ -172,12 +174,14 @@ export function InterviewPrep({ applicationId }: InterviewPrepProps) {
             </>
           )}
           {bundle.role_context ? (
-            <details className="mt-4 text-xs text-muted-foreground">
-              <summary className="cursor-pointer">Role description</summary>
-              <p className="mt-2 whitespace-pre-wrap">{bundle.role_context}</p>
+            <details className="mt-4 text-[12px] text-ink-3">
+              <summary className="cursor-pointer font-medium text-ink-2 hover:text-ink">
+                Role description
+              </summary>
+              <p className="mt-2 whitespace-pre-wrap leading-relaxed">{bundle.role_context}</p>
             </details>
           ) : null}
-        </CardContent>
+        </div>
       </Card>
     </div>
   )
@@ -185,14 +189,14 @@ export function InterviewPrep({ applicationId }: InterviewPrepProps) {
 
 function FeedbackPanel({ feedback }: { feedback: PracticeFeedback }) {
   return (
-    <div className="rounded-md border border-border bg-muted/40 p-3 text-sm">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+    <div className="rounded-md border border-brand-green-soft bg-brand-green-tint p-4 text-[13px]">
+      <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-brand-green">
         Feedback
       </p>
       {feedback.what_worked.length > 0 ? (
         <>
-          <p className="mt-2 text-xs font-medium">What worked</p>
-          <ul className="ml-4 list-disc text-sm">
+          <p className="mt-3 text-[12px] font-semibold tracking-[-0.01em] text-ink">What worked</p>
+          <ul className="mt-1 ml-4 list-disc text-[13px] leading-relaxed text-ink-2">
             {feedback.what_worked.map((item) => (
               <li key={item}>{item}</li>
             ))}
@@ -201,18 +205,22 @@ function FeedbackPanel({ feedback }: { feedback: PracticeFeedback }) {
       ) : null}
       {feedback.what_to_improve.length > 0 ? (
         <>
-          <p className="mt-2 text-xs font-medium">What to improve</p>
-          <ul className="ml-4 list-disc text-sm">
+          <p className="mt-3 text-[12px] font-semibold tracking-[-0.01em] text-ink">
+            What to improve
+          </p>
+          <ul className="mt-1 ml-4 list-disc text-[13px] leading-relaxed text-ink-2">
             {feedback.what_to_improve.map((note, idx) => (
               <li key={idx}>
-                <strong>{note.issue}</strong> — {note.fix}
+                <strong className="font-semibold text-ink">{note.issue}</strong> — {note.fix}
               </li>
             ))}
           </ul>
         </>
       ) : null}
-      <p className="mt-2 text-xs font-medium">Stronger version</p>
-      <p className="text-sm">{feedback.sample_stronger_answer}</p>
+      <p className="mt-3 text-[12px] font-semibold tracking-[-0.01em] text-ink">Stronger version</p>
+      <p className="mt-1 text-[13px] leading-relaxed text-ink-2">
+        {feedback.sample_stronger_answer}
+      </p>
     </div>
   )
 }

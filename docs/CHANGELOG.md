@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Phase 7 (PR F — dashboard → Kanban): the applications table is
+  replaced by a 5-column drag-and-drop board (Saved → Applied →
+  Interview → Offer → Rejected). `skipped` has no column (Skip is the
+  archive action). One `listApplications()` fetch grouped client-side;
+  per-column counts + a stats strip are real. Dragging a card does an
+  optimistic move + `updateApplicationStatus` + refetch (intra-column
+  order isn't persisted — no backend for it); cards are also
+  keyboard-activatable and open the PR E detail screen (the accessible
+  status-change path). `CompanyMark` reused; `MatchRing` omitted
+  (applications carry no score — honest, like PR E). The design's
+  `RejectionAnalysis` card and Filter/Sort/Add buttons are cut (no
+  backend / redundant on a board), in-screen nav removed (sidebar owns
+  it), and the empty-column copy is rewritten emoji-free with no
+  autonomous-agent claims. Statuses stay manual; no backend changes.
+  `Dashboard.test` was rewritten for the board with every prior
+  behaviour re-asserted plus a drag-persist test.
 - Phase 7 (PR E — job detail + materials merge): `GeneratePage` and
   `ApplicationDetail` are unified into one `MaterialsScreen` (both
   routes kept via thin adapters). One screen handles generation

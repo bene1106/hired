@@ -4,6 +4,21 @@
 
 Hired. is a desktop app (macOS · Windows · Linux) that runs your job search end-to-end against a local SQLite database and a pluggable LLM provider. Plug in **Claude Code**, **Ollama**, or the **Anthropic API** — switch any time without losing data.
 
+## Screenshots
+
+v0.2.0 introduces a full redesign — a warm off-white / deep-ink / muted-green
+visual language with light **and** dark mode, a two-column app shell, a redesigned
+onboarding wizard, a restyled ranked feed, a unified materials screen, and a
+five-column Kanban board for applications.
+
+<!-- TODO(v0.2.0 release): capture on the release candidate in the packaged
+     Windows build and drop the images in docs/screenshots/. Slots:
+     - onboarding (provider step, light)         docs/screenshots/onboarding.png
+     - job feed with matches (light)             docs/screenshots/feed.png
+     - materials screen (generate, dark)         docs/screenshots/materials.png
+     - applications Kanban board (dark)          docs/screenshots/kanban.png
+     Headless CI cannot render the GUI, so capture is a manual RC step. -->
+
 ## Get started
 
 ### Pre-built installers

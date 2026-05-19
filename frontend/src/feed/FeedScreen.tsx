@@ -228,9 +228,24 @@ export function FeedScreen() {
           {feedError}
         </p>
       ) : items === null ? (
-        <p className="text-sm text-ink-3" aria-live="polite">
-          Loading…
-        </p>
+        <div className="flex flex-col gap-3" aria-busy="true" aria-live="polite">
+          <span className="sr-only">Loading jobs…</span>
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="grid grid-cols-[auto_1fr_auto] gap-4 rounded-[16px] border border-line bg-surface p-[18px]"
+            >
+              <div className="skeleton h-10 w-10 rounded-[9px]" />
+              <div className="flex flex-col gap-2">
+                <div className="skeleton h-4 w-1/2" />
+                <div className="skeleton h-3 w-1/3" />
+                <div className="skeleton mt-1 h-3 w-5/6" />
+                <div className="skeleton h-3 w-2/3" />
+              </div>
+              <div className="skeleton h-[60px] w-[60px] rounded-full" />
+            </div>
+          ))}
+        </div>
       ) : items.length === 0 ? (
         <EmptyState filter={filter} />
       ) : (

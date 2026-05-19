@@ -39,9 +39,16 @@ function ProviderCard({
       role="radio"
       aria-checked={selected}
       aria-disabled={disabled}
+      tabIndex={disabled ? -1 : 0}
       data-testid={`provider-card-${id}`}
       onClick={() => {
         if (!disabled) onSelect()
+      }}
+      onKeyDown={(e) => {
+        if (!disabled && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault()
+          onSelect()
+        }
       }}
       className={cn(
         'rounded-[10px] border p-4 transition-colors',

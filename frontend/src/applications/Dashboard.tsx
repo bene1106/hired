@@ -143,9 +143,24 @@ export function ApplicationDashboard() {
 
       <div className="flex-1 overflow-x-auto bg-paper-sunk px-8 py-5">
         {items === null ? (
-          <p className="text-sm text-ink-3" aria-live="polite">
-            Loading…
-          </p>
+          <div
+            className="grid grid-cols-1 gap-3.5 md:grid-cols-2 xl:grid-cols-5"
+            aria-busy="true"
+            aria-live="polite"
+          >
+            <span className="sr-only">Loading applications…</span>
+            {COLUMNS.map((col) => (
+              <div key={col.id} className="rounded-[10px] border border-line bg-paper">
+                <div className="border-b border-line px-3.5 py-3">
+                  <div className="skeleton h-3 w-20" />
+                </div>
+                <div className="flex flex-col gap-2 p-2.5">
+                  <div className="skeleton h-[68px] w-full rounded-lg" />
+                  <div className="skeleton h-[68px] w-full rounded-lg" />
+                </div>
+              </div>
+            ))}
+          </div>
         ) : total === 0 ? (
           <div className="mx-auto max-w-md pt-12 text-center">
             <h2 className="text-lg font-medium text-ink">No applications yet.</h2>

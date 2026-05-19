@@ -168,8 +168,15 @@ describe('ApplicationDashboard (Kanban)', () => {
     const card = await screen.findByTestId('application-card-1')
     const appliedCol = screen.getByTestId('kanban-col-applied')
 
+    // Code-level DnD preconditions a regression could silently break
+    // (jsdom can't exercise the real Tauri/native lifecycle, but it can
+    // lock these): the card must actually be draggable, and the drop
+    // target must preventDefault on dragover or the browser rejects the
+    // drop entirely (the classic HTML5 footgun).
+    expect(card).toHaveAttribute('draggable', 'true')
     fireEvent.dragStart(card)
-    fireEvent.dragOver(appliedCol)
+    // fireEvent returns false iff a handler called preventDefault.
+    expect(fireEvent.dragOver(appliedCol)).toBe(false)
     fireEvent.drop(appliedCol)
 
     await waitFor(() => {

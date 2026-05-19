@@ -24,6 +24,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   autonomous-agent claims. Statuses stay manual; no backend changes.
   `Dashboard.test` was rewritten for the board with every prior
   behaviour re-asserted plus a drag-persist test.
+- Phase 7 (PR F fix — Kanban drag-and-drop in Tauri): set
+  `app.windows[].dragDropEnabled = false` in `tauri.conf.json`. Tauri
+  v2 defaults it to `true`, which registers a native OS file-drop
+  handler that swallowed the drag gesture before the webview's HTML5
+  DnD could start — board cards couldn't be picked up in the packaged
+  app even though jsdom tests passed. No code change to the DnD
+  itself; the test now also asserts the card is `draggable` and the
+  drop target preventDefaults on dragover. (This also lets the
+  onboarding CV drop-zone's in-page file drop work in Tauri.)
 - Phase 7 (PR E — job detail + materials merge): `GeneratePage` and
   `ApplicationDetail` are unified into one `MaterialsScreen` (both
   routes kept via thin adapters). One screen handles generation

@@ -220,6 +220,12 @@ interface AppCardProps {
   onOpen: () => void
 }
 
+// HTML5 drag-and-drop only works in the Tauri webview because
+// `app.windows[].dragDropEnabled` is set to `false` in
+// src-tauri/tauri.conf.json. With Tauri's default (true) the native
+// OS file-drop handler swallows the gesture before the webview sees it
+// and cards can't be picked up. Do not re-enable it without a
+// pointer-event-based DnD replacement.
 function AppCard({ app, dragging, onDragStart, onDragEnd, onOpen }: AppCardProps) {
   return (
     <Card

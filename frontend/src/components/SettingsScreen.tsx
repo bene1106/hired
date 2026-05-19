@@ -45,36 +45,42 @@ export function SettingsScreen() {
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto max-w-2xl px-6 py-10 flex flex-col gap-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-          <Button variant="ghost" onClick={() => navigate('/app')}>
-            Back to app
-          </Button>
+    <main className="screen min-h-screen bg-paper text-ink">
+      <div className="mx-auto flex max-w-[680px] flex-col gap-6 px-8 py-10">
+        <div className="mb-1">
+          <div className="mb-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-3">
+            Settings
+          </div>
+          <h1 className="text-[28px] font-semibold tracking-[-0.025em] text-ink">Settings</h1>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>Profile</CardTitle>
-            <CardDescription>Edit your target roles, locations, and priorities.</CardDescription>
+            <CardTitle className="text-[18px] tracking-[-0.01em] text-ink">Profile</CardTitle>
+            <CardDescription className="text-[13px] text-ink-3">
+              Edit your target roles, locations, and priorities.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col gap-2">
+          <CardContent className="flex flex-col gap-3">
             {profile === null ? (
-              <p className="text-sm text-muted-foreground">No profile saved.</p>
+              <p className="text-[13px] text-ink-3">No profile saved.</p>
             ) : (
-              <>
-                <p className="text-sm">
-                  <strong>{profile.name ?? '—'}</strong>{' '}
-                  {profile.email !== null ? `· ${profile.email}` : ''}
+              <div className="flex flex-col gap-1.5">
+                <p className="text-[14px] text-ink">
+                  <strong className="font-semibold">{profile.name ?? '—'}</strong>{' '}
+                  {profile.email !== null ? (
+                    <span className="text-ink-3">· {profile.email}</span>
+                  ) : (
+                    ''
+                  )}
                 </p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-[13px] text-ink-3">
                   Roles: {profile.target_roles.join(', ') || '—'}
                 </p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-[13px] text-ink-3">
                   Locations: {profile.target_locations.join(', ') || '—'}
                 </p>
-              </>
+              </div>
             )}
             <div>
               <Button variant="outline" size="sm" onClick={() => navigate('/onboarding/review')}>
@@ -86,14 +92,14 @@ export function SettingsScreen() {
 
         <Card data-testid="provider-panel">
           <CardHeader>
-            <CardTitle>Provider</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-[18px] tracking-[-0.01em] text-ink">Provider</CardTitle>
+            <CardDescription className="text-[13px] text-ink-3">
               Switch which LLM Hired. uses to score jobs and generate materials.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             {stats === null ? (
-              <p className="text-sm text-muted-foreground">Loading provider status…</p>
+              <p className="text-[13px] text-ink-3">Loading provider status…</p>
             ) : (
               <ProviderStatus stats={stats} />
             )}
@@ -107,14 +113,14 @@ export function SettingsScreen() {
 
         <Card data-testid="cost-panel">
           <CardHeader>
-            <CardTitle>Cost</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-[18px] tracking-[-0.01em] text-ink">Cost</CardTitle>
+            <CardDescription className="text-[13px] text-ink-3">
               Token spend on generation calls. Local providers cost nothing per request.
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col gap-2 text-sm">
+          <CardContent className="flex flex-col gap-2">
             {cost === null ? (
-              <p className="text-muted-foreground">Loading…</p>
+              <p className="text-[13px] text-ink-3">Loading…</p>
             ) : (
               <CostDisplay cost={cost} />
             )}
@@ -123,19 +129,23 @@ export function SettingsScreen() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Delete everything</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-[18px] tracking-[-0.01em] text-ink">
+              Delete everything
+            </CardTitle>
+            <CardDescription className="text-[13px] text-ink-3">
               Wipes your profile, every saved job, and your stored API key. Cannot be undone.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             {!confirmingDelete ? (
-              <Button variant="destructive" onClick={() => setConfirmingDelete(true)}>
-                Delete everything…
-              </Button>
+              <div>
+                <Button variant="destructive" onClick={() => setConfirmingDelete(true)}>
+                  Delete everything…
+                </Button>
+              </div>
             ) : (
-              <div className="flex flex-col gap-2">
-                <p className="text-sm font-medium">
+              <div className="flex flex-col gap-3 rounded-md border border-warn-soft bg-warn-soft/40 p-4">
+                <p className="text-[13px] font-medium text-ink">
                   Really delete everything? You'll be asked to onboard again.
                 </p>
                 <div className="flex gap-2">
@@ -175,16 +185,16 @@ function ProviderStatus({ stats }: { stats: ProviderStats }) {
       ? null
       : `${Math.round(stats.success_rate_today * 100)}% success`
   return (
-    <div className="flex flex-col gap-1 text-sm" aria-live="polite">
-      <p className="font-medium">
+    <div className="flex flex-col gap-1.5" aria-live="polite">
+      <p className="flex items-center gap-2 text-[14px] font-medium text-ink">
         Currently using: {label}
         {stats.provider === 'claude_code' ? (
-          <Badge variant="destructive" className="ml-2 align-middle">
+          <Badge variant="destructive" className="align-middle">
             Experimental
           </Badge>
         ) : null}
       </p>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-[12px] text-ink-3">
         {healthy === null
           ? 'No calls yet — pick a job to score or generate to populate stats.'
           : healthy
@@ -200,9 +210,9 @@ function ProviderStatus({ stats }: { stats: ProviderStats }) {
 function CostDisplay({ cost }: { cost: CostSummary }) {
   if (cost.label === 'subscription') {
     return (
-      <div>
-        <p className="font-medium">$0.00 (subscription)</p>
-        <p className="text-xs text-muted-foreground">
+      <div className="flex flex-col gap-1">
+        <p className="text-[15px] font-semibold text-ink">$0.00 (subscription)</p>
+        <p className="text-[12px] text-ink-3">
           {cost.calls_today} calls today · {cost.calls_week} this week. Claude Code is billed via
           your Claude.ai plan.
         </p>
@@ -211,9 +221,9 @@ function CostDisplay({ cost }: { cost: CostSummary }) {
   }
   if (cost.label === 'local') {
     return (
-      <div>
-        <p className="font-medium">$0.00 (local)</p>
-        <p className="text-xs text-muted-foreground">
+      <div className="flex flex-col gap-1">
+        <p className="text-[15px] font-semibold text-ink">$0.00 (local)</p>
+        <p className="text-[12px] text-ink-3">
           {cost.calls_today} calls today · {cost.calls_week} this week. Ollama runs on your
           hardware.
         </p>
@@ -222,9 +232,9 @@ function CostDisplay({ cost }: { cost: CostSummary }) {
   }
   if (cost.label === 'unknown') {
     return (
-      <div>
-        <p className="font-medium">—</p>
-        <p className="text-xs text-muted-foreground">
+      <div className="flex flex-col gap-1">
+        <p className="text-[15px] font-semibold text-ink">—</p>
+        <p className="text-[12px] text-ink-3">
           {cost.calls_today} calls today · {cost.calls_week} this week. The mock provider
           doesn&rsquo;t produce token counts.
         </p>
@@ -232,11 +242,11 @@ function CostDisplay({ cost }: { cost: CostSummary }) {
     )
   }
   return (
-    <div>
-      <p className="font-medium">
+    <div className="flex flex-col gap-1">
+      <p className="text-[15px] font-semibold text-ink">
         Today: {formatUsd(cost.today_usd)} · This week: {formatUsd(cost.week_usd)}
       </p>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-[12px] text-ink-3">
         {cost.calls_today} calls today · {cost.calls_week} this week
       </p>
     </div>

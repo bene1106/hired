@@ -60,7 +60,9 @@ async function seedTwoApplications() {
   // Run two generations to populate the dashboard.
   for (const jobId of [1, 2]) {
     const { unmount } = renderApp(`/app/apply/${jobId}`)
-    await screen.findByTestId('section-cover_letter')
+    // Generation done = the cover-letter editor is mounted (merged
+    // MaterialsScreen has no standalone section-* testids anymore).
+    await screen.findByLabelText(/edit/i)
     unmount()
   }
 }

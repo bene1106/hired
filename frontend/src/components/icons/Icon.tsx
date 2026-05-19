@@ -23,6 +23,8 @@ export type IconName =
   | 'pin'
   | 'refresh'
   | 'filter'
+  | 'file'
+  | 'mail'
 
 const PATHS: Record<IconName, ReactElement> = {
   feed: <path d="M4 7h16M4 12h16M4 17h10" />,
@@ -58,6 +60,18 @@ const PATHS: Record<IconName, ReactElement> = {
     </>
   ),
   filter: <path d="M4 5h16M7 12h10M10 19h4" />,
+  file: (
+    <>
+      <path d="M13 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9z" />
+      <path d="M13 3v6h6" />
+    </>
+  ),
+  mail: (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M3 7l9 7 9-7" />
+    </>
+  ),
 }
 
 export interface IconProps {

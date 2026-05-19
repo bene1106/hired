@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Phase 7 (PR E — job detail + materials merge): `GeneratePage` and
+  `ApplicationDetail` are unified into one `MaterialsScreen` (both
+  routes kept via thin adapters). One screen handles generation
+  (progress ring + staged checklist from the existing pipeline
+  polling) and post-generation editing: a two-column layout with the
+  job post + a collapsible "Company research" disclosure (the real
+  `company_brief` material, kept as secondary context, not a tab) on
+  the left, and a Cover letter / CV tab panel on the right. Cover
+  letter stays editable with the edit-count line; **Regenerate is the
+  only action over generated content** (no tone buttons). Status
+  switcher + rejection notes (detail mode) and Mark applied (generate
+  mode) are preserved; Interview Prep stays reachable (restyle is
+  PR G). No `/apply` or any backend changes. `GeneratePage.test` and
+  `Dashboard.test` were updated for the new tabbed DOM with every
+  prior behaviour re-asserted; `InterviewPrep.test` untouched.
 - Phase 7 (PR D — feed + job card): the job feed and cards are
   restyled in the new visual language. A new shared `MatchRing`
   (animated arc, score shown final-immediately for screen-reader and

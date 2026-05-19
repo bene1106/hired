@@ -1,187 +1,279 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { Button } from '@/components/ui/button'
+import { CompanyMark } from '@/components/CompanyMark'
+import { Icon } from '@/components/icons/Icon'
+import { Card } from '@/components/ui/card'
 import { api } from '@/lib/api'
 import type { ApplicationStatus, ApplicationSummary } from '@/lib/types'
+import { cn } from '@/lib/utils'
 
-const STATUSES: { id: ApplicationStatus | 'all'; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'saved', label: 'Saved' },
-  { id: 'applied', label: 'Applied' },
-  { id: 'interview', label: 'Interview' },
-  { id: 'offer', label: 'Offer' },
-  { id: 'rejected', label: 'Rejected' },
-  { id: 'skipped', label: 'Skipped' },
+// 5 board columns. Hired's 6th status, `skipped`, has no column — Skip
+// is the "archive" action (see the feed action semantics), so skipped
+// applications stay off the board, like skipped jobs stay out of "All".
+type ColumnId = Exclude<ApplicationStatus, 'skipped'>
+
+const COLUMNS: { id: ColumnId; label: string; accent: string; empty: string }[] = [
+  {
+    id: 'saved',
+    label: 'Saved',
+    accent: 'var(--ink-3)',
+    empty: 'Nothing saved yet. Apply to a job from the feed and it lands here.',
+  },
+  {
+    id: 'applied',
+    label: 'Applied',
+    accent: 'var(--info)',
+    empty: 'No applications submitted yet.',
+  },
+  {
+    id: 'interview',
+    label: 'Interview',
+    accent: 'var(--accent)',
+    empty: 'No interviews yet. Move a card here when you hear back.',
+  },
+  {
+    id: 'offer',
+    label: 'Offer',
+    accent: 'var(--accent-2)',
+    empty: 'No offers yet.',
+  },
+  {
+    id: 'rejected',
+    label: 'Rejected',
+    accent: 'var(--warn)',
+    empty: "Nothing here. Move a card here if it doesn't work out.",
+  },
 ]
-
-const STATUS_TONES: Record<ApplicationStatus, string> = {
-  saved: 'bg-muted text-muted-foreground',
-  applied: 'bg-sky-100 text-sky-900',
-  skipped: 'bg-muted text-muted-foreground',
-  interview: 'bg-amber-100 text-amber-900',
-  offer: 'bg-emerald-100 text-emerald-900',
-  rejected: 'bg-destructive/10 text-destructive',
-}
-
-type SortKey = 'date' | 'company'
 
 export function ApplicationDashboard() {
   const navigate = useNavigate()
-  const [filter, setFilter] = useState<ApplicationStatus | 'all'>('all')
-  const [sort, setSort] = useState<SortKey>('date')
   const [items, setItems] = useState<ApplicationSummary[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [dragging, setDragging] = useState<{ id: number; from: ColumnId } | null>(null)
+  const [dragOver, setDragOver] = useState<ColumnId | null>(null)
+
+  const loadApps = useCallback(async () => {
+    try {
+      const list = await api.listApplications()
+      setItems(list)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not load applications.')
+    }
+  }, [])
 
   useEffect(() => {
-    let cancelled = false
-    setItems(null)
-    setError(null)
-    void (async () => {
-      try {
-        const list = await api.listApplications(filter === 'all' ? undefined : filter)
-        if (!cancelled) setItems(list)
-      } catch (err) {
-        if (cancelled) return
-        const message = err instanceof Error ? err.message : 'Could not load applications.'
-        setError(message)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [filter])
+    void loadApps()
+  }, [loadApps])
 
-  const sorted = useMemo(() => {
-    if (items === null) return null
-    const copy = [...items]
-    if (sort === 'company') {
-      copy.sort((a, b) => (a.company ?? '').localeCompare(b.company ?? ''))
-    } else {
-      // Most recently created first; backend already returns desc by id.
-      copy.sort((a, b) => b.id - a.id)
+  const board = useMemo(() => {
+    const byColumn: Record<ColumnId, ApplicationSummary[]> = {
+      saved: [],
+      applied: [],
+      interview: [],
+      offer: [],
+      rejected: [],
     }
-    return copy
-  }, [items, sort])
+    for (const app of items ?? []) {
+      if (app.status === 'skipped') continue
+      byColumn[app.status].push(app)
+    }
+    return byColumn
+  }, [items])
+
+  const total = items?.filter((a) => a.status !== 'skipped').length ?? 0
+
+  async function handleDrop(toCol: ColumnId) {
+    const drag = dragging
+    setDragging(null)
+    setDragOver(null)
+    if (!drag || drag.from === toCol) return
+
+    // Optimistic move, then persist and reconcile.
+    setItems((cur) =>
+      cur ? cur.map((a) => (a.id === drag.id ? { ...a, status: toCol } : a)) : cur,
+    )
+    try {
+      await api.updateApplicationStatus(drag.id, toCol)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not move the application.')
+    }
+    await loadApps()
+  }
+
+  function openDetail(id: number) {
+    navigate(`/app/applications/${id}`)
+  }
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <header className="flex items-center justify-between border-b border-border px-6 py-3">
-        <h1 className="text-lg font-semibold tracking-tight">Applications</h1>
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="ghost" onClick={() => navigate('/app')}>
-            Back to feed
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => navigate('/app/settings')}>
-            Settings
-          </Button>
+    <div className="screen flex min-h-screen flex-col">
+      <div className="border-b border-line px-8 pb-5 pt-6">
+        <div className="font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-3">
+          Applications
         </div>
-      </header>
+        <h1 className="text-[24px] font-semibold tracking-[-0.02em] text-ink">Applications</h1>
+        <p className="mt-1 text-[13px] text-ink-3">
+          <span className="mono text-ink">{total}</span> active · drag a card to change its status
+        </p>
 
-      <section className="border-b border-border px-6 py-3 flex flex-wrap items-center gap-2">
-        {STATUSES.map((option) => (
-          <Button
-            key={option.id}
-            size="sm"
-            variant={filter === option.id ? 'default' : 'outline'}
-            onClick={() => setFilter(option.id)}
-          >
-            {option.label}
-          </Button>
-        ))}
-        <span className="ml-auto text-xs text-muted-foreground">Sort:</span>
-        <Button
-          size="sm"
-          variant={sort === 'date' ? 'default' : 'outline'}
-          onClick={() => setSort('date')}
-        >
-          Newest
-        </Button>
-        <Button
-          size="sm"
-          variant={sort === 'company' ? 'default' : 'outline'}
-          onClick={() => setSort('company')}
-        >
-          Company
-        </Button>
-      </section>
+        {/* Stats strip — real counts from the loaded list */}
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
+          {COLUMNS.map((c) => (
+            <div
+              key={c.id}
+              className="rounded-md border border-line bg-surface px-3 py-2.5"
+              style={{ borderLeft: `3px solid ${c.accent}` }}
+            >
+              <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-3">
+                {c.label}
+              </div>
+              <div className="mono mt-1 text-[20px] font-medium tracking-[-0.02em] text-ink">
+                {board[c.id].length}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
 
-      <div className="px-6 py-6">
-        {error ? (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
-        ) : null}
-        {sorted === null ? (
-          <p className="text-sm text-muted-foreground" aria-live="polite">
+      {error ? (
+        <p role="alert" className="px-8 pt-4 text-sm text-warn">
+          {error}
+        </p>
+      ) : null}
+
+      <div className="flex-1 overflow-x-auto bg-paper-sunk px-8 py-5">
+        {items === null ? (
+          <p className="text-sm text-ink-3" aria-live="polite">
             Loading…
           </p>
-        ) : sorted.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No applications yet. Apply to a job from the feed.
-          </p>
+        ) : total === 0 ? (
+          <div className="mx-auto max-w-md pt-12 text-center">
+            <h2 className="text-lg font-medium text-ink">No applications yet.</h2>
+            <p className="mt-2 text-sm text-ink-3">
+              Apply to a job from the feed and it will show up here.
+            </p>
+          </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="py-2 pr-4">Company</th>
-                <th className="py-2 pr-4">Role</th>
-                <th className="py-2 pr-4">Applied</th>
-                <th className="py-2 pr-4">Status</th>
-                <th className="py-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.map((row) => (
-                <tr
-                  key={row.id}
-                  // Whole-row click target needs to be reachable by
-                  // keyboard too. We mirror the click handler on Enter
-                  // and Space so screen-reader users can open the
-                  // detail view without grabbing the mouse-only button.
-                  role="button"
-                  tabIndex={0}
-                  className="cursor-pointer border-t border-border hover:bg-muted/40 focus-visible:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  data-testid={`application-row-${row.id}`}
-                  onClick={() => navigate(`/app/applications/${row.id}`)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault()
-                      navigate(`/app/applications/${row.id}`)
-                    }
-                  }}
-                  aria-label={`Open ${row.title} at ${row.company ?? 'unknown company'}`}
-                >
-                  <td className="py-2 pr-4 font-medium">{row.company ?? '—'}</td>
-                  <td className="py-2 pr-4">{row.title}</td>
-                  <td className="py-2 pr-4 text-muted-foreground">
-                    {row.applied_at ? new Date(row.applied_at).toLocaleDateString() : '—'}
-                  </td>
-                  <td className="py-2 pr-4">
-                    <StatusPill status={row.status} />
-                  </td>
-                  <td className="py-2 text-right">
-                    <span aria-hidden className="text-xs text-muted-foreground">
-                      Open
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="grid min-h-0 grid-cols-1 gap-3.5 md:grid-cols-2 xl:grid-cols-5">
+            {COLUMNS.map((col) => (
+              <section
+                key={col.id}
+                data-testid={`kanban-col-${col.id}`}
+                aria-label={col.label}
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  setDragOver(col.id)
+                }}
+                onDragLeave={() => setDragOver(null)}
+                onDrop={() => void handleDrop(col.id)}
+                className={cn(
+                  'flex flex-col rounded-[10px] border bg-paper transition-colors',
+                  dragOver === col.id ? 'border-line-strong bg-surface-2' : 'border-line',
+                )}
+              >
+                <div className="flex items-center gap-2 border-b border-line px-3.5 py-3">
+                  <span
+                    className="h-2 w-2 rounded-full"
+                    style={{ background: col.accent }}
+                    aria-hidden
+                  />
+                  <span className="text-[12px] font-semibold text-ink">{col.label}</span>
+                  <span className="mono ml-auto text-[11px] text-ink-3">
+                    {board[col.id].length}
+                  </span>
+                </div>
+                <div className="flex flex-1 flex-col gap-2 p-2.5">
+                  {board[col.id].length === 0 ? (
+                    <EmptyColumn copy={col.empty} />
+                  ) : (
+                    board[col.id].map((app) => (
+                      <AppCard
+                        key={app.id}
+                        app={app}
+                        columnId={col.id}
+                        dragging={dragging?.id === app.id}
+                        onDragStart={() => setDragging({ id: app.id, from: col.id })}
+                        onDragEnd={() => {
+                          setDragging(null)
+                          setDragOver(null)
+                        }}
+                        onOpen={() => openDetail(app.id)}
+                      />
+                    ))
+                  )}
+                </div>
+              </section>
+            ))}
+          </div>
         )}
       </div>
-    </main>
+    </div>
   )
 }
 
-function StatusPill({ status }: { status: ApplicationStatus }) {
+interface AppCardProps {
+  app: ApplicationSummary
+  columnId: ColumnId
+  dragging: boolean
+  onDragStart: () => void
+  onDragEnd: () => void
+  onOpen: () => void
+}
+
+// HTML5 drag-and-drop only works in the Tauri webview because
+// `app.windows[].dragDropEnabled` is set to `false` in
+// src-tauri/tauri.conf.json. With Tauri's default (true) the native
+// OS file-drop handler swallows the gesture before the webview sees it
+// and cards can't be picked up. Do not re-enable it without a
+// pointer-event-based DnD replacement.
+function AppCard({ app, dragging, onDragStart, onDragEnd, onOpen }: AppCardProps) {
   return (
-    <span
-      data-testid={`status-${status}`}
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_TONES[status]}`}
+    <Card
+      draggable
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      role="button"
+      tabIndex={0}
+      data-testid={`application-card-${app.id}`}
+      aria-label={`Open ${app.title} at ${app.company ?? 'unknown company'}`}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onOpen()
+        }
+      }}
+      className={cn(
+        'cursor-grab p-3 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        dragging && 'opacity-40',
+      )}
     >
-      {status}
-    </span>
+      <div className="flex items-start gap-2.5">
+        <CompanyMark company={app.company} size={28} />
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[12px] font-semibold text-ink">{app.company ?? '—'}</div>
+          <div className="truncate text-[11px] text-ink-3">{app.title}</div>
+        </div>
+        <Icon name="drag" size={14} className="shrink-0 text-ink-4" />
+      </div>
+      {app.notes ? (
+        <div className="mt-2 rounded bg-surface-2 px-2 py-1.5 text-[11px] leading-snug text-ink-2">
+          {app.notes}
+        </div>
+      ) : null}
+      {app.applied_at ? (
+        <div className="mt-2 text-[10px] text-ink-4">
+          Applied {new Date(app.applied_at).toLocaleDateString()}
+        </div>
+      ) : null}
+    </Card>
+  )
+}
+
+function EmptyColumn({ copy }: { copy: string }) {
+  return (
+    <div className="m-auto rounded-md border border-dashed border-line-strong px-3 py-6 text-center text-[11px] leading-relaxed text-ink-3">
+      {copy}
+    </div>
   )
 }

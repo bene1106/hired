@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
@@ -57,17 +57,19 @@ function renderApp(path: string) {
 
 async function seedTwoApplications() {
   setMockState({ feed: feed() })
-  // Run two generations to populate the dashboard.
   for (const jobId of [1, 2]) {
     const { unmount } = renderApp(`/app/apply/${jobId}`)
-    // Generation done = the cover-letter editor is mounted (merged
-    // MaterialsScreen has no standalone section-* testids anymore).
     await screen.findByLabelText(/edit/i)
     unmount()
   }
 }
 
-describe('ApplicationDashboard', () => {
+// Phase 7 PR F turned the dashboard table into a 5-column Kanban board.
+// table→board is a substantial DOM change, so this file was rewritten;
+// every prior behaviour is still asserted (empty state, applications
+// listed, status grouping — now columns instead of a filter, row→detail
+// — now card→detail) plus a new drag-to-change-status test.
+describe('ApplicationDashboard (Kanban)', () => {
   it('shows an empty state when there are no applications', async () => {
     renderApp('/app/applications')
     expect(await screen.findByText(/no applications yet/i)).toBeInTheDocument()
@@ -81,9 +83,8 @@ describe('ApplicationDashboard', () => {
     expect(screen.getByText('BetaCorp')).toBeInTheDocument()
   })
 
-  it('filters by status', async () => {
+  it('places each application in its status column', async () => {
     await seedTwoApplications()
-    // Mark the first application applied via the mock state directly.
     const apps = getMockState().applications.map((a, idx) =>
       idx === 0 ? { ...a, status: 'applied' as const, applied_at: '2026-05-10T00:00:00Z' } : a,
     )
@@ -91,16 +92,14 @@ describe('ApplicationDashboard', () => {
 
     renderApp('/app/applications')
 
-    await screen.findByText('AcmeCo')
-    await userEvent.click(screen.getByRole('button', { name: 'Applied' }))
-
-    await waitFor(() => {
-      expect(screen.queryByText('BetaCorp')).not.toBeInTheDocument()
-    })
-    expect(screen.getByText('AcmeCo')).toBeInTheDocument()
+    const applied = await screen.findByTestId('kanban-col-applied')
+    const saved = screen.getByTestId('kanban-col-saved')
+    await waitFor(() => expect(within(applied).getByText('AcmeCo')).toBeInTheDocument())
+    expect(within(saved).getByText('BetaCorp')).toBeInTheDocument()
+    expect(within(applied).queryByText('BetaCorp')).not.toBeInTheDocument()
   })
 
-  it('navigates to the detail view when a row is clicked', async () => {
+  it('opens the detail view when a card is activated', async () => {
     setMockState({
       applications: [
         {
@@ -115,13 +114,7 @@ describe('ApplicationDashboard', () => {
           notes: null,
           materials: {
             application_id: 1,
-            company_brief: {
-              type: 'company_brief',
-              content: '# AcmeCo brief',
-              source_meta: null,
-              created_at: '2026-05-10T00:00:00Z',
-              edit_count: 0,
-            },
+            company_brief: null,
             cv_suggestions: null,
             cover_letter: {
               type: 'cover_letter',
@@ -137,13 +130,62 @@ describe('ApplicationDashboard', () => {
 
     renderApp('/app/applications')
 
-    const acmeRow = await screen.findByTestId(/^application-row-/)
-    await userEvent.click(acmeRow)
+    const card = await screen.findByTestId(/^application-card-/)
+    await userEvent.click(card)
 
     await waitFor(() => {
       expect(
         within(screen.getByRole('banner')).getByRole('heading', { name: /Engineer/ }),
       ).toBeInTheDocument()
+    })
+  })
+
+  it('drag-and-drop moves a card and persists the new status', async () => {
+    setMockState({
+      applications: [
+        {
+          id: 1,
+          job_id: 1,
+          title: 'Backend Engineer',
+          company: 'AcmeCo',
+          location: 'Berlin',
+          url: null,
+          status: 'saved',
+          applied_at: null,
+          notes: null,
+          materials: {
+            application_id: 1,
+            company_brief: null,
+            cv_suggestions: null,
+            cover_letter: null,
+          },
+        },
+      ],
+    })
+
+    renderApp('/app/applications')
+
+    const card = await screen.findByTestId('application-card-1')
+    const appliedCol = screen.getByTestId('kanban-col-applied')
+
+    // Code-level DnD preconditions a regression could silently break
+    // (jsdom can't exercise the real Tauri/native lifecycle, but it can
+    // lock these): the card must actually be draggable, and the drop
+    // target must preventDefault on dragover or the browser rejects the
+    // drop entirely (the classic HTML5 footgun).
+    expect(card).toHaveAttribute('draggable', 'true')
+    fireEvent.dragStart(card)
+    // fireEvent returns false iff a handler called preventDefault.
+    expect(fireEvent.dragOver(appliedCol)).toBe(false)
+    fireEvent.drop(appliedCol)
+
+    await waitFor(() => {
+      expect(within(appliedCol).getByText('AcmeCo')).toBeInTheDocument()
+    })
+    expect(within(screen.getByTestId('kanban-col-saved')).queryByText('AcmeCo')).toBeNull()
+    // Persisted: refetch reflects the new status.
+    await waitFor(() => {
+      expect(getMockState().applications[0].status).toBe('applied')
     })
   })
 })

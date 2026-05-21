@@ -8,11 +8,13 @@ Run in dev with::
 from __future__ import annotations
 
 import logging
+import traceback
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
 
 from api import VERSION
 from api.health import router as health_router
@@ -54,6 +56,48 @@ async def log_origin(
     origin = request.headers.get("origin", "<none>")
     _log.info("request method=%s path=%s origin=%s", request.method, request.url.path, origin)
     return await call_next(request)
+
+
+@app.middleware("http")
+async def log_unhandled_exceptions(
+    request: Request,
+    call_next: Callable[[Request], Awaitable[Response]],
+) -> Response:
+    """v0.3.4: surface escaping exceptions to ``sidecar.log``.
+
+    Until this landed, any exception that escaped a sync route handler
+    became Starlette's plaintext ``Internal Server Error`` body with no
+    traceback anywhere we could find — uvicorn's default handler dumps
+    to stderr but the PyInstaller-bundled binary's stderr is captured by
+    Tauri's shell plugin in a way that swallowed the traceback in the
+    field (verified by tailing the Tauri log around a repro: zero new
+    bytes). That left v0.3.3's Practice-tab 500 undiagnosable from logs.
+
+    This middleware logs the full traceback through ``hired.api`` which
+    sidecar.py routes to ``~/.hired/logs/sidecar.log`` AND stdout, so
+    the next time something blows up we get the cause without needing
+    to ship another diagnostic build. We re-raise so FastAPI still
+    returns the 500 — the user-facing behaviour is unchanged; only
+    observability improves.
+    """
+    try:
+        return await call_next(request)
+    except Exception as exc:  # noqa: BLE001 — we log + re-raise; nothing swallowed
+        tb = traceback.format_exc()
+        _log.error(
+            "unhandled exception on %s %s: %s\n%s",
+            request.method,
+            request.url.path,
+            exc,
+            tb,
+        )
+        # Surface the class name in the response body so a curl smoke
+        # can identify the exception type without grepping logs. Stays
+        # short — the full traceback is the log line above.
+        return PlainTextResponse(
+            f"Internal Server Error ({type(exc).__name__})",
+            status_code=500,
+        )
 
 
 # The Tauri webview calls the sidecar from a platform-specific origin:

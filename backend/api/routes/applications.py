@@ -457,11 +457,34 @@ def get_interview_questions(
             llm_job = job_row_to_llm(job)
         cached_summary = _safe_summarize_role(provider, llm_job, fallback=job.description)
 
+    # v0.3.4: log + sanitize per-question cached entries before re-serialising.
+    # Phase 8 PR B didn't touch this handler's logic, but the v0.3.3 RC smoke
+    # produced a 500 here despite local TestClient + uvicorn runs returning
+    # 200 on the same DB snapshot — so the failure had to be inside the
+    # cached-row → ``InterviewQuestionResponse`` conversion in the
+    # PyInstaller bundle. Building each entry through ``model_validate``
+    # surfaces ``ValidationError`` with the offending field for the new
+    # exception middleware to log, and the try/except below tags the
+    # offending row id so we can find it in the DB. Cached rows that fail
+    # validation are dropped from the response — better an empty Practice
+    # tab than a 500 wall.
+    safe_questions: list[InterviewQuestionResponse] = []
+    for idx, raw in enumerate(cached_questions):
+        try:
+            safe_questions.append(InterviewQuestionResponse.model_validate(raw))
+        except Exception:  # noqa: BLE001 — log, then drop the bad row
+            logger.exception(
+                "interview cache row dropped (app=%s idx=%s payload_keys=%s)",
+                application_id,
+                idx,
+                sorted((raw or {}).keys()) if isinstance(raw, dict) else type(raw).__name__,
+            )
+
     _save_interview_cache(application_id, cached_questions, cached_summary)
 
     return InterviewQuestionBundle(
         application_id=application_id,
-        questions=[InterviewQuestionResponse(**q) for q in cached_questions],
+        questions=safe_questions,
         role_context=cached_summary,
     )
 

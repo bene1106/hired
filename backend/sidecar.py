@@ -45,26 +45,49 @@ def _setup_logging() -> Path:
     A packaged GUI app has no console the user can read, and v0.1.0
     registered the Tauri log plugin only in debug builds — so a frozen
     sidecar that crashed or lost the port race left no trace anywhere.
-    A rotating file the user can attach to a bug report fixes that. We
-    also keep a stdout handler: the Tauri shell plugin drains the
-    sidecar's stdout, so these lines reach the Tauri log too.
+    A rotating file the user can attach to a bug report fixes that.
+
+    v0.3.4 also attaches a dedicated handler set to the ``hired`` logger
+    namespace with ``propagate=False``. Before v0.3.4 we only configured
+    the root logger via ``basicConfig``; uvicorn's own dictConfig at
+    boot time replaced the root handlers and our `hired.api` /
+    `hired.sidecar` log lines stopped reaching either sidecar.log or
+    stdout once a request was in flight. The bundled binary's stderr
+    pipe didn't help either: the v0.3.3 RC smoke produced a 500 with
+    zero new bytes in the Tauri log around the time of the failing
+    request. The namespace-scoped handlers below are independent of
+    whatever uvicorn does to root.
     """
     log_dir = Path.home() / ".hired" / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
     log_path = log_dir / "sidecar.log"
 
-    handlers: list[logging.Handler] = [
-        logging.handlers.RotatingFileHandler(
-            log_path, maxBytes=1_000_000, backupCount=3, encoding="utf-8"
-        ),
-        logging.StreamHandler(sys.stdout),
-    ]
+    formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
+    file_handler = logging.handlers.RotatingFileHandler(
+        log_path, maxBytes=1_000_000, backupCount=3, encoding="utf-8"
+    )
+    file_handler.setFormatter(formatter)
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setFormatter(formatter)
+
+    # Root config — keeps third-party libs (alembic, anthropic) visible.
     logging.basicConfig(
         level=logging.INFO,
+        handlers=[file_handler, stdout_handler],
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-        handlers=handlers,
-        force=True,  # override any handler uvicorn/imports installed
+        force=True,
     )
+
+    # `hired.*` independently — survives any uvicorn-side logging
+    # reconfiguration that touches root.
+    hired_logger = logging.getLogger("hired")
+    hired_logger.setLevel(logging.INFO)
+    for handler in list(hired_logger.handlers):
+        hired_logger.removeHandler(handler)
+    # Use the SAME handler instances so we don't double-write to the file.
+    hired_logger.addHandler(file_handler)
+    hired_logger.addHandler(stdout_handler)
+    hired_logger.propagate = False
     return log_path
 
 

@@ -5,6 +5,53 @@ All notable user-visible changes to Hired. are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.4] - 2026-05-21
+
+Hotfix on v0.3.3. The v0.3.3 RC smoke surfaced a "Failed to fetch" on
+the Practice tab — curl reproduced an HTTP 500 in 0.2s on
+\`GET /api/applications/{id}/interview/questions\`. A local TestClient
++ uvicorn re-run against a bit-identical DB snapshot returned 200 on
+the same code. The bundled binary's stderr capture in Tauri's shell
+plugin was producing zero new bytes around the failing request, so
+the actual traceback was untraceable from logs in the field.
+
+v0.3.4 fixes that observability gap and adds a defensive drop on the
+Practice tab so a single bad cached row can't 500 the whole endpoint.
+No behavioural change for healthy data paths.
+
+### Added
+- ``api/main.py``: new ``log_unhandled_exceptions`` middleware that
+  catches anything escaping a sync handler, logs the full traceback
+  through ``hired.api`` (which sidecar.py routes to
+  ``~/.hired/logs/sidecar.log`` AND stdout), and returns
+  ``"Internal Server Error (<ExceptionType>)"`` so a curl smoke can
+  identify the exception type without grepping logs.
+- ``sidecar.py``: ``_setup_logging`` now attaches handlers to the
+  ``hired`` logger namespace with ``propagate=False`` in addition to
+  the root logger. Before, uvicorn's startup dictConfig replaced the
+  root handlers and ``hired.api`` log records (request errors,
+  middleware diagnostics) stopped reaching the file once requests
+  started flowing. Namespace-scoped handlers survive that.
+
+### Fixed
+- ``GET /api/applications/{id}/interview/questions``: cached rows are
+  now validated row-by-row via ``InterviewQuestionResponse.model_validate``;
+  any row that fails (missing required field, wrong category enum,
+  schema drift after a prompt change) is **dropped from the response
+  and logged** rather than escalating to a 500. The user sees a
+  Practice tab with the still-valid questions (or empty + the same
+  ``role_context``); the bad row's idx + payload keys land in
+  sidecar.log for diagnosis. Three new backend tests
+  (``test_error_middleware.py``) cover the middleware contract and
+  both partial-drop and all-drop paths.
+
+### Notes for installers
+- v0.3.4 is a pure backend hotfix. Frontend is byte-identical to
+  v0.3.3. If you saw "Failed to fetch" on Practice in v0.3.3, install
+  v0.3.4 over it (DB carries over, no re-onboarding). Then re-open
+  the Practice tab — if any row is still bad, the endpoint serves the
+  others and logs the offender to ``~/.hired/logs/sidecar.log``.
+
 ## [0.3.3] - 2026-05-21
 
 Hotfix on v0.3.2. **Cold-start regression.** Backend was healthy on

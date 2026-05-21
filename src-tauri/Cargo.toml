@@ -1,6 +1,6 @@
 [package]
 name = "hired"
-version = "0.3.3"
+version = "0.3.4"
 description = "Hired. — local-first AI career agent (Tauri shell)"
 authors = ["Benedict Herrnleben"]
 license = "MIT"

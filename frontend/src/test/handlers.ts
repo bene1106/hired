@@ -22,6 +22,8 @@ import type {
   ProviderDetectionResult,
   ProviderMetadata,
   ProviderStats,
+  RescoreResult,
+  ScoringStatus,
   TestProviderResult,
 } from '@/lib/types'
 
@@ -62,6 +64,8 @@ interface MockState {
   interviewSessions: InterviewSessionDetail[]
   chatChunks: string[]
   chatFailWith: string | null
+  scoringStatus: ScoringStatus
+  rescoreResult: RescoreResult
 }
 
 const defaultState = (): MockState => ({
@@ -79,6 +83,13 @@ const defaultState = (): MockState => ({
   interviewQuestions: {},
   practiceAttempts: {},
   interviewSessions: [],
+  scoringStatus: {
+    jobs_total: 0,
+    jobs_with_current_score: 0,
+    rescore_candidate_count: 0,
+    profile_version: 0,
+  },
+  rescoreResult: { rescored: 0, total_candidates: 0, capped: false },
   chatChunks: [
     'Strong opening — ',
     'you cite a specific stack. ',
@@ -131,6 +142,8 @@ const defaultState = (): MockState => ({
     last_success: null,
     calls_today: 0,
     success_rate_today: null,
+    construct_ok: true,
+    construct_error: null,
   },
   cvParse: {
     parsed: {
@@ -193,6 +206,11 @@ export const handlers = [
   }),
 
   http.get(`${BACKEND}/api/stats/provider`, () => HttpResponse.json(state.providerStats)),
+
+  // v0.3.5 — scoring status drives the Feed conditional empty-state.
+  http.get(`${BACKEND}/api/jobs/scoring-status`, () => HttpResponse.json(state.scoringStatus)),
+
+  http.post(`${BACKEND}/api/jobs/rescore`, () => HttpResponse.json(state.rescoreResult)),
 
   http.post(`${BACKEND}/api/profile/cv`, async () => {
     state = { ...state, profile: state.cvParse.profile }

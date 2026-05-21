@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 
 from api import VERSION
 from api.health import router as health_router
@@ -25,6 +25,7 @@ from api.routes.profile import router as profile_router
 from api.routes.setup import router as setup_router
 from api.routes.stats import router as stats_router
 from db.migrations import run_migrations
+from llm.errors import LLMAuthError
 
 
 @asynccontextmanager
@@ -36,6 +37,27 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title="Hired. backend", version=VERSION, lifespan=lifespan)
 
 _log = logging.getLogger("hired.api")
+
+
+@app.exception_handler(LLMAuthError)
+async def handle_llm_auth_error(_request: Request, exc: LLMAuthError) -> JSONResponse:
+    """v0.3.5: surface a missing/invalid Anthropic key as a structured 401.
+
+    Without this, ``Depends(get_llm_provider)`` raising ``LLMAuthError``
+    bubbles to the catch-all middleware which returns 500 plaintext.
+    The frontend can't distinguish "the user's credential dropped out
+    of the keychain" from any other unhandled crash — it just shows a
+    "Failed to fetch" wall. With a known status + ``error_kind`` the
+    frontend can route the user to Settings → Switch Provider directly.
+    """
+    _log.warning("LLMAuthError surfaced as 401: %s", exc)
+    return JSONResponse(
+        status_code=401,
+        content={
+            "detail": str(exc) or "Anthropic key is not configured. Re-enter it in Settings.",
+            "error_kind": "missing_api_key",
+        },
+    )
 
 
 @app.middleware("http")

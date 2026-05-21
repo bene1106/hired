@@ -57,6 +57,25 @@ export interface ProviderStats {
   last_success: boolean | null
   calls_today: number
   success_rate_today: number | null
+  // v0.3.5: live construction probe. ``construct_ok=false`` means the
+  // next real request will fail (typically a missing/invalid Anthropic
+  // key); Settings surfaces a "Disconnected" pill so the user can fix it
+  // before opening Application Detail or hitting Generate.
+  construct_ok: boolean
+  construct_error: string | null
+}
+
+export interface ScoringStatus {
+  jobs_total: number
+  jobs_with_current_score: number
+  rescore_candidate_count: number
+  profile_version: number
+}
+
+export interface RescoreResult {
+  rescored: number
+  total_candidates: number
+  capped: boolean
 }
 
 export interface SelectProviderResponse {

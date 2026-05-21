@@ -27,6 +27,8 @@ import type {
   ProviderStats,
   SelectProviderResponse,
   StartGenerationResponse,
+  RescoreResult,
+  ScoringStatus,
   TestProviderResult,
 } from './types'
 
@@ -42,6 +44,41 @@ export class ApiError extends Error {
     super(message)
     this.name = 'ApiError'
   }
+
+  /**
+   * Pull the backend's ``error_kind`` discriminator off a structured error
+   * body, if present. Used for 401 ``missing_api_key`` routing — the
+   * frontend redirects the user to Settings → Switch Provider instead of
+   * a generic "Backend not reachable" wall.
+   */
+  get errorKind(): string | null {
+    if (typeof this.detail === 'object' && this.detail !== null && 'error_kind' in this.detail) {
+      const kind = (this.detail as { error_kind: unknown }).error_kind
+      return typeof kind === 'string' ? kind : null
+    }
+    return null
+  }
+}
+
+// v0.3.5: subscriber pattern for "global" auth failures. The fetch
+// wrapper notifies listeners when a 401 lands with
+// ``error_kind="missing_api_key"`` so AppShell can show a top-of-app
+// banner without each caller having to handle it.
+type GlobalAuthErrorListener = (err: ApiError) => void
+const authErrorListeners = new Set<GlobalAuthErrorListener>()
+
+export function onGlobalAuthError(fn: GlobalAuthErrorListener): () => void {
+  authErrorListeners.add(fn)
+  return () => {
+    authErrorListeners.delete(fn)
+  }
+}
+
+// Test-only: replay the dispatch shape so unit tests for AppShell can
+// verify the banner without going through a real fetch + MSW response.
+// Production callers go through the ``request()`` 401 branch below.
+export function __test_dispatchAuthError(err: ApiError): void {
+  authErrorListeners.forEach((fn) => fn(err))
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -88,7 +125,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       typeof detail === 'string'
         ? detail
         : `${response.status} ${response.statusText || 'Request failed'}`
-    throw new ApiError(response.status, message, detail)
+    // Pass the whole structured payload (not just `detail`) so consumers
+    // can read sibling fields like `error_kind`. The bare-string `detail`
+    // is still the human-facing message.
+    const apiError = new ApiError(response.status, message, payload)
+    if (response.status === 401 && apiError.errorKind === 'missing_api_key') {
+      authErrorListeners.forEach((fn) => fn(apiError))
+    }
+    throw apiError
   }
 
   return payload as T
@@ -183,6 +227,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ action }),
     }),
+
+  getScoringStatus: (): Promise<ScoringStatus> => request('/api/jobs/scoring-status'),
+
+  rescoreJobs: (): Promise<RescoreResult> => request('/api/jobs/rescore', { method: 'POST' }),
 
   startGeneration: (jobId: number): Promise<StartGenerationResponse> =>
     request(`/api/applications/${jobId}`, { method: 'POST' }),

@@ -215,6 +215,104 @@ def get_feed(
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# GET /api/jobs/scoring-status  (v0.3.5)
+# ---------------------------------------------------------------------------
+#
+# Drives the Feed empty-state copy: "No jobs yet. Click Crawl…" vs.
+# "N jobs in the DB are missing scores against your current profile —
+# re-score them." Without this endpoint the frontend can't tell the
+# difference between "fresh install" and "you re-onboarded and your old
+# jobs need a re-score."
+
+
+class ScoringStatusResponse(BaseModel):
+    jobs_total: int
+    jobs_with_current_score: int
+    rescore_candidate_count: int
+    profile_version: int
+
+
+@router.get("/scoring-status", response_model=ScoringStatusResponse)
+def get_scoring_status() -> ScoringStatusResponse:
+    with get_session() as session:
+        profile_version = _current_profile_version(session)
+        jobs_total = session.execute(select(func.count()).select_from(Job)).scalar_one()
+        scored = session.execute(
+            select(func.count(func.distinct(JobScoreRow.job_id))).where(
+                JobScoreRow.profile_version == profile_version
+            )
+        ).scalar_one()
+    return ScoringStatusResponse(
+        jobs_total=jobs_total,
+        jobs_with_current_score=scored,
+        rescore_candidate_count=max(0, jobs_total - scored),
+        profile_version=profile_version,
+    )
+
+
+# ---------------------------------------------------------------------------
+# POST /api/jobs/rescore  (v0.3.5)
+# ---------------------------------------------------------------------------
+#
+# Re-score every job that lacks a JobScore at the current profile_version.
+# Used by the Feed's "Re-score existing jobs" button (shown only when
+# jobs_total > 0 AND visible_count == 0). Synchronous + capped to keep the
+# user-facing wait bounded; the LLM provider's RecordingProvider logs each
+# row to ``provider_call_log`` so cost stays visible.
+
+
+class RescoreResponse(BaseModel):
+    rescored: int
+    total_candidates: int
+    capped: bool
+
+
+_RESCORE_MAX_JOBS = 50
+
+
+@router.post("/rescore", response_model=RescoreResponse)
+def rescore_jobs(
+    provider: Annotated[LLMProvider, Depends(get_llm_provider)],
+) -> RescoreResponse:
+    with get_session() as session:
+        profile_version = _current_profile_version(session)
+        scored_ids = {
+            row[0]
+            for row in session.execute(
+                select(JobScoreRow.job_id).where(JobScoreRow.profile_version == profile_version)
+            ).all()
+        }
+        candidate_ids = [
+            row[0] for row in session.execute(select(Job.id)).all() if row[0] not in scored_ids
+        ]
+
+    if not candidate_ids:
+        return RescoreResponse(rescored=0, total_candidates=0, capped=False)
+
+    total_candidates = len(candidate_ids)
+    capped = total_candidates > _RESCORE_MAX_JOBS
+    batch = candidate_ids[:_RESCORE_MAX_JOBS]
+
+    try:
+        scored = score_jobs(provider, batch)
+    except ScoringError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    logger.info(
+        "Rescore complete: requested=%d total_candidates=%d capped=%s rescored=%d",
+        len(batch),
+        total_candidates,
+        capped,
+        len(scored),
+    )
+    return RescoreResponse(
+        rescored=len(scored),
+        total_candidates=total_candidates,
+        capped=capped,
+    )
+
+
 @router.post("/{job_id}/action", response_model=JobActionResponse)
 def post_job_action(job_id: int, payload: JobActionRequest) -> JobActionResponse:
     new_status = _ACTION_TO_STATUS[payload.action]
@@ -288,12 +386,18 @@ def _run_crawl_pipeline(
         total=max(crawl_result.fetched, max_jobs),
     )
 
-    if not crawl_result.new_job_ids:
+    # v0.3.5: existing job rows whose score is at a stale profile_version
+    # get rescored alongside fresh inserts. Before this fix, re-pasting a
+    # known URL after re-onboarding (which bumps profile_version) hit the
+    # dedup path and ended the pipeline at "scored=0" — the feed would
+    # show an empty state even though the job was in the DB.
+    ids_to_score = list(crawl_result.new_job_ids) + list(crawl_result.rescore_job_ids)
+    if not ids_to_score:
         update_entry(job_id, state="done", scored=0, finished_at=_utcnow())
         return
 
     try:
-        scored = score_jobs(provider, crawl_result.new_job_ids)
+        scored = score_jobs(provider, ids_to_score)
     except ScoringError as exc:
         update_entry(job_id, state="error", error=str(exc), finished_at=_utcnow())
         return

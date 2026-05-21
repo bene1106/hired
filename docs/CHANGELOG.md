@@ -5,6 +5,70 @@ All notable user-visible changes to Hired. are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.5] - 2026-05-21
+
+Five fixes addressing two failure classes the v0.3.4 RC smoke surfaced:
+(1) re-pasting a known job URL after re-onboarding left the Feed
+empty because the crawler skipped re-scoring on dedup, (2) a
+disappearing keychain credential produced a 500 generic wall instead
+of an actionable "re-enter your key" path.
+
+### Added
+- **Crawler auto-rescore.** ``crawler/service.crawl()`` now reports
+  ``rescore_job_ids`` for existing rows whose ``JobScore`` is at a
+  stale ``profile_version``. The crawl pipeline scores ``new_job_ids
+  + rescore_job_ids`` so a re-paste-known-URL flow doesn't leave
+  the user with an empty Feed.
+- **``GET /api/jobs/scoring-status``** — returns
+  ``{jobs_total, jobs_with_current_score, rescore_candidate_count,
+  profile_version}``. Drives the Feed empty-state conditional
+  ("Re-score existing jobs" button only when ``jobs_total > 0``
+  AND ``visible == 0``).
+- **``POST /api/jobs/rescore``** — re-scores every job missing a
+  ``JobScore`` at the current ``profile_version``. Synchronous,
+  capped at 50 per call. Response: ``{rescored, total_candidates,
+  capped}``.
+- **``LLMAuthError`` → HTTP 401** with structured JSON body
+  ``{detail, error_kind: "missing_api_key"}``. Replaces the
+  generic 500 plaintext that v0.3.4's middleware was emitting when
+  the Anthropic keychain entry was missing.
+- **``/api/stats/provider`` active probe.** The Settings panel now
+  surfaces ``construct_ok`` + ``construct_error`` so a dead provider
+  shows up as "Disconnected" in real time instead of the historical
+  call-log staying green forever.
+- **Frontend: global 401 banner** at the top of AppShell with a
+  direct "Re-enter key" link to ``/onboarding/provider``. Triggered
+  by any ``error_kind=missing_api_key`` response anywhere in the app.
+- **Frontend: Feed empty-state CTA.** When jobs exist in the DB but
+  none are visible (you re-onboarded), the empty state shows a
+  "Re-score existing jobs" button with the literal count
+  ("You have 3 jobs in the DB that haven't been scored…"). On a
+  fresh install (``jobs_total = 0``) the copy stays at the default
+  Crawl invitation. Toast on completion names the actual numbers
+  ("Rescored 3 jobs"; capped: "Rescored 50 jobs · 10 more queued —
+  run again.").
+
+### Tests
+- ``test_crawler.py`` — 2 new cases: dedup + stale score adds to
+  ``rescore_job_ids``; dedup + current score skips it.
+- ``test_jobs_endpoints.py`` — 4 new cases: scoring-status (empty /
+  with stale), rescore (catches up / caps at 50).
+- ``test_error_middleware.py`` — 3 new cases: ``LLMAuthError`` →
+  401 with ``error_kind``, ``/api/stats/provider`` reports
+  ``construct_ok=true`` and ``=false`` paths.
+- ``FeedScreen.test.tsx`` — 3 new cases: fresh-install copy,
+  conditional rescore button + happy-path toast, capped toast.
+- ``AppShell.test.tsx`` — 1 new case: 401 banner appears + link
+  points to ``/onboarding/provider``.
+
+### Notes for installers
+- v0.3.5 is backend + frontend. Re-installing over v0.3.4 keeps
+  your DB; if your Feed was empty after v0.3.4, the
+  empty-state's new "Re-score existing jobs" button will catch up
+  your jobs in one click.
+- The "Switch provider" flow still resets the full onboarding —
+  Bene flagged this for v0.3.6+ standalone Settings route.
+
 ## [0.3.4] - 2026-05-21
 
 Hotfix on v0.3.3. The v0.3.3 RC smoke surfaced a "Failed to fetch" on

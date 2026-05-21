@@ -108,4 +108,71 @@ describe('FeedScreen', () => {
     await user.click(screen.getByRole('button', { name: /start crawl/i }))
     expect(await screen.findByText(/paste at least one job url/i)).toBeInTheDocument()
   })
+
+  // ---- v0.3.5 empty-state conditional rescore button ---------------------
+
+  it('fresh-install empty state stays at the default Crawl copy', async () => {
+    setMockState({
+      feed: [],
+      scoringStatus: {
+        jobs_total: 0,
+        jobs_with_current_score: 0,
+        rescore_candidate_count: 0,
+        profile_version: 0,
+      },
+    })
+    renderFeed()
+
+    expect(await screen.findByText(/No jobs yet\./i)).toBeInTheDocument()
+    // The empty-state body explicitly suggests pasting URLs. There's a
+    // separate "Crawl" button at the top — use getAllByText to keep this
+    // unique to the empty-state copy.
+    expect(screen.getByText(/paste a few job URLs/i)).toBeInTheDocument()
+    expect(screen.queryByTestId('rescore-existing')).not.toBeInTheDocument()
+  })
+
+  it('shows the Re-score button only when jobs exist but none are visible', async () => {
+    setMockState({
+      feed: [], // visible == 0
+      scoringStatus: {
+        jobs_total: 3,
+        jobs_with_current_score: 0,
+        rescore_candidate_count: 3,
+        profile_version: 4,
+      },
+      rescoreResult: { rescored: 3, total_candidates: 3, capped: false },
+    })
+    renderFeed()
+
+    const button = await screen.findByTestId('rescore-existing')
+    expect(button).toBeInTheDocument()
+    // Honest copy spells out the actual count, not "some jobs".
+    expect(screen.getByText(/3 jobs in the DB that haven.?t been scored/i)).toBeInTheDocument()
+    // Default Crawl copy is gone in this state.
+    expect(screen.queryByText(/paste a few job URLs/i)).not.toBeInTheDocument()
+
+    await userEvent.click(button)
+    // Honest count toast: "Rescored 3 jobs."
+    expect(await screen.findByText(/Rescored 3 jobs/i)).toBeInTheDocument()
+  })
+
+  it('capped rescore toast names the leftover count', async () => {
+    setMockState({
+      feed: [],
+      scoringStatus: {
+        jobs_total: 60,
+        jobs_with_current_score: 0,
+        rescore_candidate_count: 60,
+        profile_version: 4,
+      },
+      rescoreResult: { rescored: 50, total_candidates: 60, capped: true },
+    })
+    renderFeed()
+
+    const button = await screen.findByTestId('rescore-existing')
+    await userEvent.click(button)
+    expect(
+      await screen.findByText(/Rescored 50 jobs · 10 more queued — run again\./i),
+    ).toBeInTheDocument()
+  })
 })

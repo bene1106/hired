@@ -89,4 +89,77 @@ describe('InterviewChat', () => {
       expect(items.length).toBeGreaterThanOrEqual(2)
     })
   })
+
+  // ---- v0.3.2 hotfix regression tests ------------------------------------
+  // These guard the three UI bugs the v0.3.1 Tauri smoke surfaced:
+  //   Bug 1: user bubble rendered invisible (`text-bg` was an invalid
+  //          Tailwind class, text fell back to inherited dark-on-dark)
+  //   Bug 2: long session previews overflowed the sidebar (flex-1 without
+  //          min-w-0 doesn't allow truncate to engage)
+  //   Bug 3: confidence slider lacked an actionable label / helper copy
+  //          so users couldn't tell it was an input
+  // The asserts target the structural fix (class name / DOM presence)
+  // rather than visual rendering, because jsdom doesn't compute CSS.
+
+  it('user bubble carries the inverted text colour (Bug 1 regression)', async () => {
+    setMockState({ chatChunks: ['ok'] })
+    render(<InterviewChat applicationId={42} />)
+    await userEvent.click(await screen.findByTestId('new-session'))
+    const input = await screen.findByLabelText(/chat message/i)
+    await userEvent.type(input, 'visible user text')
+    await userEvent.click(screen.getByTestId('send-message'))
+
+    const bubble = await screen.findByTestId('user-bubble')
+    expect(bubble).toHaveTextContent('visible user text')
+    // The dark bubble (`bg-ink`) needs the inverted foreground or it
+    // renders dark-on-dark. `text-paper` is the design token for that.
+    expect(bubble.className).toContain('text-paper')
+    expect(bubble.className).toContain('bg-ink')
+  })
+
+  it('session title truncates instead of overflowing the sidebar (Bug 2 regression)', async () => {
+    setMockState({ chatChunks: ['ok'] })
+    render(<InterviewChat applicationId={42} />)
+    await userEvent.click(await screen.findByTestId('new-session'))
+    const input = await screen.findByLabelText(/chat message/i)
+    await userEvent.type(
+      input,
+      'Ask me a behavioural question about a time I had to push back on a tech decision under a tight deadline',
+    )
+    await userEvent.click(screen.getByTestId('send-message'))
+
+    // After the turn lands the preview is wired up. Find any session-N-title;
+    // the latest session has the long preview we just typed.
+    const titles = await screen.findAllByTestId(/^session-\d+-title$/)
+    const titleEl = titles[0]
+    expect(titleEl.className).toContain('truncate')
+    // The button row needs min-w-0 so truncate engages — without it the
+    // long string forces the flex item past the container width and the
+    // text spills out instead of getting an ellipsis.
+    const sessionButton = titleEl.closest('button')
+    expect(sessionButton).not.toBeNull()
+    expect(sessionButton!.className).toContain('min-w-0')
+  })
+
+  it('confidence slider has a visible prompt and per-session helper copy (Bug 3 regression)', async () => {
+    render(<InterviewChat applicationId={42} />)
+    await userEvent.click(await screen.findByTestId('new-session'))
+
+    const slider = await screen.findByTestId('confidence-slider')
+    // The new label is body-sized and label-shaped, not a tiny mono
+    // caption you'd miss.
+    expect(slider).toHaveTextContent(/how confident do you feel/i)
+    // Honest copy: tell the user it's per-session and not graded.
+    expect(slider).toHaveTextContent(/resets when you switch sessions/i)
+    // The five segments are real radios the user can click; clicking a
+    // segment changes the live label.
+    const segment4 = screen.getByRole('radio', { name: /confidence 4/i })
+    expect(segment4).toHaveAttribute('aria-checked', 'false')
+    await userEvent.click(segment4)
+    expect(screen.getByRole('radio', { name: /confidence 4/i })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    expect(slider).toHaveTextContent(/Solid/) // CONFIDENCE_LABELS[3]
+  })
 })

@@ -5,6 +5,47 @@ All notable user-visible changes to Hired. are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2026-05-21
+
+Hotfix on top of v0.3.1 — three InterviewChat UI bugs surfaced in the
+v0.3.1 Tauri smoke. No backend changes. Coach streaming itself
+**worked** in real WebView2 (the chunk transport, the multi-turn flow,
+the language-awareness, the session lifecycle) — the bugs were
+visual-layer only.
+
+### Fixed
+- **User-message bubble was invisible (HIGH, release-blocker).** The
+  bubble was styled `bg-ink text-bg`, but `bg` is not a Tailwind colour
+  token in this project (it's a CSS variable; the design token's
+  Tailwind name is `paper`). The text fell back to inherited dark-on-
+  dark and disappeared. Fixed to `bg-ink text-paper` and added a
+  `data-testid="user-bubble"` plus a regression test that asserts both
+  class names live on the rendered bubble.
+- **Session-title overflow in the sidebar.** Long previews like "Frag
+  mich eine Verhaltensfrage zu…" spilled out of the card into the
+  chat pane because the flex item lacked `min-w-0`, so the `truncate`
+  on the inner span couldn't engage. Added `min-w-0` to the session
+  `<li>` and the resume-button, `flex-shrink-0` to the delete button,
+  and a regression test that asserts both `truncate` on the title and
+  `min-w-0` on its containing button.
+- **Confidence slider read as a passive display, not an input.** Label
+  was 10-px mono caption ("CONFIDENCE") — easy to miss — and segments
+  looked like progress bars. Promoted to a real form prompt ("How
+  confident do you feel after this round?"), made each segment a
+  numbered button with hover state + border, added an honest helper
+  line — "Click a number — your own gut-check, not graded. Resets when
+  you switch sessions." — which is the truthful description of the
+  state model from ADR-0009 D6 (UI-only, per-session). Regression test
+  asserts the visible prompt, the helper copy, and that clicking a
+  segment moves the active selection.
+
+### Notes for installers
+- v0.3.2 is the first build with a usable coach UX. **Recommend
+  installing this over v0.3.0 / v0.3.1** before any public flip — the
+  Bug-1 invisibility broke multi-turn conversations on the v0.3.1 RC.
+- No backend or schema change: a fresh `~/.hired/data.db` from
+  v0.3.0/0.3.1 carries over without re-onboarding.
+
 ## [0.3.1] - 2026-05-21
 
 Hotfix on top of v0.3.0. No feature changes — adds a guard against the

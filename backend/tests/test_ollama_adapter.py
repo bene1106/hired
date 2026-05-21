@@ -18,7 +18,7 @@ from llm.ollama import (
     DEFAULT_MODEL,
     OllamaAdapter,
 )
-from llm.types import CompanyBrief, Job, Profile
+from llm.types import ChatMessage, CompanyBrief, Job, Profile
 from llm.usage import consume_usage
 
 
@@ -215,3 +215,85 @@ def test_score_job_strips_fenced_block() -> None:
     adapter = _make_adapter(handler)
     result = adapter.score_job(Profile(), Job(title="Backend Engineer"))
     assert result.score == 60
+
+
+# ---------------------------------------------------------------------------
+# Streaming — interview_chat_stream
+# ---------------------------------------------------------------------------
+
+
+def _ndjson_stream(*lines: dict) -> bytes:
+    return ("\n".join(json.dumps(line) for line in lines) + "\n").encode("utf-8")
+
+
+def test_interview_chat_stream_yields_chunks_and_records_usage() -> None:
+    consume_usage()
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
+        body = _ndjson_stream(
+            {"message": {"role": "assistant", "content": "Hello "}, "done": False},
+            {"message": {"role": "assistant", "content": "there."}, "done": False},
+            {
+                "message": {"role": "assistant", "content": ""},
+                "done": True,
+                "prompt_eval_count": 220,
+                "eval_count": 18,
+            },
+        )
+        return httpx.Response(200, content=body)
+
+    adapter = _make_adapter(handler)
+    history = [ChatMessage(role="user", content="Ready.")]
+    chunks = list(adapter.interview_chat_stream(history, role_context="Backend role."))
+    assert chunks == ["Hello ", "there."]
+
+    body = captured["body"]
+    assert body["stream"] is True  # type: ignore[index]
+    # System prompt is first, candidate's history follows.
+    assert body["messages"][0]["role"] == "system"  # type: ignore[index]
+    assert "practice-interview coach" in body["messages"][0]["content"]  # type: ignore[index]
+    assert body["messages"][-1] == {"role": "user", "content": "Ready."}  # type: ignore[index]
+
+    usage = consume_usage()
+    assert usage is not None
+    assert usage.input_tokens == 220
+    assert usage.output_tokens == 18
+
+
+def test_interview_chat_stream_uses_kickoff_when_history_empty() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        # On empty-history kickoff, the prompt's user template ("Begin the
+        # practice interview…") becomes the first user turn after the system
+        # prompt.
+        assert body["messages"][-1]["role"] == "user"
+        assert "Begin the practice interview" in body["messages"][-1]["content"]
+        return httpx.Response(
+            200,
+            content=_ndjson_stream(
+                {"message": {"content": "ok"}, "done": True, "eval_count": 1},
+            ),
+        )
+
+    adapter = _make_adapter(handler)
+    list(adapter.interview_chat_stream([], role_context="Some role."))
+
+
+def test_interview_chat_stream_404_translates_to_response_error() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(404, json={"error": "model not found"})
+
+    adapter = _make_adapter(handler)
+    with pytest.raises(LLMResponseError, match="not available locally"):
+        list(adapter.interview_chat_stream([ChatMessage(role="user", content="hi")]))
+
+
+def test_interview_chat_stream_error_line_translates_to_response_error() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=_ndjson_stream({"error": "context length exceeded"}))
+
+    adapter = _make_adapter(handler)
+    with pytest.raises(LLMResponseError, match="context length"):
+        list(adapter.interview_chat_stream([ChatMessage(role="user", content="hi")]))

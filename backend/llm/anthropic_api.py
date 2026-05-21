@@ -23,6 +23,7 @@ import json
 import logging
 import os
 import re
+from collections.abc import Iterator
 from typing import Any
 
 import anthropic
@@ -38,6 +39,7 @@ from .errors import (
 from .prompts import RenderedPrompt, load_prompt
 from .types import (
     AnswerFeedback,
+    ChatMessage,
     CompanyBrief,
     CoverLetter,
     InterviewQuestion,
@@ -63,6 +65,7 @@ _MAX_TOKENS = {
     "generate_interview_questions": 2048,
     "evaluate_answer": 1024,
     "summarize_role": 768,
+    "interview_chat_stream": 1024,
 }
 
 
@@ -178,6 +181,37 @@ class AnthropicAPIAdapter:
         text = self._call(rendered, max_tokens=_MAX_TOKENS["summarize_role"])
         return text.strip()
 
+    def interview_chat_stream(
+        self,
+        messages: list[ChatMessage],
+        role_context: str | None = None,
+    ) -> Iterator[str]:
+        rendered = load_prompt("interview_coach", role_context=role_context or "")
+        provider_messages = _to_anthropic_messages(messages, rendered)
+        try:
+            with self._client.messages.stream(
+                model=self.model,
+                max_tokens=_MAX_TOKENS["interview_chat_stream"],
+                system=rendered.system,
+                messages=provider_messages,
+            ) as stream:
+                for delta in stream.text_stream:
+                    if delta:
+                        yield delta
+                final = stream.get_final_message()
+        except anthropic.AuthenticationError as e:
+            raise LLMAuthError("Anthropic rejected the API key.") from e
+        except anthropic.RateLimitError as e:
+            raise LLMRateLimitError("Anthropic rate limit hit.") from e
+        except anthropic.APIConnectionError as e:
+            raise LLMNetworkError("Network error talking to Anthropic.") from e
+        except anthropic.APIStatusError as e:
+            raise LLMResponseError(f"Anthropic returned status {e.status_code}: {e.message}") from e
+        except anthropic.APIError as e:
+            raise LLMResponseError(f"Anthropic API error: {e}") from e
+
+        _record_usage_from_response(final)
+
     # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------
@@ -211,6 +245,21 @@ class AnthropicAPIAdapter:
 # ---------------------------------------------------------------------------
 
 _FENCED_JSON_RE = re.compile(r"```(?:json)?\s*\n(.*?)\n```", re.DOTALL)
+
+
+def _to_anthropic_messages(
+    history: list[ChatMessage], rendered: RenderedPrompt
+) -> list[dict[str, str]]:
+    """Convert a chat history into Anthropic's messages array.
+
+    If the history is empty (new session), the prompt's user-template kickoff
+    becomes the single first user turn. Otherwise the history is forwarded
+    verbatim. Anthropic requires the conversation to start with a user turn
+    and alternate; we trust callers to honour that (the PR B endpoint will).
+    """
+    if not history:
+        return [{"role": "user", "content": rendered.user}]
+    return [{"role": m.role, "content": m.content} for m in history]
 
 
 def _record_usage_from_response(response: Any) -> None:

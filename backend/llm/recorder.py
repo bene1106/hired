@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from typing import TypeVar
 
 from db.models import ProviderCallLog
@@ -29,6 +29,7 @@ from .base import LLMProvider
 from .errors import LLMError
 from .types import (
     AnswerFeedback,
+    ChatMessage,
     CompanyBrief,
     CoverLetter,
     InterviewQuestion,
@@ -86,6 +87,16 @@ class RecordingProvider:
     def summarize_role(self, job: Job) -> str:
         return self._record("summarize_role", lambda: self._inner.summarize_role(job))
 
+    def interview_chat_stream(
+        self,
+        messages: list[ChatMessage],
+        role_context: str | None = None,
+    ) -> Iterator[str]:
+        return self._record_stream(
+            "interview_chat_stream",
+            lambda: self._inner.interview_chat_stream(messages, role_context),
+        )
+
     def _record(self, method: str, call: Callable[[], T]) -> T:
         # Clear any stale usage left over from a previous call so we never
         # attribute one method's tokens to another.
@@ -95,6 +106,42 @@ class RecordingProvider:
         error_type: str | None = None
         try:
             return call()
+        except LLMError as exc:
+            success = False
+            error_type = type(exc).__name__
+            raise
+        except Exception as exc:  # noqa: BLE001 - we re-raise after recording
+            success = False
+            error_type = type(exc).__name__
+            raise
+        finally:
+            latency_ms = int((time.perf_counter() - started) * 1000)
+            usage = consume_usage()
+            _safe_insert_log(
+                provider=self._provider_name,
+                method=method,
+                latency_ms=latency_ms,
+                success=success,
+                error_type=error_type,
+                tokens_in=usage.input_tokens if usage else None,
+                tokens_out=usage.output_tokens if usage else None,
+            )
+
+    def _record_stream(self, method: str, call: Callable[[], Iterator[str]]) -> Iterator[str]:
+        """Stream variant of ``_record``.
+
+        Latency is measured from method-call to iterator exhaustion. Token
+        usage is captured once the underlying adapter has finished consuming
+        its stream — every streaming adapter publishes usage on the final
+        event, so ``consume_usage`` after the inner iterator drains has the
+        right numbers.
+        """
+        consume_usage()
+        started = time.perf_counter()
+        success = True
+        error_type: str | None = None
+        try:
+            yield from call()
         except LLMError as exc:
             success = False
             error_type = type(exc).__name__

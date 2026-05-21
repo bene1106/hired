@@ -25,6 +25,8 @@ from .mock import MockProvider
 from .recorder import RecordingProvider
 from .types import (
     AnswerFeedback,
+    ChatMessage,
+    ChatRole,
     CompanyBrief,
     CoverLetter,
     ImprovementNote,
@@ -101,6 +103,8 @@ def _build_inner_provider(provider_name: str, model: str | None) -> LLMProvider:
 
 __all__ = [
     "AnswerFeedback",
+    "ChatMessage",
+    "ChatRole",
     "CompanyBrief",
     "CoverLetter",
     "ImprovementNote",

@@ -15,7 +15,7 @@ import pytest
 
 from llm.claude_code import ClaudeCodeAdapter
 from llm.errors import LLMError, LLMNetworkError, LLMResponseError
-from llm.types import CompanyBrief, Job, Profile
+from llm.types import ChatMessage, CompanyBrief, Job, Profile
 from llm.usage import consume_usage
 
 
@@ -216,3 +216,164 @@ def test_few_shot_examples_are_flattened_into_stdin(
     # template; the adapter inlines those into the single user turn.
     assert "Example output:" in stdin
     assert "CV body here." in stdin
+
+
+# ---------------------------------------------------------------------------
+# Streaming — interview_chat_stream
+# ---------------------------------------------------------------------------
+
+
+class _FakePopen:
+    """Minimal ``subprocess.Popen`` stand-in for streaming tests."""
+
+    def __init__(
+        self,
+        *,
+        stdout_lines: list[str],
+        stderr_text: str = "",
+        returncode: int = 0,
+    ) -> None:
+        import io
+
+        self.stdin = io.StringIO()
+        self.stdout = iter(stdout_lines)
+        self.stderr = io.StringIO(stderr_text)
+        self._returncode = returncode
+
+    def wait(self, timeout: float | None = None) -> int:  # noqa: ARG002
+        return self._returncode
+
+
+def _popen_factory(captured: dict[str, Any], proc: _FakePopen):
+    def factory(argv, **kwargs):
+        captured["argv"] = argv
+        captured["kwargs"] = kwargs
+        return proc
+
+    return factory
+
+
+def _adapter_with_popen(monkeypatch: pytest.MonkeyPatch, factory) -> ClaudeCodeAdapter:
+    monkeypatch.setattr("llm.claude_code.shutil.which", lambda _name: "/fake/claude")
+    monkeypatch.setattr("llm.claude_code.subprocess.Popen", factory)
+    return ClaudeCodeAdapter()
+
+
+def test_interview_chat_stream_yields_text_deltas(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    consume_usage()
+    stdout_lines = [
+        json.dumps({"type": "system", "subtype": "init"}) + "\n",
+        json.dumps(
+            {
+                "type": "stream_event",
+                "event": {
+                    "type": "content_block_delta",
+                    "delta": {"type": "text_delta", "text": "Strong "},
+                },
+            }
+        )
+        + "\n",
+        json.dumps(
+            {
+                "type": "stream_event",
+                "event": {
+                    "type": "content_block_delta",
+                    "delta": {"type": "text_delta", "text": "opening."},
+                },
+            }
+        )
+        + "\n",
+        json.dumps(
+            {
+                "type": "result",
+                "subtype": "success",
+                "is_error": False,
+                "result": "Strong opening.",
+                "usage": {"input_tokens": 350, "output_tokens": 22},
+            }
+        )
+        + "\n",
+    ]
+    captured: dict[str, Any] = {}
+    factory = _popen_factory(captured, _FakePopen(stdout_lines=stdout_lines, returncode=0))
+    adapter = _adapter_with_popen(monkeypatch, factory)
+
+    chunks = list(
+        adapter.interview_chat_stream(
+            [ChatMessage(role="user", content="Tell me about your last project.")],
+            role_context="Backend role.",
+        )
+    )
+    assert chunks == ["Strong ", "opening."]
+
+    argv = captured["argv"]
+    assert argv[0] == "/fake/claude"
+    assert "--output-format" in argv
+    assert argv[argv.index("--output-format") + 1] == "stream-json"
+    assert "--include-partial-messages" in argv
+
+    usage = consume_usage()
+    assert usage is not None
+    assert usage.input_tokens == 350
+    assert usage.output_tokens == 22
+
+
+def test_interview_chat_stream_falls_back_to_assistant_event(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If partial-messages aren't emitted, a single ``assistant`` event must
+    still produce one chunk (graceful degradation across CLI versions)."""
+    stdout_lines = [
+        json.dumps(
+            {
+                "type": "assistant",
+                "message": {
+                    "content": [{"type": "text", "text": "Single chunk reply."}],
+                },
+            }
+        )
+        + "\n",
+        json.dumps(
+            {
+                "type": "result",
+                "is_error": False,
+                "result": "Single chunk reply.",
+                "usage": {"input_tokens": 80, "output_tokens": 6},
+            }
+        )
+        + "\n",
+    ]
+    factory = _popen_factory({}, _FakePopen(stdout_lines=stdout_lines))
+    adapter = _adapter_with_popen(monkeypatch, factory)
+    chunks = list(adapter.interview_chat_stream([ChatMessage(role="user", content="hi")]))
+    assert chunks == ["Single chunk reply."]
+
+
+def test_interview_chat_stream_is_error_translates_to_response_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stdout_lines = [
+        json.dumps(
+            {
+                "type": "result",
+                "is_error": True,
+                "error": "subscription expired",
+            }
+        )
+        + "\n",
+    ]
+    factory = _popen_factory({}, _FakePopen(stdout_lines=stdout_lines))
+    adapter = _adapter_with_popen(monkeypatch, factory)
+    with pytest.raises(LLMResponseError, match="subscription expired"):
+        list(adapter.interview_chat_stream([ChatMessage(role="user", content="hi")]))
+
+
+def test_interview_chat_stream_non_zero_exit_translates_to_response_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    factory = _popen_factory({}, _FakePopen(stdout_lines=[], stderr_text="boom", returncode=2))
+    adapter = _adapter_with_popen(monkeypatch, factory)
+    with pytest.raises(LLMResponseError, match="exited 2"):
+        list(adapter.interview_chat_stream([ChatMessage(role="user", content="hi")]))

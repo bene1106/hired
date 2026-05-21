@@ -42,6 +42,7 @@ from llm.credentials import (
 from llm.errors import LLMResponseError
 from llm.types import (
     AnswerFeedback,
+    ChatMessage,
     CompanyBrief,
     CoverLetter,
     ImprovementNote,
@@ -178,6 +179,35 @@ class TestMockProvider:
         provider = MockProvider()
         with pytest.raises(ValueError, match="Unknown method"):
             provider.set_response("not_a_method", "x")
+
+    def test_interview_chat_stream_kicks_off_when_history_is_empty(self) -> None:
+        provider = MockProvider()
+        chunks = list(provider.interview_chat_stream([], role_context="Backend role."))
+        assert len(chunks) >= 2  # streaming must emit more than one event
+        joined = "".join(chunks)
+        assert "Tell me about a recent project" in joined
+
+    def test_interview_chat_stream_replies_to_last_user_turn(self) -> None:
+        provider = MockProvider()
+        history = [
+            ChatMessage(role="assistant", content="Tell me about a project you owned."),
+            ChatMessage(role="user", content="I built a payment service."),
+        ]
+        chunks = list(provider.interview_chat_stream(history, role_context=None))
+        joined = "".join(chunks)
+        # Mock quotes back the user's opening line as part of its critique.
+        assert "I built a payment service" in joined
+        # Mock follows the CRITIQUE-AND-FOLLOWUP shape — the follow-up question.
+        assert "Follow-up:" in joined
+
+    def test_interview_chat_stream_can_be_overridden(self) -> None:
+        provider = MockProvider()
+        provider.set_response("interview_chat_stream", ["A", "B", "C"])
+        chunks = list(provider.interview_chat_stream([], role_context=None))
+        assert chunks == ["A", "B", "C"]
+        provider.set_response("interview_chat_stream", None)
+        # Cleared → back to the default kickoff text.
+        assert "Tell me about" in "".join(provider.interview_chat_stream([], role_context=None))
 
 
 # ---------------------------------------------------------------------------
@@ -377,16 +407,52 @@ class _FakeResponse:
         self.content = [_FakeContentBlock(text)]
 
 
+class _FakeUsage:
+    def __init__(self, input_tokens: int, output_tokens: int) -> None:
+        self.input_tokens = input_tokens
+        self.output_tokens = output_tokens
+
+
+class _FakeFinalMessage:
+    def __init__(self, text: str, usage: tuple[int, int] | None) -> None:
+        self.content = [_FakeContentBlock(text)]
+        self.usage = _FakeUsage(*usage) if usage else None
+
+
+class _FakeStreamCtx:
+    def __init__(self, chunks: list[str], usage: tuple[int, int] | None) -> None:
+        self._chunks = chunks
+        self._usage = usage
+
+    def __enter__(self) -> _FakeStreamCtx:
+        return self
+
+    def __exit__(self, *_a: Any) -> None:
+        return None
+
+    @property
+    def text_stream(self):
+        return iter(self._chunks)
+
+    def get_final_message(self) -> _FakeFinalMessage:
+        return _FakeFinalMessage("".join(self._chunks), self._usage)
+
+
 class _FakeMessages:
     def __init__(
         self,
         *,
         response_text: str | None = None,
         raise_with: Exception | None = None,
+        stream_chunks: list[str] | None = None,
+        stream_usage: tuple[int, int] | None = None,
     ) -> None:
         self._response_text = response_text
         self._raise_with = raise_with
+        self._stream_chunks = stream_chunks
+        self._stream_usage = stream_usage
         self.last_kwargs: dict[str, Any] | None = None
+        self.last_stream_kwargs: dict[str, Any] | None = None
 
     def create(self, **kwargs: Any) -> _FakeResponse:
         self.last_kwargs = kwargs
@@ -395,18 +461,44 @@ class _FakeMessages:
         assert self._response_text is not None
         return _FakeResponse(self._response_text)
 
+    def stream(self, **kwargs: Any) -> _FakeStreamCtx:
+        self.last_stream_kwargs = kwargs
+        if self._raise_with is not None:
+            raise self._raise_with
+        chunks = self._stream_chunks or []
+        return _FakeStreamCtx(chunks, self._stream_usage)
+
 
 class _FakeAnthropic:
     def __init__(
-        self, *, response_text: str | None = None, raise_with: Exception | None = None
+        self,
+        *,
+        response_text: str | None = None,
+        raise_with: Exception | None = None,
+        stream_chunks: list[str] | None = None,
+        stream_usage: tuple[int, int] | None = None,
     ) -> None:
-        self.messages = _FakeMessages(response_text=response_text, raise_with=raise_with)
+        self.messages = _FakeMessages(
+            response_text=response_text,
+            raise_with=raise_with,
+            stream_chunks=stream_chunks,
+            stream_usage=stream_usage,
+        )
 
 
 def _make_adapter(
-    *, response_text: str | None = None, raise_with: Exception | None = None
+    *,
+    response_text: str | None = None,
+    raise_with: Exception | None = None,
+    stream_chunks: list[str] | None = None,
+    stream_usage: tuple[int, int] | None = None,
 ) -> AnthropicAPIAdapter:
-    fake = _FakeAnthropic(response_text=response_text, raise_with=raise_with)
+    fake = _FakeAnthropic(
+        response_text=response_text,
+        raise_with=raise_with,
+        stream_chunks=stream_chunks,
+        stream_usage=stream_usage,
+    )
     return AnthropicAPIAdapter(client=fake)  # type: ignore[arg-type]
 
 
@@ -534,6 +626,38 @@ class TestAnthropicAPIAdapter:
         adapter = _make_adapter(raise_with=err)
         with pytest.raises(LLMNetworkError):
             adapter.score_job(sample_profile, sample_job)
+
+    def test_interview_chat_stream_yields_chunks_and_records_usage(self) -> None:
+        from llm.usage import consume_usage
+
+        consume_usage()
+        adapter = _make_adapter(
+            stream_chunks=["Hello ", "candidate", "!"],
+            stream_usage=(120, 18),
+        )
+        history = [ChatMessage(role="user", content="Ready.")]
+        chunks = list(adapter.interview_chat_stream(history, role_context="Backend role."))
+        assert chunks == ["Hello ", "candidate", "!"]
+
+        usage = consume_usage()
+        assert usage is not None
+        assert usage.input_tokens == 120
+        assert usage.output_tokens == 18
+
+        # Verify the system prompt + history shape were forwarded.
+        captured = adapter._client.messages.last_stream_kwargs  # type: ignore[attr-defined]
+        assert captured is not None
+        assert "practice-interview coach" in captured["system"]
+        assert captured["messages"] == [{"role": "user", "content": "Ready."}]
+
+    def test_interview_chat_stream_kicks_off_with_prompt_user_when_empty(self) -> None:
+        adapter = _make_adapter(stream_chunks=["ok"], stream_usage=(1, 1))
+        list(adapter.interview_chat_stream([], role_context="Some role."))
+        captured = adapter._client.messages.last_stream_kwargs  # type: ignore[attr-defined]
+        assert captured is not None
+        assert len(captured["messages"]) == 1
+        assert captured["messages"][0]["role"] == "user"
+        assert "Begin the practice interview" in captured["messages"][0]["content"]
 
 
 # ---------------------------------------------------------------------------

@@ -107,8 +107,28 @@ class AnswerFeedback(BaseModel):
     off_topic: bool = False
 
 
+ChatRole = Literal["user", "assistant"]
+
+
+class ChatMessage(BaseModel):
+    """One turn in an interview-coach conversation.
+
+    ``role`` uses provider-native labels (``user`` / ``assistant``) so adapters
+    can pass the list straight through to their underlying chat API. The DB
+    layer (``InterviewSession.transcript_json``) stores the same shape — we
+    deliberately don't introduce a domain alias like ``coach`` because every
+    translation point would have to map it back.
+    """
+
+    role: ChatRole
+    content: str
+    created_at: datetime | None = None
+
+
 __all__ = [
     "AnswerFeedback",
+    "ChatMessage",
+    "ChatRole",
     "CompanyBrief",
     "CoverLetter",
     "ImprovementNote",

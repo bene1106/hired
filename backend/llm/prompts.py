@@ -45,9 +45,16 @@ class PromptTemplate:
     examples: list[FewShotExample] = field(default_factory=list)
 
     def render(self, **kwargs: Any) -> RenderedPrompt:
-        """Render the user template with the given kwargs."""
+        """Render the system and user templates with the given kwargs.
+
+        Multi-turn prompts (``interview_coach``) need to interpolate context
+        into the system prompt so it persists across turns. Pre-Phase-8
+        prompts only used ``{{…}}`` placeholders in the user template; their
+        system blocks contain no placeholders, so rendering both is a no-op
+        for them.
+        """
         return RenderedPrompt(
-            system=self.system,
+            system=_render_template(self.system, kwargs),
             user=_render_template(self.user, kwargs),
             schema=self.schema,
             examples=self.examples,

@@ -8,10 +8,12 @@ interview-prep view can show a synthesized 2-paragraph role explanation.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from typing import Protocol, runtime_checkable
 
 from .types import (
     AnswerFeedback,
+    ChatMessage,
     CompanyBrief,
     CoverLetter,
     InterviewQuestion,
@@ -23,7 +25,7 @@ from .types import (
 
 @runtime_checkable
 class LLMProvider(Protocol):
-    """Every LLM adapter implements these eight methods."""
+    """Every LLM adapter implements these nine methods."""
 
     def parse_cv(self, cv_text: str) -> dict:
         """Extract a structured profile dict from raw CV text."""
@@ -55,6 +57,24 @@ class LLMProvider(Protocol):
 
     def summarize_role(self, job: Job) -> str:
         """Two-paragraph plain-text summary of what the role actually involves."""
+        ...
+
+    def interview_chat_stream(
+        self,
+        messages: list[ChatMessage],
+        role_context: str | None = None,
+    ) -> Iterator[str]:
+        """Stream a coach reply for a multi-turn interview conversation.
+
+        ``messages`` is the full prior conversation; the last entry should be
+        a ``user`` turn that the coach is replying to. ``role_context`` is the
+        role summary string (typically from ``summarize_role``) injected into
+        the coach's system prompt so it knows what role it's coaching for.
+
+        Yields text chunks in arrival order. Callers concatenate them to form
+        the final assistant message and persist it. Token usage is recorded
+        once the iterator drains.
+        """
         ...
 
 

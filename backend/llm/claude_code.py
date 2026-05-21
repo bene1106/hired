@@ -45,6 +45,8 @@ import logging
 import re
 import shutil
 import subprocess
+import time
+from collections.abc import Iterator
 from typing import Any
 
 from pydantic import ValidationError
@@ -57,6 +59,7 @@ from .errors import (
 from .prompts import RenderedPrompt, load_prompt
 from .types import (
     AnswerFeedback,
+    ChatMessage,
     CompanyBrief,
     CoverLetter,
     InterviewQuestion,
@@ -180,6 +183,80 @@ class ClaudeCodeAdapter:
         rendered = load_prompt("summarize_role", job=job.model_dump(mode="json"))
         return self._call(rendered).strip()
 
+    def interview_chat_stream(
+        self,
+        messages: list[ChatMessage],
+        role_context: str | None = None,
+    ) -> Iterator[str]:
+        rendered = load_prompt("interview_coach", role_context=role_context or "")
+        user_text = _flatten_chat_for_single_turn(messages, rendered)
+        argv = [
+            self._cli_path,
+            "-p",
+            "--output-format",
+            "stream-json",
+            "--verbose",
+            "--include-partial-messages",
+            "--append-system-prompt",
+            rendered.system,
+        ]
+        try:
+            proc = subprocess.Popen(
+                argv,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                bufsize=1,
+            )
+        except OSError as exc:
+            raise LLMNetworkError(f"Failed to launch claude CLI: {exc}") from exc
+
+        try:
+            assert proc.stdin is not None
+            proc.stdin.write(user_text)
+            proc.stdin.close()
+        except OSError as exc:
+            proc.kill()
+            raise LLMNetworkError(f"Failed to write to claude CLI: {exc}") from exc
+
+        assert proc.stdout is not None
+        deadline = time.monotonic() + self._timeout_s
+        usage_payload: Any = None
+        try:
+            for line in proc.stdout:
+                if time.monotonic() > deadline:
+                    proc.kill()
+                    raise LLMNetworkError(
+                        f"claude CLI exceeded {self._timeout_s:.0f}s during stream."
+                    )
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    event = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if not isinstance(event, dict):
+                    continue
+                delta = _extract_stream_delta(event)
+                if delta:
+                    yield delta
+                if event.get("type") == "result":
+                    if event.get("is_error") is True:
+                        message = event.get("error") or event.get("result") or "<no message>"
+                        raise LLMResponseError(f"claude CLI reported is_error: {message}")
+                    usage_payload = event.get("usage")
+        finally:
+            returncode = proc.wait(timeout=max(1.0, deadline - time.monotonic()))
+            if returncode != 0:
+                stderr = (proc.stderr.read() if proc.stderr else "").strip()
+                raise LLMResponseError(f"claude CLI exited {returncode}: {stderr or '<no stderr>'}")
+
+        _maybe_record_usage(usage_payload)
+
     # ------------------------------------------------------------------
     # Subprocess plumbing
     # ------------------------------------------------------------------
@@ -226,6 +303,60 @@ class ClaudeCodeAdapter:
 _FENCED_JSON_RE = re.compile(r"```(?:json)?\s*\n(.*?)\n```", re.DOTALL)
 _SOURCES_HEADER_RE = re.compile(r"^##\s*Sources\s*$", re.MULTILINE | re.IGNORECASE)
 _BULLET_RE = re.compile(r"^\s*[-*]\s+(.*)$", re.MULTILINE)
+
+
+def _extract_stream_delta(event: dict) -> str | None:
+    """Pull a text delta out of one ``--output-format stream-json`` event.
+
+    The CLI emits a few event shapes; we tolerate either of two text carriers
+    so a future CLI update doesn't silently break us:
+
+    1. ``stream_event`` wrapping a ``content_block_delta`` (partial messages
+       mode) — the per-token shape, what we want for true streaming.
+    2. ``assistant`` events that carry a full message — falls back to a
+       single chunk if partial messages aren't enabled by the installed CLI.
+    """
+    event_type = event.get("type")
+    if event_type == "stream_event":
+        inner = event.get("event")
+        if isinstance(inner, dict) and inner.get("type") == "content_block_delta":
+            delta = inner.get("delta")
+            if isinstance(delta, dict) and delta.get("type") == "text_delta":
+                text = delta.get("text")
+                if isinstance(text, str) and text:
+                    return text
+        return None
+    if event_type == "assistant":
+        msg = event.get("message")
+        if isinstance(msg, dict):
+            parts = msg.get("content")
+            if isinstance(parts, list):
+                texts: list[str] = []
+                for part in parts:
+                    if isinstance(part, dict) and part.get("type") == "text":
+                        text = part.get("text")
+                        if isinstance(text, str):
+                            texts.append(text)
+                if texts:
+                    return "".join(texts)
+    return None
+
+
+def _flatten_chat_for_single_turn(messages: list[ChatMessage], rendered: RenderedPrompt) -> str:
+    """Flatten a chat history into one user turn for the CLI's ``-p`` mode.
+
+    The CLI has no native multi-turn input; we inline the prior turns as
+    labelled blocks so the model can read them as context, then ask for the
+    next coach reply.
+    """
+    if not messages:
+        return rendered.user
+    blocks: list[str] = []
+    for m in messages:
+        label = "Candidate" if m.role == "user" else "Coach"
+        blocks.append(f"{label}:\n{m.content}")
+    blocks.append("Continue as the coach. Reply with the next turn only.")
+    return "\n\n---\n\n".join(blocks)
 
 
 def _flatten_for_single_turn(rendered: RenderedPrompt) -> str:

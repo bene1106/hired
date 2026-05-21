@@ -41,7 +41,10 @@ describe('SettingsScreen', () => {
     renderSettings()
 
     await waitFor(() => expect(screen.getByText(/alex@example.com/)).toBeInTheDocument())
-    expect(screen.getByText(/backend engineer/i)).toBeInTheDocument()
+    // PR D (Phase 8): Backend Engineer appears in both the Profile card
+    // (read-only summary) and the new PreferencesPanel (editable chip).
+    // Both surfaces are correct; assert at least one render.
+    expect(screen.getAllByText(/backend engineer/i).length).toBeGreaterThan(0)
   })
 
   it('shows the priced cost panel for anthropic_api', async () => {

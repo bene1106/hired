@@ -1,5 +1,45 @@
 # Current Phase
 
+**Phase 8 complete; v0.3.0 tagged 2026-05-21.**
+
+Phase 8 shipped the interactive interview coach (streaming chat that
+coexists with the Phase 5 Question Bank — Practice is the default
+mode) and the editable Preferences card in Settings. The
+`LLMProvider` interface got its first new method since Phase 6:
+`interview_chat_stream(messages, role_context) -> Iterator[str]`,
+implemented across all four adapters (MockProvider, AnthropicAPI,
+Ollama, ClaudeCode), with `RecordingProvider` wrapping the iterator
+for per-stream call logging.
+
+Five PRs (A–E), all merged:
+- PR #22 — provider streaming (prompt + Protocol + 4 adapters + tests)
+- PR #23 — SSE chat endpoint + session CRUD (no DB migration; reuses
+  the Phase-5-allocated `InterviewSession` table)
+- PR #24 — frontend chat UI + SSE consumer (fetch + ReadableStream,
+  not EventSource) + `InterviewPanel` Practice/Coach toggle
+- PR #25 — editable Preferences in Settings (backend untouched)
+- PR #26 — ADR-0009 + CHANGELOG + version bumps + tag v0.3.0
+
+Branch: `feat/phase-8e-release` (merged → main after PR).
+Spec: `docs/PHASE_10_VISION.md` + handoff §17 (carried over from
+Phase 7) — Phase 8 cleared the §17 entries marked "Phase 8."
+ADR: `docs/adr/0009-phase-8-interactive-coach.md`.
+
+## Phase 8 — Bene's remaining manual gate
+
+- Consolidated Tauri / installer smoke on the v0.3.0 RC. The
+  WebView2 SSE consumer is the only real risk surface I could not
+  verify headlessly (jsdom is the next-best proxy and all 87 frontend
+  tests pass, including 4 multi-turn streaming cases). If chunks
+  don't arrive progressively in the installed build, the fix is
+  most likely a Tauri-config-level buffering tweak — backend already
+  emits `X-Accel-Buffering: no`.
+- Publish the draft release (draft → Public per §10).
+- (Optional) Capture refreshed screenshots into `docs/screenshots/`
+  for the README — the slots are still TODO from v0.2.0.
+
+## Phase 6 — completed checklist (kept for reference)
+
 **Phase 6 complete; v1.0.0 release pipeline live.**
 
 The MVP is feature-complete across all six phases. Track A

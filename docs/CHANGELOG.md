@@ -5,6 +5,83 @@ All notable user-visible changes to Hired. are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-05-21
+
+Phase 8 — the interactive interview coach lands as a streaming chat
+that coexists with the Phase 5 Question Bank inside the Interview Prep
+tab. Plus an in-place editable Preferences card in Settings, so users
+can sharpen targeting without re-running the onboarding wizard. The
+`LLMProvider` interface gets its first new method since Phase 6
+(`interview_chat_stream`) — all four adapters now stream.
+
+### Added
+- Phase 8 (PR E — polish + v0.3.0): ADR-0009 records the streaming
+  Protocol extension, the SSE-over-fetch transport choice, the
+  Practice/Coach coexistence policy, and the honest omissions
+  (streak / answered-today / slider persistence). Versions bumped to
+  0.3.0 across `frontend/package.json`, `src-tauri/Cargo.toml`,
+  `Cargo.lock`, and `tauri.conf.json`.
+- Phase 8 (PR D — editable Preferences): new "Preferences" card in
+  Settings between Profile and Provider. Chip inputs for target_roles
+  and target_locations (Enter or comma to add, × to remove, Backspace
+  on empty input pops the last chip), number input for minimum salary
+  (empty → null), textarea for priorities (one per line, blank lines
+  trimmed). Save button shows a "Saving…" spinner and surfaces a
+  toast on success. Backend: zero changes — Profile already has the
+  fields and `PUT /api/profile` accepts them.
+- Phase 8 (PR C — chat UI + SSE consumer): new `InterviewChat`
+  component, 2-column layout with a session sidebar (newest-first
+  list, preview + turn count, delete per row) and the chat panel.
+  Streaming consumer uses `fetch()` + `ReadableStream` (not
+  `EventSource` — it can't send a POST body and is quirky in
+  WebView2); each SSE chunk lands in the same assistant bubble.
+  Confidence slider per session (UI-only state, drops on session
+  switch). New `InterviewPanel` wraps a Practice ↔ Coach segmented
+  toggle, default Practice — every Phase 7 PR G test for
+  `InterviewPrep` passes unchanged. Half-write-safe: on mid-stream
+  error the user turn stays in the transcript, the empty assistant
+  placeholder is dropped, and the error surfaces via `role="alert"`.
+  Also: fixed a recurrence of the PR #11 `SettingsScreen` cost-panel
+  flake (same sync-toHaveTextContent race the provider-panel fix
+  patched in PR #11; the em-dash test was missed).
+- Phase 8 (PR B — chat endpoint + sessions API): five new endpoints
+  under `/api/applications/{id}/interview/sessions/*` — create, list
+  (newest first, with preview + turn_count), get full transcript,
+  delete, and the SSE-streaming POST messages. Uses the existing
+  `InterviewSession` model (transcript_json) — no DB migration. SSE
+  frames: `data: {"chunk": "<text>"}\n\n` per chunk, terminator
+  `data: {"done": true, "session_id": N}\n\n`, or
+  `data: {"error": "..."}\n\n` on mid-stream failure. User turn is
+  persisted synchronously before streaming; assistant turn only on
+  clean completion. The Phase 5 endpoints (`/questions`, `/practice`,
+  `/attempts`) are untouched and coexist with the chat.
+- Phase 8 (PR A — provider streaming): `LLMProvider` gains
+  `interview_chat_stream(messages, role_context) -> Iterator[str]`.
+  New `ChatMessage` / `ChatRole` types (`user` / `assistant`, same
+  shape as the DB transcript and the frontend so no translation
+  layer). New `backend/prompts/interview_coach.md` — multi-turn
+  CRITIQUE-AND-FOLLOWUP shape, honest tone, no JSON / no emojis, two
+  few-shot examples, `{{role_context}}` substitution. `MockProvider`
+  yields deterministic chunks; `AnthropicAPIAdapter` uses
+  `messages.stream()`; `OllamaAdapter` consumes `stream=true` NDJSON;
+  `ClaudeCodeAdapter` parses `--output-format stream-json
+  --include-partial-messages` events with graceful fallback to single
+  `assistant`-event chunk on older CLI versions. `RecordingProvider`
+  wraps the iterator so latency is measured at drain and one
+  `provider_call_log` row is written per stream (success or error).
+- The prompt loader (`PromptTemplate.render`) now substitutes
+  `{{}}` placeholders in both `system` and `user` blocks (was
+  user-only). Verified safe: every pre-Phase-8 prompt uses
+  placeholders only in user blocks.
+
+### Notes for installer testing
+- The `v0.3.0` tag triggers `release.yml` and builds a 3-OS draft
+  release. The Tauri smoke for chat coexists with the Phase-7-RC
+  pattern: install the build, run a chat session in real WebView2,
+  verify chunks arrive progressively (`X-Accel-Buffering: no` is set
+  on the SSE response to avoid webview-level buffering). Real
+  WebView2 SSE risk is the only deferred verification.
+
 ## [0.2.0] - 2026-05-19
 
 Phase 7 — frontend redesign. The app now uses the new warm

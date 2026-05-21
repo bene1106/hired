@@ -239,3 +239,104 @@ def test_crawl_returns_error_on_fetch_failure() -> None:
     assert result.error is not None
     assert "connection refused" in result.error
     assert result.new == 0
+
+
+def test_crawl_dedup_with_stale_score_adds_to_rescore_job_ids() -> None:
+    """v0.3.5: re-pasting a known URL after profile_version bumps must
+    surface the job for re-scoring, not silently fall through."""
+    from db.models import JobScore
+    from db.models import Profile as ProfileRow
+
+    run_migrations()
+
+    # 1) Profile at version 2 (e.g. after a re-onboarding).
+    with get_session() as session:
+        session.add(
+            ProfileRow(
+                name="Alex",
+                target_roles_json=["Backend"],
+                target_locations_json=["Berlin"],
+                cv_parsed_json={},
+                profile_version=2,
+            )
+        )
+        session.commit()
+
+    client = httpx.Client(
+        transport=httpx.MockTransport(lambda r: httpx.Response(200, html=JSON_LD_HTML))
+    )
+    source = ManualURLSource(client=client)
+    query = CrawlQuery(urls=["https://acmeco.example/jobs/42"], max_jobs=5)
+
+    # 2) First crawl persists the job. Caller would score at version 2.
+    first = crawl(source, query)
+    assert first.new == 1
+    assert first.rescore_job_ids == []
+    job_id = first.new_job_ids[0]
+
+    # 3) Caller writes a JobScore at the OLD profile_version (1).
+    with get_session() as session:
+        session.add(
+            JobScore(
+                job_id=job_id,
+                profile_version=1,
+                score=70,
+                rationale_json={"score": 70, "rationale": "stale", "matched_skills": []},
+            )
+        )
+        session.commit()
+
+    # 4) Re-paste of the same URL: dedup hits, but the existing score is at
+    # version 1 and the active profile is at version 2, so the job needs
+    # re-scoring. The crawler now reports that, instead of silently
+    # leaving the user with an empty feed.
+    second = crawl(source, query)
+    assert second.new == 0
+    assert second.duplicates == 1
+    assert second.rescore_job_ids == [job_id]
+
+
+def test_crawl_dedup_with_current_score_skips_rescore() -> None:
+    """Sibling to the above: existing job WITH a score at the current
+    profile_version stays out of ``rescore_job_ids`` — no unnecessary
+    re-scoring on every re-paste."""
+    from db.models import JobScore
+    from db.models import Profile as ProfileRow
+
+    run_migrations()
+
+    with get_session() as session:
+        session.add(
+            ProfileRow(
+                name="Alex",
+                target_roles_json=[],
+                target_locations_json=[],
+                cv_parsed_json={},
+                profile_version=3,
+            )
+        )
+        session.commit()
+
+    client = httpx.Client(
+        transport=httpx.MockTransport(lambda r: httpx.Response(200, html=JSON_LD_HTML))
+    )
+    source = ManualURLSource(client=client)
+    query = CrawlQuery(urls=["https://acmeco.example/jobs/42"], max_jobs=5)
+
+    first = crawl(source, query)
+    job_id = first.new_job_ids[0]
+
+    with get_session() as session:
+        session.add(
+            JobScore(
+                job_id=job_id,
+                profile_version=3,
+                score=82,
+                rationale_json={"score": 82, "rationale": "fits", "matched_skills": []},
+            )
+        )
+        session.commit()
+
+    second = crawl(source, query)
+    assert second.duplicates == 1
+    assert second.rescore_job_ids == []

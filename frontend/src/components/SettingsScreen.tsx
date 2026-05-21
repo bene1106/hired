@@ -187,6 +187,11 @@ function ProviderStatus({ stats }: { stats: ProviderStats }) {
     stats.success_rate_today === null
       ? null
       : `${Math.round(stats.success_rate_today * 100)}% success`
+  // v0.3.5: ``construct_ok=false`` means the next real request will 500.
+  // Surface that as "Disconnected" with the underlying class name so the
+  // user knows to fix the key in Settings → Switch Provider — historical
+  // call-log stats are no longer enough to call this "Healthy."
+  const disconnected = !stats.construct_ok
   return (
     <div className="flex flex-col gap-1.5" aria-live="polite">
       <p className="flex items-center gap-2 text-[14px] font-medium text-ink">
@@ -196,7 +201,19 @@ function ProviderStatus({ stats }: { stats: ProviderStats }) {
             Experimental
           </Badge>
         ) : null}
+        {disconnected ? (
+          <Badge variant="destructive" className="align-middle">
+            Disconnected
+          </Badge>
+        ) : null}
       </p>
+      {disconnected ? (
+        <p className="text-[12px] text-warn" data-testid="provider-construct-error">
+          Provider construction failed
+          {stats.construct_error ? ` (${stats.construct_error})` : ''} — re-enter your key via
+          &ldquo;Switch provider&rdquo; below.
+        </p>
+      ) : null}
       <p className="text-[12px] text-ink-3">
         {healthy === null
           ? 'No calls yet — pick a job to score or generate to populate stats.'

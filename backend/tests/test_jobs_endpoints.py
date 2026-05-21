@@ -260,3 +260,106 @@ def _make_manual_source_with_transport(transport: httpx.MockTransport):
     from crawler.manual_urls import ManualURLSource
 
     return ManualURLSource(client=httpx.Client(transport=transport))
+
+
+# ---------------------------------------------------------------------------
+# v0.3.5 — /scoring-status + /rescore
+# ---------------------------------------------------------------------------
+
+
+def test_scoring_status_with_no_jobs(_seeded_profile: int) -> None:
+    """Fresh install: zero jobs, zero candidates. Empty-state stays at the
+    default ``Click Crawl…`` copy (frontend reads ``rescore_candidate_count``
+    to decide whether to show the rescore button)."""
+    res = client.get("/api/jobs/scoring-status")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["jobs_total"] == 0
+    assert body["jobs_with_current_score"] == 0
+    assert body["rescore_candidate_count"] == 0
+
+
+def test_scoring_status_with_stale_scores(_seeded_profile: int) -> None:
+    """Re-onboarding bumps profile_version past the stored JobScore rows.
+    Endpoint reports how many jobs need a fresh score."""
+    job_ids = _seed_three_jobs()
+    # Score 2 of the 3 jobs at the CURRENT profile_version.
+    with get_session() as session:
+        profile = session.execute(select(ProfileRow).limit(1)).scalar_one()
+        for jid in job_ids[:2]:
+            session.add(
+                JobScoreRow(
+                    job_id=jid,
+                    profile_version=profile.profile_version,
+                    score=70,
+                    rationale_json={"score": 70, "rationale": ""},
+                )
+            )
+        # The third job gets a STALE score at version -1.
+        session.add(
+            JobScoreRow(
+                job_id=job_ids[2],
+                profile_version=profile.profile_version - 1,
+                score=70,
+                rationale_json={"score": 70, "rationale": ""},
+            )
+        )
+        session.commit()
+
+    res = client.get("/api/jobs/scoring-status").json()
+    assert res["jobs_total"] == 3
+    assert res["jobs_with_current_score"] == 2
+    assert res["rescore_candidate_count"] == 1
+
+
+def test_rescore_scores_missing_jobs_against_current_profile(
+    _seeded_profile: int, _mock_provider: MockProvider
+) -> None:
+    """Endpoint catches up everything not at the current profile_version."""
+    _seed_three_jobs()
+    _mock_provider.set_response(
+        "score_job",
+        ScoreResult(
+            score=88,
+            rationale="catch-up",
+            matched_skills=["Python"],
+            missing_skills=[],
+            red_flags=[],
+        ),
+    )
+
+    res = client.post("/api/jobs/rescore")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["rescored"] == 3
+    assert body["total_candidates"] == 3
+    assert body["capped"] is False
+
+    # Subsequent call: every job now has a current-version score, nothing
+    # to do — the response is honest about that.
+    res2 = client.post("/api/jobs/rescore").json()
+    assert res2["rescored"] == 0
+    assert res2["total_candidates"] == 0
+
+
+def test_rescore_caps_large_backlogs(_seeded_profile: int, _mock_provider: MockProvider) -> None:
+    """A 60-job backlog with a 50-job cap: ``capped`` flag tells the frontend
+    to either run rescore again or surface the partial state honestly."""
+    from db.models import Job as JobRow
+
+    with get_session() as session:
+        for i in range(60):
+            session.add(
+                JobRow(
+                    source="manual_url",
+                    source_id=f"bulk:{i}",
+                    title=f"Job {i}",
+                    description="x",
+                )
+            )
+        session.commit()
+
+    res = client.post("/api/jobs/rescore").json()
+    assert res["total_candidates"] == 60
+    assert res["rescored"] == 50
+    assert res["capped"] is True

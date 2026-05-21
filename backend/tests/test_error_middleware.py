@@ -179,6 +179,70 @@ def test_questions_route_drops_invalid_cache_entries_instead_of_500(
     assert body["role_context"] == "Some role."
 
 
+# ---------------------------------------------------------------------------
+# v0.3.5: LLMAuthError → 401
+# ---------------------------------------------------------------------------
+
+
+def test_llm_auth_error_returns_401_with_error_kind(
+    mock_provider: MockProvider,
+) -> None:
+    """``LLMAuthError`` escaping a Depends must surface as a 401 with a
+    structured ``error_kind`` so the frontend can route the user to
+    Settings → Switch Provider directly."""
+    from llm.errors import LLMAuthError
+
+    @app.get("/__test_auth")
+    def explode() -> dict:  # type: ignore[unused-function]
+        raise LLMAuthError("Anthropic API key not found.")
+
+    try:
+        res = client.get("/__test_auth")
+        assert res.status_code == 401
+        body = res.json()
+        assert body["error_kind"] == "missing_api_key"
+        assert "Anthropic" in body["detail"]
+    finally:
+        app.router.routes = [
+            r for r in app.router.routes if getattr(r, "path", None) != "/__test_auth"
+        ]
+
+
+# ---------------------------------------------------------------------------
+# v0.3.5: /api/stats/provider active probe
+# ---------------------------------------------------------------------------
+
+
+def test_provider_stats_returns_construct_ok_when_provider_builds(
+    mock_provider: MockProvider,
+) -> None:
+    """With a working provider override, the probe succeeds."""
+    res = client.get("/api/stats/provider")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["construct_ok"] is True
+    assert body["construct_error"] is None
+
+
+def test_provider_stats_reports_construct_failure(monkeypatch) -> None:
+    """When provider construction raises ``LLMError``, the panel reflects
+    that — the historical call_log stats may still be filled in, but
+    ``construct_ok=False`` tells the UI to show 'Disconnected'.
+    """
+    from llm.errors import LLMAuthError
+
+    def _failing_get_provider():
+        raise LLMAuthError("synthetic missing key")
+
+    monkeypatch.setattr("api.routes.stats.get_provider", _failing_get_provider)
+
+    res = client.get("/api/stats/provider")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["construct_ok"] is False
+    assert body["construct_error"] == "LLMAuthError"
+
+
 def test_questions_route_drops_all_invalid_returns_empty_not_500(
     mock_provider: MockProvider,
 ) -> None:

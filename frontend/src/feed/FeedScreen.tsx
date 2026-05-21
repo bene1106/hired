@@ -2,11 +2,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { Icon } from '@/components/icons/Icon'
+import { Toast, useToast } from '@/components/Toast'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { ApiError, api } from '@/lib/api'
-import type { CrawlStatus, FeedItem, JobAction, JobActionStatus } from '@/lib/types'
+import type { CrawlStatus, FeedItem, JobAction, JobActionStatus, ScoringStatus } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 import { JobCard } from './JobCard'
@@ -35,6 +36,24 @@ export function FeedScreen() {
   const [activeCrawl, setActiveCrawl] = useState<CrawlStatus | null>(null)
   const [crawlError, setCrawlError] = useState<string | null>(null)
 
+  // v0.3.5: drives the conditional empty-state button. We only show the
+  // "Re-score existing jobs" CTA when there ARE jobs in the DB but none
+  // visible at the current profile_version. Fresh installs (jobs_total=0)
+  // keep the default "No jobs yet. Click Crawl…" copy.
+  const [scoringStatus, setScoringStatus] = useState<ScoringStatus | null>(null)
+  const [rescoring, setRescoring] = useState(false)
+  const rescoreToast = useToast()
+
+  const refreshScoringStatus = useCallback(async () => {
+    try {
+      setScoringStatus(await api.getScoringStatus())
+    } catch {
+      // Empty state still works without the count; the rescore button just
+      // stays hidden. No need to surface this to the user.
+      setScoringStatus(null)
+    }
+  }, [])
+
   const refreshFeed = useCallback(async (currentFilter: Filter) => {
     setFeedError(null)
     try {
@@ -54,7 +73,8 @@ export function FeedScreen() {
 
   useEffect(() => {
     void refreshFeed(filter)
-  }, [filter, refreshFeed])
+    void refreshScoringStatus()
+  }, [filter, refreshFeed, refreshScoringStatus])
 
   // Poll the active crawl until it lands in a terminal state.
   useEffect(() => {
@@ -113,6 +133,34 @@ export function FeedScreen() {
       } else {
         setCrawlError('Crawl failed.')
       }
+    }
+  }
+
+  async function handleRescore() {
+    setRescoring(true)
+    try {
+      const result = await api.rescoreJobs()
+      // Honest count copy: the backend may have capped at 50 jobs; if there
+      // are stragglers the user clicks again. Surfacing the literal numbers
+      // beats a vague "done!" — matches the "tools, not toys" CLAUDE.md
+      // guidance.
+      let message: string
+      if (result.rescored === 0) {
+        message = 'Nothing to rescore.'
+      } else if (result.capped) {
+        const remaining = result.total_candidates - result.rescored
+        message = `Rescored ${result.rescored} jobs · ${remaining} more queued — run again.`
+      } else {
+        message = `Rescored ${result.rescored} ${result.rescored === 1 ? 'job' : 'jobs'}.`
+      }
+      rescoreToast.show(message)
+      await refreshScoringStatus()
+      await refreshFeed(filter)
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : 'Rescore failed.'
+      rescoreToast.show(`Rescore failed: ${reason}`)
+    } finally {
+      setRescoring(false)
     }
   }
 
@@ -247,7 +295,12 @@ export function FeedScreen() {
           ))}
         </div>
       ) : items.length === 0 ? (
-        <EmptyState filter={filter} />
+        <EmptyState
+          filter={filter}
+          scoringStatus={scoringStatus}
+          rescoring={rescoring}
+          onRescore={() => void handleRescore()}
+        />
       ) : (
         <div className="flex flex-col gap-3">
           {items.map((item) => (
@@ -260,6 +313,8 @@ export function FeedScreen() {
           ))}
         </div>
       )}
+
+      <Toast message={rescoreToast.message} />
     </div>
   )
 }
@@ -285,19 +340,59 @@ function CrawlStatusLine({ status }: { status: CrawlStatus }) {
   )
 }
 
-function EmptyState({ filter }: { filter: Filter }) {
-  if (filter === 'all') {
+function EmptyState({
+  filter,
+  scoringStatus,
+  rescoring,
+  onRescore,
+}: {
+  filter: Filter
+  scoringStatus: ScoringStatus | null
+  rescoring: boolean
+  onRescore: () => void
+}) {
+  if (filter !== 'all') {
     return (
-      <div className="mx-auto max-w-md pt-12 text-center">
-        <h2 className="text-xl font-medium text-ink">No jobs yet.</h2>
+      <p className="mx-auto max-w-md pt-12 text-center text-sm text-ink-3">No {filter} jobs.</p>
+    )
+  }
+
+  // v0.3.5: show the "Re-score" CTA only when there ARE jobs in the DB
+  // but none visible — i.e. the user re-onboarded (bumped profile_version)
+  // and the existing JobScore rows are now stale. Fresh installs
+  // (jobs_total=0) keep the default copy.
+  const needsRescore =
+    scoringStatus !== null &&
+    scoringStatus.jobs_total > 0 &&
+    scoringStatus.rescore_candidate_count > 0
+
+  return (
+    <div className="mx-auto max-w-md pt-12 text-center">
+      <h2 className="text-xl font-medium text-ink">No jobs yet.</h2>
+      {needsRescore ? (
+        <>
+          <p className="mt-2 text-sm text-ink-3">
+            You have {scoringStatus!.jobs_total} {scoringStatus!.jobs_total === 1 ? 'job' : 'jobs'}{' '}
+            in the DB that haven&rsquo;t been scored against your current profile.
+          </p>
+          <Button
+            className="mt-4"
+            disabled={rescoring}
+            onClick={onRescore}
+            data-testid="rescore-existing"
+          >
+            <Icon name="refresh" size={14} className={rescoring ? 'animate-spin' : ''} />
+            {rescoring ? 'Rescoring…' : 'Re-score existing jobs'}
+          </Button>
+        </>
+      ) : (
         <p className="mt-2 text-sm text-ink-3">
           Click <strong>Crawl</strong>, paste a few job URLs, and we&rsquo;ll score them against
           your profile.
         </p>
-      </div>
-    )
-  }
-  return <p className="mx-auto max-w-md pt-12 text-center text-sm text-ink-3">No {filter} jobs.</p>
+      )}
+    </div>
+  )
 }
 
 function filterToStatus(filter: Filter): JobActionStatus | null {

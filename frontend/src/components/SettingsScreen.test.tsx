@@ -127,6 +127,8 @@ describe('SettingsScreen', () => {
         last_success: true,
         calls_today: 12,
         success_rate_today: 1.0,
+        construct_ok: true,
+        construct_error: null,
       },
     })
 
@@ -151,6 +153,8 @@ describe('SettingsScreen', () => {
         last_success: true,
         calls_today: 3,
         success_rate_today: 1.0,
+        construct_ok: true,
+        construct_error: null,
       },
     })
 

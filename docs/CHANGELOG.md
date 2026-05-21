@@ -5,6 +5,34 @@ All notable user-visible changes to Hired. are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-05-21
+
+Hotfix on top of v0.3.0. No feature changes — adds a guard against the
+class of operational mistake that destroyed real user data during Phase
+8 PR-B smoke testing. The v0.3.0 production build itself was already
+clean (no shipped fixtures, migrations only DDL + `app_config` seed);
+this release just makes future mistakes loud.
+
+### Added
+- `db/session.resolve_db_url()` now emits a one-time stderr warning
+  when the default `~/.hired/data.db` path is opened from outside the
+  PyInstaller bundle and without `HIRED_DB_URL` set. Five new tests
+  (`test_db_session_guard.py`) cover the trigger conditions: default-
+  path-fires, override-silent, bundle-silent, quiet-env-silent, fires-
+  exactly-once. Set `HIRED_PROD_DB_QUIET=1` only when the production
+  path is genuinely the intended target.
+- `CLAUDE.md` "Never Do" gains an explicit rule against writing to
+  `~/.hired/data.db` from one-off scripts, citing the v0.3.1 trigger.
+
+### Notes for installers
+- v0.3.0 and v0.3.1 produce **identical user-facing behaviour**. If you
+  installed v0.3.0 and reached a fresh-state onboarding (i.e. you
+  weren't a victim of the PR-B smoke-fixture incident), there is no
+  reason to reinstall — v0.3.1 only hardens dev tooling.
+- If you DID see "Smoke Tester" / "SmokeCo" fixtures in v0.3.0, the
+  fix on the user side is simply: stop the app, delete `~/.hired/
+  data.db`, relaunch. v0.3.1 is the same build with the dev guard.
+
 ## [0.3.0] - 2026-05-21
 
 Phase 8 — the interactive interview coach lands as a streaming chat

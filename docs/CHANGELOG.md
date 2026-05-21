@@ -5,6 +5,38 @@ All notable user-visible changes to Hired. are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] - 2026-05-21
+
+Hotfix on v0.3.2. **Cold-start regression.** Backend was healthy on
+Bene's v0.3.2 RC smoke (verified via curl: HTTP 200 + correct CORS
+headers for `http://tauri.localhost`), but the sidecar took ~30–60s
+to bind after a fresh reinstall — PyInstaller bundle extraction +
+Windows Defender scan + first-time imports of anthropic/pydantic from
+cold disk. AppGate's retry window was 8 attempts on linear backoff
+(~14s total, last shipped in v0.1.1), so it gave up before the
+sidecar finished booting and showed "Backend not reachable: Failed
+to fetch."
+
+### Fixed
+- `AppGate.tsx` polls every 1s for up to 60 attempts (~60s total),
+  replacing the 8-attempt / linear-backoff scheme. Progress copy now
+  shows elapsed seconds ("Connecting to backend… (3s)") rather than
+  "attempt 3/8" so the user can see it's working through a cold
+  start. Error state names the timeout explicitly: "Backend not
+  reachable after 60s: …". Two new regression tests in
+  `AppGate.test.tsx`: the progress copy uses the new format, and
+  AppGate keeps polling past the old 8-attempt budget until the
+  sidecar comes up at simulated attempt 12.
+
+### Notes for installers
+- **If you saw "Failed to fetch" on v0.3.2**, you can recover without
+  reinstalling — just hit Ctrl+R or F5 in the Tauri window after the
+  app has been open for ~30s. The sidecar is already running by then
+  (`%LOCALAPPDATA%\dev.hired.desktop\logs\Hired.log` shows it bound
+  port 8765 within seconds); the new poll budget in v0.3.3 just gives
+  it long enough to be discovered on the first try.
+- No backend or schema change; no re-onboarding.
+
 ## [0.3.2] - 2026-05-21
 
 Hotfix on top of v0.3.1 — three InterviewChat UI bugs surfaced in the

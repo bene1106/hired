@@ -3,6 +3,7 @@ import type {
   ApplicationStatus,
   ApplicationSummary,
   CVParseResponse,
+  ChatStreamEvent,
   CostSummary,
   CrawlRequest,
   CrawlResponse,
@@ -10,6 +11,8 @@ import type {
   FeedItem,
   GenerationStatus,
   InterviewQuestionBundle,
+  InterviewSessionDetail,
+  InterviewSessionSummary,
   JobAction,
   JobActionStatus,
   MaterialType,
@@ -243,5 +246,110 @@ export const api = {
   listPracticeAttempts: (applicationId: number): Promise<PracticeAttempt[]> =>
     request(`/api/applications/${applicationId}/interview/attempts`),
 
+  createInterviewSession: (applicationId: number): Promise<InterviewSessionDetail> =>
+    request(`/api/applications/${applicationId}/interview/sessions`, { method: 'POST' }),
+
+  listInterviewSessions: (applicationId: number): Promise<InterviewSessionSummary[]> =>
+    request(`/api/applications/${applicationId}/interview/sessions`),
+
+  getInterviewSession: (
+    applicationId: number,
+    sessionId: number,
+  ): Promise<InterviewSessionDetail> =>
+    request(`/api/applications/${applicationId}/interview/sessions/${sessionId}`),
+
+  deleteInterviewSession: (applicationId: number, sessionId: number): Promise<void> =>
+    request(`/api/applications/${applicationId}/interview/sessions/${sessionId}`, {
+      method: 'DELETE',
+    }),
+
+  /**
+   * Stream the coach's reply for one user message.
+   *
+   * Yields parsed SSE events (`chunk` / `done` / `error`) in arrival order.
+   * Consumers should:
+   *   - append each `chunk.chunk` to the currently-rendering assistant bubble
+   *   - stop and refresh the session detail when a `done` event arrives
+   *   - surface `error` to the user; the user's own turn is already persisted
+   *     server-side, so they can retry without losing their text
+   *
+   * Tauri WebView2: this uses `fetch()` + `ReadableStream`, not the
+   * `EventSource` API. EventSource is read-only and we need to send a POST
+   * body, plus Tauri's webview has historically been quirky with
+   * EventSource. fetch-streaming is the well-trodden path.
+   */
+  chatStream: async function* (
+    applicationId: number,
+    sessionId: number,
+    content: string,
+    init?: { signal?: AbortSignal },
+  ): AsyncGenerator<ChatStreamEvent, void, void> {
+    const url = `${BACKEND_URL}/api/applications/${applicationId}/interview/sessions/${sessionId}/messages`
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content }),
+      signal: init?.signal,
+    })
+    if (!response.ok) {
+      const text = await response.text().catch(() => '')
+      throw new ApiError(
+        response.status,
+        text || `Chat stream rejected with ${response.status}`,
+        text,
+      )
+    }
+    if (response.body === null) {
+      throw new ApiError(0, 'Chat stream had no body (Tauri webview misconfigured?).')
+    }
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder('utf-8')
+    let buffer = ''
+    try {
+      for (;;) {
+        const { value, done } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        // SSE frames are separated by a blank line ("\n\n"). Pull each
+        // complete frame off the front of the buffer; the rest stays
+        // until the next read.
+        let separator = buffer.indexOf('\n\n')
+        while (separator !== -1) {
+          const frame = buffer.slice(0, separator)
+          buffer = buffer.slice(separator + 2)
+          const event = parseSseFrame(frame)
+          if (event !== null) yield event
+          separator = buffer.indexOf('\n\n')
+        }
+      }
+    } finally {
+      reader.releaseLock()
+    }
+  },
+
   getCostSummary: (): Promise<CostSummary> => request('/api/stats/cost'),
+}
+
+function parseSseFrame(frame: string): ChatStreamEvent | null {
+  for (const line of frame.split('\n')) {
+    if (!line.startsWith('data: ')) continue
+    const payload = line.slice('data: '.length)
+    try {
+      const parsed: unknown = JSON.parse(payload)
+      if (isChatStreamEvent(parsed)) return parsed
+    } catch {
+      // ignore malformed payload — the next frame may still be valid
+    }
+  }
+  return null
+}
+
+function isChatStreamEvent(value: unknown): value is ChatStreamEvent {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Record<string, unknown>
+  if (typeof v.chunk === 'string') return true
+  if (v.done === true && typeof v.session_id === 'number') return true
+  if (typeof v.error === 'string') return true
+  return false
 }

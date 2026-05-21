@@ -26,6 +26,9 @@ export type IconName =
   | 'file'
   | 'mail'
   | 'drag'
+  | 'send'
+  | 'trash'
+  | 'plus'
 
 const PATHS: Record<IconName, ReactElement> = {
   feed: <path d="M4 7h16M4 12h16M4 17h10" />,
@@ -83,6 +86,14 @@ const PATHS: Record<IconName, ReactElement> = {
       <circle cx="15" cy="18" r="1" fill="currentColor" stroke="none" />
     </>
   ),
+  send: <path d="M3 20l18-8L3 4l4 8-4 8z" />,
+  trash: (
+    <>
+      <path d="M4 7h16M9 7V4h6v3M10 11v6M14 11v6" />
+      <path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13" />
+    </>
+  ),
+  plus: <path d="M12 5v14M5 12h14" />,
 }
 
 export interface IconProps {

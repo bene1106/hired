@@ -168,18 +168,21 @@ export function InterviewChat({ applicationId }: InterviewChatProps) {
             {sessions.map((s) => {
               const isActive = active?.id === s.id
               return (
-                <li key={s.id} className="flex items-stretch gap-1">
+                <li key={s.id} className="flex min-w-0 items-stretch gap-1">
                   <button
                     type="button"
                     onClick={() => void resumeSession(s.id)}
                     data-testid={`session-${s.id}`}
-                    className={`flex-1 rounded-md border px-2.5 py-2 text-left text-[12px] leading-snug transition-colors ${
+                    className={`flex min-w-0 flex-1 flex-col rounded-md border px-2.5 py-2 text-left text-[12px] leading-snug transition-colors ${
                       isActive
                         ? 'border-line-strong bg-surface-2 text-ink'
                         : 'border-line bg-surface text-ink-2 hover:bg-surface-2'
                     }`}
                   >
-                    <span className="block truncate font-medium">
+                    <span
+                      data-testid={`session-${s.id}-title`}
+                      className="block w-full truncate font-medium"
+                    >
                       {s.preview ?? 'Empty session'}
                     </span>
                     <span className="font-mono text-[10px] text-ink-3">
@@ -190,7 +193,7 @@ export function InterviewChat({ applicationId }: InterviewChatProps) {
                     type="button"
                     onClick={() => void deleteSession(s.id)}
                     aria-label={`Delete session ${s.id}`}
-                    className="rounded-md border border-line bg-surface px-1.5 text-ink-3 hover:bg-warn-soft hover:text-warn"
+                    className="flex-shrink-0 rounded-md border border-line bg-surface px-1.5 text-ink-3 hover:bg-warn-soft hover:text-warn"
                   >
                     <Icon name="trash" size={12} />
                   </button>
@@ -228,11 +231,17 @@ export function InterviewChat({ applicationId }: InterviewChatProps) {
             </div>
 
             <div className="mt-2 border-t border-line pt-3">
-              <div className="mb-3 flex items-center gap-3">
-                <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3">
-                  Confidence
-                </span>
+              <div className="mb-3 flex flex-col gap-1.5" data-testid="confidence-slider">
+                <div className="flex items-baseline justify-between gap-2">
+                  <label htmlFor="confidence-group" className="text-[13px] font-medium text-ink">
+                    How confident do you feel after this round?
+                  </label>
+                  <span className="text-[12px] text-ink-3">
+                    {CONFIDENCE_LABELS[confidence - 1]}
+                  </span>
+                </div>
                 <div
+                  id="confidence-group"
                   className="flex gap-1"
                   role="radiogroup"
                   aria-label="Self-rated confidence for this session"
@@ -243,15 +252,21 @@ export function InterviewChat({ applicationId }: InterviewChatProps) {
                       type="button"
                       role="radio"
                       aria-checked={confidence === n}
-                      aria-label={`Confidence ${n}`}
+                      aria-label={`Confidence ${n} — ${CONFIDENCE_LABELS[n - 1]}`}
                       onClick={() => setConfidence(n)}
-                      className={`h-3 w-8 rounded-sm transition-colors ${
-                        n <= confidence ? 'bg-brand-green' : 'bg-line'
+                      className={`h-6 flex-1 rounded-md border text-[11px] font-medium transition-colors ${
+                        n <= confidence
+                          ? 'border-brand-green-2 bg-brand-green text-paper hover:bg-brand-green-2'
+                          : 'border-line bg-surface text-ink-3 hover:border-line-strong hover:text-ink-2'
                       }`}
-                    />
+                    >
+                      {n}
+                    </button>
                   ))}
                 </div>
-                <span className="text-[11px] text-ink-3">{CONFIDENCE_LABELS[confidence - 1]}</span>
+                <p className="text-[11px] text-ink-3">
+                  Click a number — your own gut-check, not graded. Resets when you switch sessions.
+                </p>
               </div>
 
               <div className="flex items-end gap-2 rounded-md border border-line bg-surface-2 p-2">
@@ -292,7 +307,10 @@ function ChatBubble({ turn }: { turn: ChatTurn }) {
   if (turn.role === 'user') {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[75%] rounded-[14px] rounded-br-[4px] bg-ink px-3.5 py-2.5 text-[13px] leading-relaxed text-bg">
+        <div
+          data-testid="user-bubble"
+          className="max-w-[75%] whitespace-pre-wrap rounded-[14px] rounded-br-[4px] bg-ink px-3.5 py-2.5 text-[13px] leading-relaxed text-paper"
+        >
           {turn.content}
         </div>
       </div>

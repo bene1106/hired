@@ -20,7 +20,7 @@ import type {
 } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
-import { InterviewPrep } from './InterviewPrep'
+import { InterviewPanel } from './InterviewPanel'
 
 const POLL_INTERVAL_MS = 1000
 
@@ -386,7 +386,7 @@ export function MaterialsScreen({ mode, jobId, applicationId }: MaterialsScreenP
                 <p className="text-[13px] text-ink-3">No CV tailoring yet.</p>
               )
             ) : appId !== null ? (
-              <InterviewPrep applicationId={appId} />
+              <InterviewPanel applicationId={appId} />
             ) : null}
           </div>
         </Card>

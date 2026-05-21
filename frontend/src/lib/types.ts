@@ -278,3 +278,42 @@ export interface CostSummary {
   calls_today: number
   calls_week: number
 }
+
+// ----- Phase 8 interview chat (coach sessions) -----------------------------
+
+export type ChatRole = 'user' | 'assistant'
+
+export interface ChatTurn {
+  role: ChatRole
+  content: string
+  created_at: string | null
+}
+
+export interface InterviewSessionSummary {
+  id: number
+  application_id: number
+  created_at: string
+  last_message_at: string | null
+  turn_count: number
+  preview: string | null
+}
+
+export interface InterviewSessionDetail {
+  id: number
+  application_id: number
+  created_at: string
+  messages: ChatTurn[]
+}
+
+/**
+ * One event parsed off the SSE stream of
+ * ``POST /api/applications/{id}/interview/sessions/{sid}/messages``.
+ *
+ *  - ``{ chunk }`` — append to the assistant bubble currently rendering
+ *  - ``{ done }`` — stream finished cleanly, transcript persisted
+ *  - ``{ error }`` — mid-stream provider failure, no assistant turn persisted
+ */
+export type ChatStreamEvent =
+  | { chunk: string }
+  | { done: true; session_id: number }
+  | { error: string }

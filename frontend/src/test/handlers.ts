@@ -5,11 +5,14 @@ import type {
   ApplicationStatus,
   ApplicationSummary,
   CVParseResponse,
+  ChatTurn,
   CostSummary,
   CrawlStatus,
   FeedItem,
   GenerationStatus,
   InterviewQuestionBundle,
+  InterviewSessionDetail,
+  InterviewSessionSummary,
   JobAction,
   JobActionStatus,
   MaterialView,
@@ -56,6 +59,9 @@ interface MockState {
   generationCallCount: Record<number, number>
   providerMetadata: ProviderMetadata[]
   providerStats: ProviderStats
+  interviewSessions: InterviewSessionDetail[]
+  chatChunks: string[]
+  chatFailWith: string | null
 }
 
 const defaultState = (): MockState => ({
@@ -72,6 +78,14 @@ const defaultState = (): MockState => ({
   generationByTask: {},
   interviewQuestions: {},
   practiceAttempts: {},
+  interviewSessions: [],
+  chatChunks: [
+    'Strong opening — ',
+    'you cite a specific stack. ',
+    'The gap: what changed because of you?\n\n',
+    'Follow-up: quantify the impact.',
+  ],
+  chatFailWith: null,
   cost: {
     provider: 'mock',
     label: 'unknown',
@@ -546,6 +560,141 @@ export const handlers = [
     const id = Number(params.applicationId)
     return HttpResponse.json(state.practiceAttempts[id] ?? [])
   }),
+
+  // ----- Phase 8 interview chat ---------------------------------------------
+
+  http.post(`${BACKEND}/api/applications/:applicationId/interview/sessions`, ({ params }) => {
+    const appId = Number(params.applicationId)
+    const nextId = state.interviewSessions.reduce((max, s) => Math.max(max, s.id), 0) + 1
+    const session: InterviewSessionDetail = {
+      id: nextId,
+      application_id: appId,
+      created_at: new Date().toISOString(),
+      messages: [],
+    }
+    state = { ...state, interviewSessions: [...state.interviewSessions, session] }
+    return HttpResponse.json(session)
+  }),
+
+  http.get(`${BACKEND}/api/applications/:applicationId/interview/sessions`, ({ params }) => {
+    const appId = Number(params.applicationId)
+    const list: InterviewSessionSummary[] = state.interviewSessions
+      .filter((s) => s.application_id === appId)
+      .map((s) => ({
+        id: s.id,
+        application_id: s.application_id,
+        created_at: s.created_at,
+        last_message_at: s.messages[s.messages.length - 1]?.created_at ?? s.created_at,
+        turn_count: s.messages.length,
+        preview: [...s.messages].reverse().find((m) => m.role === 'user')?.content ?? null,
+      }))
+      .sort((a, b) => b.id - a.id)
+    return HttpResponse.json(list)
+  }),
+
+  http.get(
+    `${BACKEND}/api/applications/:applicationId/interview/sessions/:sessionId`,
+    ({ params }) => {
+      const appId = Number(params.applicationId)
+      const sid = Number(params.sessionId)
+      const row = state.interviewSessions.find((s) => s.id === sid && s.application_id === appId)
+      if (row === undefined) {
+        return HttpResponse.json({ detail: 'Unknown interview session.' }, { status: 404 })
+      }
+      return HttpResponse.json(row)
+    },
+  ),
+
+  http.delete(
+    `${BACKEND}/api/applications/:applicationId/interview/sessions/:sessionId`,
+    ({ params }) => {
+      const appId = Number(params.applicationId)
+      const sid = Number(params.sessionId)
+      const exists = state.interviewSessions.some((s) => s.id === sid && s.application_id === appId)
+      if (!exists) {
+        return HttpResponse.json({ detail: 'Unknown interview session.' }, { status: 404 })
+      }
+      state = {
+        ...state,
+        interviewSessions: state.interviewSessions.filter(
+          (s) => !(s.id === sid && s.application_id === appId),
+        ),
+      }
+      return new HttpResponse(null, { status: 204 })
+    },
+  ),
+
+  http.post(
+    `${BACKEND}/api/applications/:applicationId/interview/sessions/:sessionId/messages`,
+    async ({ params, request }) => {
+      const appId = Number(params.applicationId)
+      const sid = Number(params.sessionId)
+      const idx = state.interviewSessions.findIndex(
+        (s) => s.id === sid && s.application_id === appId,
+      )
+      if (idx === -1) {
+        return HttpResponse.json({ detail: 'Unknown interview session.' }, { status: 404 })
+      }
+      const body = (await request.json()) as { content: string }
+      const session = state.interviewSessions[idx]
+      // Persist the user turn before streaming, mirroring the backend's
+      // half-write-safe ordering.
+      const userTurn: ChatTurn = {
+        role: 'user',
+        content: body.content,
+        created_at: new Date().toISOString(),
+      }
+      const withUser: InterviewSessionDetail = {
+        ...session,
+        messages: [...session.messages, userTurn],
+      }
+      const updated = [...state.interviewSessions]
+      updated[idx] = withUser
+      state = { ...state, interviewSessions: updated }
+
+      const chunks = [...state.chatChunks]
+      const failWith = state.chatFailWith
+
+      const stream = new ReadableStream<Uint8Array>({
+        async start(controller) {
+          const encoder = new TextEncoder()
+          const write = (payload: object) =>
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`))
+          if (failWith !== null) {
+            write({ error: failWith })
+            controller.close()
+            return
+          }
+          for (const chunk of chunks) {
+            write({ chunk })
+          }
+          // Mirror the backend: append the full assistant turn to the
+          // transcript on clean completion.
+          const assistantTurn: ChatTurn = {
+            role: 'assistant',
+            content: chunks.join(''),
+            created_at: new Date().toISOString(),
+          }
+          const finalState = [...state.interviewSessions]
+          const finalIdx = finalState.findIndex((s) => s.id === sid && s.application_id === appId)
+          if (finalIdx !== -1) {
+            finalState[finalIdx] = {
+              ...finalState[finalIdx],
+              messages: [...finalState[finalIdx].messages, assistantTurn],
+            }
+            state = { ...state, interviewSessions: finalState }
+          }
+          write({ done: true, session_id: sid })
+          controller.close()
+        },
+      })
+
+      return new HttpResponse(stream, {
+        status: 200,
+        headers: { 'content-type': 'text/event-stream' },
+      })
+    },
+  ),
 
   http.get(`${BACKEND}/api/stats/cost`, () => HttpResponse.json(state.cost)),
 ]

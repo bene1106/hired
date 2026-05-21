@@ -39,6 +39,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from collections.abc import Iterator
 from typing import Any
 
 import httpx
@@ -48,6 +49,7 @@ from .errors import LLMNetworkError, LLMResponseError
 from .prompts import RenderedPrompt, load_prompt
 from .types import (
     AnswerFeedback,
+    ChatMessage,
     CompanyBrief,
     CoverLetter,
     InterviewQuestion,
@@ -173,6 +175,63 @@ class OllamaAdapter:
         rendered = load_prompt("summarize_role", job=job.model_dump(mode="json"))
         return self._call(rendered).strip()
 
+    def interview_chat_stream(
+        self,
+        messages: list[ChatMessage],
+        role_context: str | None = None,
+    ) -> Iterator[str]:
+        rendered = load_prompt("interview_coach", role_context=role_context or "")
+        provider_messages = _history_to_chat_messages(messages, rendered)
+        url = f"{self._base_url}/api/chat"
+        body = {
+            "model": self.model,
+            "messages": provider_messages,
+            "stream": True,
+            "options": {"temperature": 0.5},
+        }
+
+        prompt_tokens: int | None = None
+        eval_tokens: int | None = None
+
+        try:
+            with self._client.stream("POST", url, json=body, timeout=self._timeout_s) as response:
+                if response.status_code >= 400:
+                    response.read()
+                    msg = _safe_error_message(response, default=str(response.status_code))
+                    if response.status_code == 404:
+                        raise LLMResponseError(f"Model '{self.model}' not available locally. {msg}")
+                    raise LLMResponseError(f"Ollama returned {response.status_code}: {msg}")
+
+                for line in response.iter_lines():
+                    if not line:
+                        continue
+                    try:
+                        payload = json.loads(line)
+                    except ValueError as exc:
+                        raise LLMResponseError(f"Ollama stream line was not JSON: {exc}") from exc
+                    if payload.get("error"):
+                        raise LLMResponseError(f"Ollama error: {payload['error']}")
+                    msg_obj = payload.get("message")
+                    if isinstance(msg_obj, dict):
+                        content = msg_obj.get("content")
+                        if isinstance(content, str) and content:
+                            yield content
+                    if payload.get("done"):
+                        prompt_tokens = _optional_int(payload.get("prompt_eval_count"))
+                        eval_tokens = _optional_int(payload.get("eval_count"))
+        except httpx.TimeoutException as exc:
+            raise LLMNetworkError(
+                f"Ollama timed out after {self._timeout_s:.0f}s. The model may be loading."
+            ) from exc
+        except httpx.ConnectError as exc:
+            raise LLMNetworkError(
+                f"Could not reach Ollama at {self._base_url}. Is the server running?"
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise LLMNetworkError(f"Ollama HTTP error: {exc}") from exc
+
+        record_usage(TokenUsage(input_tokens=prompt_tokens, output_tokens=eval_tokens))
+
     # ------------------------------------------------------------------
     # HTTP plumbing
     # ------------------------------------------------------------------
@@ -249,6 +308,24 @@ def _to_chat_messages(rendered: RenderedPrompt) -> list[dict[str, str]]:
         messages.append({"role": "user", "content": example.input_text})
         messages.append({"role": "assistant", "content": example.output_text})
     messages.append({"role": "user", "content": rendered.user})
+    return messages
+
+
+def _history_to_chat_messages(
+    history: list[ChatMessage], rendered: RenderedPrompt
+) -> list[dict[str, str]]:
+    """Build the Ollama messages array for a multi-turn chat session.
+
+    Prepends the system prompt, then forwards the caller's history. Few-shot
+    examples from the prompt file are skipped — the coach prompt's examples
+    are anchoring tone, not seeding a fake conversation. Empty history falls
+    back to the prompt's kickoff user template.
+    """
+    messages: list[dict[str, str]] = [{"role": "system", "content": rendered.system}]
+    if not history:
+        messages.append({"role": "user", "content": rendered.user})
+        return messages
+    messages.extend({"role": m.role, "content": m.content} for m in history)
     return messages
 
 

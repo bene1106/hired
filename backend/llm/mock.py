@@ -15,10 +15,12 @@ to clear and fall back to the default stub.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from typing import Any
 
 from .types import (
     AnswerFeedback,
+    ChatMessage,
     CompanyBrief,
     CoverLetter,
     ImprovementNote,
@@ -37,6 +39,7 @@ _VALID_METHODS = {
     "generate_interview_questions",
     "evaluate_answer",
     "summarize_role",
+    "interview_chat_stream",
 }
 
 
@@ -218,6 +221,41 @@ class MockProvider:
             ),
             off_topic=False,
         )
+
+    def interview_chat_stream(
+        self,
+        messages: list[ChatMessage],
+        role_context: str | None = None,
+    ) -> Iterator[str]:
+        override = self._override("interview_chat_stream")
+        if override is not None:
+            # Override may be a full string, a list of chunks, or an iterable.
+            if isinstance(override, str):
+                return iter([override])
+            return iter(list(override))
+
+        # Default: respond to the last user turn (if any) with a deterministic,
+        # CRITIQUE-AND-FOLLOWUP-shaped reply. Yielded as several chunks so
+        # streaming consumers can verify they see more than one event.
+        last_user = next((m for m in reversed(messages) if m.role == "user"), None)
+        if last_user is None:
+            chunks = [
+                "Let's start. Tell me about a recent project ",
+                "where you owned the design end-to-end — ",
+                "what was the trickiest call you had to make?",
+            ]
+        else:
+            preview = (last_user.content or "").strip().split("\n", 1)[0][:80]
+            chunks = [
+                f'You opened with "{preview}" — ',
+                "that's a concrete hook, which is the right instinct.\n\n",
+                "The gap is the impact: nothing in the answer tells me what changed ",
+                "because of you. An interviewer can't tell whether your work mattered.\n\n",
+                "Add one number or one before/after sentence. Lead with it next time.\n\n",
+                "Follow-up: what would have happened on this project if you had ",
+                "stepped away halfway through?",
+            ]
+        return iter(chunks)
 
 
 __all__ = ["MockProvider"]

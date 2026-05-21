@@ -86,6 +86,14 @@ pnpm tauri dev                 # launches Tauri shell with sidecar
 - Mutate user data without writing to SQLite first (single source of truth)
 - Add a cloud-hosted dependency (this project is local-first by design)
 - Skip tests because "this is a small change" — run them anyway
+- **Write to `~/.hired/data.db` from any one-off `uv run python -c "..."` or
+  helper script.** That's the user's production DB. For smoke-testing the
+  backend live (seed data, hit an endpoint with curl), always set
+  `HIRED_DB_URL=sqlite:///./scratch.db` first — see `backend/db/session.py`.
+  v0.3.1 added a stderr warning when the prod path is opened from anywhere
+  unbundled, because this rule was violated once (Phase 8 PR B smoke) and
+  destroyed real user data. Set `HIRED_PROD_DB_QUIET=1` only when the
+  production path is genuinely the intended target.
 
 ## Decision Hierarchy When Uncertain
 

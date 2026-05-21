@@ -16,28 +16,48 @@ Dashboard / status::
     GET    /api/applications/{id}                              detail (job + materials)
     PUT    /api/applications/{id}/status                       update status + notes
 
-Interview prep::
+Interview prep — Question Bank (Phase 5)::
 
     GET    /api/applications/{id}/interview/questions          generate or load cache
     POST   /api/applications/{id}/interview/practice           submit answer + feedback
     GET    /api/applications/{id}/interview/attempts           past practice answers
+
+Interview chat — Coach sessions (Phase 8)::
+
+    POST   /api/applications/{id}/interview/sessions                  create
+    GET    /api/applications/{id}/interview/sessions                  list
+    GET    /api/applications/{id}/interview/sessions/{sid}            transcript
+    DELETE /api/applications/{id}/interview/sessions/{sid}            drop
+    POST   /api/applications/{id}/interview/sessions/{sid}/messages   SSE chat
+
+The coach surface reuses ``LLMProvider.interview_chat_stream``. Sessions
+are persisted in ``InterviewSession.transcript_json`` as
+``{"messages": [{"role", "content", "created_at"}, …]}``. The SSE
+endpoint streams ``data: {"chunk": ...}`` events and ends with
+``data: {"done": true, "message_id": ...}``; the assistant turn is only
+appended to the transcript once the stream has finished cleanly, so a
+disconnected client never poisons the history with a half-completed
+reply.
 
 Role explanation: a synthesized two-paragraph summary of the role from
 ``LLMProvider.summarize_role`` is cached in the latest
 ``interview_questions`` material's ``source_meta_json`` under the key
 ``role_summary``. It's regenerated alongside the questions when the
 caller passes ``refresh=true`` or when only one half of the cache is
-present.
+present. The chat endpoint reuses this cache for ``role_context`` so a
+new session inherits the role brief without a duplicate LLM call.
 """
 
 from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime
+from collections.abc import Iterator
+from datetime import UTC, datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import desc, select
 
@@ -45,11 +65,13 @@ from api.dependencies import get_llm_provider
 from db.models import (
     Application,
     ApplicationMaterial,
+    InterviewSession,
     Job,
     PracticeAttempt,
 )
 from db.session import get_session
 from llm import LLMProvider
+from llm.types import ChatMessage
 from services.application_service import (
     MATERIAL_TYPES,
     ApplicationServiceError,
@@ -194,6 +216,32 @@ class PracticeAttemptResponse(BaseModel):
     answer: str
     feedback: PracticeFeedback
     created_at: datetime
+
+
+class ChatTurnResponse(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+    created_at: datetime | None
+
+
+class InterviewSessionSummary(BaseModel):
+    id: int
+    application_id: int
+    created_at: datetime
+    last_message_at: datetime | None
+    turn_count: int
+    preview: str | None
+
+
+class InterviewSessionDetail(BaseModel):
+    id: int
+    application_id: int
+    created_at: datetime
+    messages: list[ChatTurnResponse]
+
+
+class ChatMessageRequest(BaseModel):
+    content: str = Field(min_length=1)
 
 
 # ---------------------------------------------------------------------------
@@ -501,6 +549,256 @@ def list_practice_attempts(application_id: int) -> list[PracticeAttemptResponse]
                 )
             )
     return out
+
+
+# ---------------------------------------------------------------------------
+# Interview chat — coach sessions (Phase 8)
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/{application_id}/interview/sessions",
+    response_model=InterviewSessionDetail,
+)
+def create_interview_session(application_id: int) -> InterviewSessionDetail:
+    _require_application(application_id)
+    with get_session() as session:
+        row = InterviewSession(
+            application_id=application_id,
+            transcript_json={"messages": []},
+        )
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _session_to_detail(row)
+
+
+@router.get(
+    "/{application_id}/interview/sessions",
+    response_model=list[InterviewSessionSummary],
+)
+def list_interview_sessions(application_id: int) -> list[InterviewSessionSummary]:
+    _require_application(application_id)
+    out: list[InterviewSessionSummary] = []
+    with get_session() as session:
+        rows = (
+            session.execute(
+                select(InterviewSession)
+                .where(InterviewSession.application_id == application_id)
+                .order_by(desc(InterviewSession.id))
+            )
+            .scalars()
+            .all()
+        )
+        for row in rows:
+            messages = _messages_from_transcript(row.transcript_json)
+            preview = _preview_for(messages)
+            last_at = _last_message_at(messages) or row.created_at
+            out.append(
+                InterviewSessionSummary(
+                    id=row.id,
+                    application_id=row.application_id,
+                    created_at=row.created_at,
+                    last_message_at=last_at,
+                    turn_count=len(messages),
+                    preview=preview,
+                )
+            )
+    return out
+
+
+@router.get(
+    "/{application_id}/interview/sessions/{session_id}",
+    response_model=InterviewSessionDetail,
+)
+def get_interview_session(application_id: int, session_id: int) -> InterviewSessionDetail:
+    _require_application(application_id)
+    with get_session() as session:
+        row = _require_session(session, application_id, session_id)
+        return _session_to_detail(row)
+
+
+@router.delete(
+    "/{application_id}/interview/sessions/{session_id}",
+    status_code=204,
+)
+def delete_interview_session(application_id: int, session_id: int) -> None:
+    _require_application(application_id)
+    with get_session() as session:
+        row = _require_session(session, application_id, session_id)
+        session.delete(row)
+        session.commit()
+
+
+@router.post("/{application_id}/interview/sessions/{session_id}/messages")
+def post_chat_message(
+    application_id: int,
+    session_id: int,
+    payload: ChatMessageRequest,
+    provider: Annotated[LLMProvider, Depends(get_llm_provider)],
+) -> StreamingResponse:
+    _require_application(application_id)
+    with get_session() as session:
+        row = _require_session(session, application_id, session_id)
+        history = _messages_from_transcript(row.transcript_json)
+    role_context = _load_role_context_for_chat(application_id)
+
+    # Append the user turn synchronously so a disconnected client doesn't
+    # lose their own message; the assistant turn is only persisted once the
+    # stream completes cleanly.
+    user_turn = ChatMessage(
+        role="user",
+        content=payload.content,
+        created_at=datetime.now(UTC),
+    )
+    persisted_messages = [*history, user_turn]
+    _persist_transcript(session_id, persisted_messages)
+
+    return StreamingResponse(
+        _stream_chat_reply(
+            provider=provider,
+            session_id=session_id,
+            history=persisted_messages,
+            role_context=role_context,
+        ),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+def _stream_chat_reply(
+    *,
+    provider: LLMProvider,
+    session_id: int,
+    history: list[ChatMessage],
+    role_context: str | None,
+) -> Iterator[bytes]:
+    """SSE generator: yields chunk events, persists assistant turn on success.
+
+    Errors during streaming become a single ``data: {"error": ...}`` event
+    and the assistant turn is not persisted. The user turn is already in the
+    transcript at this point, so retrying becomes "ask the coach again with
+    the same input."
+    """
+    collected: list[str] = []
+    try:
+        for chunk in provider.interview_chat_stream(history, role_context):
+            collected.append(chunk)
+            yield _sse_event({"chunk": chunk})
+    except Exception as exc:  # noqa: BLE001 — surface as one SSE event then stop
+        logger.exception("interview_chat_stream failed (session_id=%s)", session_id)
+        yield _sse_event({"error": str(exc)})
+        return
+
+    assistant_turn = ChatMessage(
+        role="assistant",
+        content="".join(collected),
+        created_at=datetime.now(UTC),
+    )
+    _persist_transcript(session_id, [*history, assistant_turn])
+    yield _sse_event({"done": True, "session_id": session_id})
+
+
+def _sse_event(payload: dict) -> bytes:
+    return f"data: {json.dumps(payload, default=str)}\n\n".encode()
+
+
+def _require_session(session, application_id: int, session_id: int) -> InterviewSession:
+    row = session.get(InterviewSession, session_id)
+    if row is None or row.application_id != application_id:
+        raise HTTPException(status_code=404, detail="Unknown interview session.")
+    return row
+
+
+def _messages_from_transcript(transcript: dict | None) -> list[ChatMessage]:
+    if not isinstance(transcript, dict):
+        return []
+    raw = transcript.get("messages")
+    if not isinstance(raw, list):
+        return []
+    out: list[ChatMessage] = []
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+        role = entry.get("role")
+        content = entry.get("content")
+        if role not in {"user", "assistant"} or not isinstance(content, str):
+            continue
+        created_at = entry.get("created_at")
+        parsed_at = _parse_iso(created_at) if isinstance(created_at, str) else None
+        out.append(ChatMessage(role=role, content=content, created_at=parsed_at))
+    return out
+
+
+def _parse_iso(value: str) -> datetime | None:
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def _persist_transcript(session_id: int, messages: list[ChatMessage]) -> None:
+    payload = {
+        "messages": [
+            {
+                "role": m.role,
+                "content": m.content,
+                "created_at": (m.created_at or datetime.now(UTC)).isoformat(),
+            }
+            for m in messages
+        ]
+    }
+    with get_session() as session:
+        row = session.get(InterviewSession, session_id)
+        if row is None:
+            return
+        row.transcript_json = payload
+        session.commit()
+
+
+def _session_to_detail(row: InterviewSession) -> InterviewSessionDetail:
+    messages = _messages_from_transcript(row.transcript_json)
+    return InterviewSessionDetail(
+        id=row.id,
+        application_id=row.application_id,
+        created_at=row.created_at,
+        messages=[
+            ChatTurnResponse(role=m.role, content=m.content, created_at=m.created_at)
+            for m in messages
+        ],
+    )
+
+
+def _preview_for(messages: list[ChatMessage]) -> str | None:
+    # Show the candidate's most recent question/answer in the session list —
+    # easier to recognise than the coach's reply.
+    for m in reversed(messages):
+        if m.role == "user":
+            first_line = m.content.strip().split("\n", 1)[0]
+            return first_line[:120]
+    return None
+
+
+def _last_message_at(messages: list[ChatMessage]) -> datetime | None:
+    for m in reversed(messages):
+        if m.created_at is not None:
+            return m.created_at
+    return None
+
+
+def _load_role_context_for_chat(application_id: int) -> str | None:
+    """Reuse the role summary cached on the latest interview_questions material.
+
+    Falls back to None — the coach prompt handles missing context gracefully.
+    Deliberately does NOT trigger a fresh ``summarize_role`` call: if the
+    Question Bank hasn't been opened yet, the chat starts with no role context
+    rather than blocking on an LLM call before the first message streams.
+    """
+    _questions, summary = _load_interview_cache(application_id)
+    return summary
 
 
 # ---------------------------------------------------------------------------

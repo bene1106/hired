@@ -76,7 +76,9 @@ describe('SettingsScreen', () => {
     renderSettings()
 
     const panel = await screen.findByTestId('cost-panel')
-    expect(panel).toHaveTextContent('—')
+    // Same race as PR #11: panel container resolves while cost data is
+    // still loading. Wait for the actual content to settle.
+    await waitFor(() => expect(panel).toHaveTextContent('—'))
     expect(panel).toHaveTextContent(/doesn.?t produce token counts/i)
   })
 

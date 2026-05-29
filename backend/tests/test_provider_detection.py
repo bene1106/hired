@@ -93,6 +93,76 @@ def test_claude_code_detected_but_version_times_out(monkeypatch: pytest.MonkeyPa
 
 
 # ---------------------------------------------------------------------------
+# Codex CLI
+# ---------------------------------------------------------------------------
+
+
+def test_codex_cli_not_installed(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(pd.shutil, "which", lambda _name: None)
+
+    assert pd.detect_codex_cli() == {
+        "detected": False,
+        "path": None,
+        "version": None,
+        "logged_in": False,
+    }
+
+
+def test_codex_cli_detected_and_logged_in(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(pd.shutil, "which", lambda _name: "/usr/local/bin/codex")
+
+    def fake_run(args: Any, *_a: Any, **_k: Any) -> subprocess.CompletedProcess[str]:
+        if "login" in args:
+            return subprocess.CompletedProcess(args, 0, stdout="Logged in using ChatGPT\n")
+        return subprocess.CompletedProcess(args, 0, stdout="codex-cli 0.120.0\n")
+
+    monkeypatch.setattr(pd.subprocess, "run", fake_run)
+
+    assert pd.detect_codex_cli() == {
+        "detected": True,
+        "path": "/usr/local/bin/codex",
+        "version": "codex-cli 0.120.0",
+        "logged_in": True,
+    }
+
+
+def test_codex_cli_detected_but_not_logged_in(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(pd.shutil, "which", lambda _name: "/usr/local/bin/codex")
+
+    def fake_run(args: Any, *_a: Any, **_k: Any) -> subprocess.CompletedProcess[str]:
+        if "login" in args:
+            return subprocess.CompletedProcess(args, 1, stdout="Not logged in\n")
+        return subprocess.CompletedProcess(args, 0, stdout="codex-cli 0.120.0\n")
+
+    monkeypatch.setattr(pd.subprocess, "run", fake_run)
+
+    result = pd.detect_codex_cli()
+
+    assert result["detected"] is True
+    assert result["logged_in"] is False
+
+
+def test_codex_cli_version_times_out_but_still_detected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(pd.shutil, "which", lambda _name: "/usr/local/bin/codex")
+
+    def fake_run(args: Any, *_a: Any, **_k: Any) -> subprocess.CompletedProcess[str]:
+        if "--version" in args:
+            raise subprocess.TimeoutExpired(cmd="codex", timeout=5)
+        return subprocess.CompletedProcess(args, 0, stdout="Logged in using ChatGPT\n")
+
+    monkeypatch.setattr(pd.subprocess, "run", fake_run)
+
+    result = pd.detect_codex_cli()
+
+    assert result == {
+        "detected": True,
+        "path": "/usr/local/bin/codex",
+        "version": None,
+        "logged_in": True,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Ollama
 # ---------------------------------------------------------------------------
 
@@ -142,6 +212,11 @@ def _patch_all_detectors(monkeypatch: pytest.MonkeyPatch) -> None:
         "detect_claude_code",
         lambda: {"detected": False, "path": None, "version": None},
     )
+    monkeypatch.setattr(
+        pd,
+        "detect_codex_cli",
+        lambda: {"detected": False, "path": None, "version": None, "logged_in": False},
+    )
     monkeypatch.setattr(pd, "detect_ollama", lambda: {"detected": False, "models": []})
 
 
@@ -154,6 +229,12 @@ def test_detect_providers_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
     body = response.json()
     assert body["anthropic_api"] == {"key_in_env": True, "key_in_keychain": False}
     assert body["claude_code"]["detected"] is False
+    assert body["codex_cli"] == {
+        "detected": False,
+        "path": None,
+        "version": None,
+        "logged_in": False,
+    }
     assert body["ollama"] == {"detected": False, "models": []}
 
 
@@ -193,6 +274,55 @@ def test_test_provider_endpoint_claude_code_version_succeeds(
     monkeypatch.setattr(ps.subprocess, "run", fake_run)
 
     response = client.post("/api/setup/test-provider", json={"provider": "claude_code"})
+
+    body = response.json()
+    assert body["ok"] is True
+    assert body["error_kind"] is None
+
+
+def test_test_provider_endpoint_codex_missing_binary(monkeypatch: pytest.MonkeyPatch) -> None:
+    from services import provider_setup as ps
+
+    monkeypatch.setattr(ps.shutil, "which", lambda _name: None)
+
+    response = client.post("/api/setup/test-provider", json={"provider": "codex_cli"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is False
+    assert body["error_kind"] == "binary_missing"
+
+
+def test_test_provider_endpoint_codex_not_logged_in(monkeypatch: pytest.MonkeyPatch) -> None:
+    from services import provider_setup as ps
+
+    monkeypatch.setattr(ps.shutil, "which", lambda _name: "/fake/codex")
+
+    def fake_run(*_a: Any, **_k: Any) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(args=[], returncode=1, stdout="Not logged in\n")
+
+    monkeypatch.setattr(ps.subprocess, "run", fake_run)
+
+    response = client.post("/api/setup/test-provider", json={"provider": "codex_cli"})
+
+    body = response.json()
+    assert body["ok"] is False
+    assert body["error_kind"] == "auth_failed"
+
+
+def test_test_provider_endpoint_codex_logged_in_succeeds(monkeypatch: pytest.MonkeyPatch) -> None:
+    from services import provider_setup as ps
+
+    monkeypatch.setattr(ps.shutil, "which", lambda _name: "/fake/codex")
+
+    def fake_run(*_a: Any, **_k: Any) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="Logged in using ChatGPT\n"
+        )
+
+    monkeypatch.setattr(ps.subprocess, "run", fake_run)
+
+    response = client.post("/api/setup/test-provider", json={"provider": "codex_cli"})
 
     body = response.json()
     assert body["ok"] is True
@@ -336,6 +466,21 @@ def test_select_provider_claude_code_now_accepted(monkeypatch: pytest.MonkeyPatc
     assert body["model"] is None  # claude_code uses whatever the CLI is configured for
 
 
+def test_select_provider_codex_cli_now_accepted(monkeypatch: pytest.MonkeyPatch) -> None:
+    from db.migrations import run_migrations
+
+    run_migrations()
+
+    response = client.post(
+        "/api/setup/select-provider",
+        json={"provider": "codex_cli", "api_key": None},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["provider"] == "codex_cli"
+    assert body["model"] is None  # codex_cli uses whatever the CLI is configured for
+
+
 def test_select_provider_ollama_persists_model(monkeypatch: pytest.MonkeyPatch) -> None:
     from sqlalchemy import select as sa_select
 
@@ -376,6 +521,9 @@ def test_list_providers_returns_metadata_with_experimental_flag() -> None:
     body = response.json()
     by_name = {entry["name"]: entry for entry in body}
     assert by_name["claude_code"]["is_experimental"] is True
+    assert by_name["codex_cli"]["is_experimental"] is True
+    assert by_name["codex_cli"]["requires_api_key"] is False
+    assert by_name["codex_cli"]["default_model"] is None
     assert by_name["anthropic_api"]["is_experimental"] is False
     assert by_name["ollama"]["default_model"] == "qwen2.5:14b"
     assert by_name["anthropic_api"]["requires_api_key"] is True

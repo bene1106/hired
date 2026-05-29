@@ -14,6 +14,7 @@ const LATENCY_HINT: Record<string, string> = {
   mock: 'instant with the mock provider',
   anthropic_api: '~10 s with the Anthropic API',
   claude_code: '~15 s with Claude Code',
+  codex_cli: '~20 s with OpenAI Codex',
   ollama: '~30 s with Ollama (depends on model)',
 }
 

@@ -185,8 +185,8 @@ export function ProviderStep() {
             Pick an LLM provider
           </h2>
           <p className="text-[13px] leading-relaxed text-ink-3">
-            Hired. supports several backends. The Anthropic API is the most reliable; Claude Code
-            and Ollama are both fully supported alternatives.
+            Hired. supports several backends. The Anthropic API is the most reliable; Claude Code,
+            OpenAI Codex, and Ollama are all fully supported alternatives.
           </p>
         </div>
 
@@ -262,6 +262,49 @@ export function ProviderStep() {
                     size="sm"
                     disabled={testStatus === 'testing'}
                     onClick={() => runTest('claude_code', null, null)}
+                  >
+                    {testStatus === 'testing' ? 'Testing…' : 'Test CLI'}
+                  </Button>
+                  {testMessage !== null && <span className={testMsgClass}>{testMessage}</span>}
+                </div>
+              </div>
+            )}
+          </ProviderCard>
+
+          <ProviderCard
+            id="codex_cli"
+            title="OpenAI Codex"
+            subtitle="Use the local Codex CLI. Calls count against your ChatGPT plan or OpenAI key."
+            badges={[
+              { label: 'Experimental', variant: 'destructive' },
+              detection.codex_cli.detected
+                ? detection.codex_cli.logged_in
+                  ? {
+                      label: `Detected${
+                        detection.codex_cli.version ? ` (${detection.codex_cli.version})` : ''
+                      }`,
+                    }
+                  : { label: 'Not logged in', variant: 'destructive' }
+                : { label: 'Not installed' },
+            ]}
+            disabled={!detection.codex_cli.detected}
+            selected={selected === 'codex_cli'}
+            onSelect={() => pick('codex_cli')}
+          >
+            {selected === 'codex_cli' && (
+              <div className="flex flex-col gap-2">
+                <p className="text-[12px] text-ink-3">
+                  Hired. shells out to your local <code>codex</code> CLI. Usage counts against your
+                  ChatGPT subscription (or <code>OPENAI_API_KEY</code>). Run{' '}
+                  <code>codex login</code> first. Subject to OpenAI&rsquo;s terms.
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={testStatus === 'testing'}
+                    onClick={() => runTest('codex_cli', null, null)}
                   >
                     {testStatus === 'testing' ? 'Testing…' : 'Test CLI'}
                   </Button>

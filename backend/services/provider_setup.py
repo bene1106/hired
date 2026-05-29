@@ -20,6 +20,7 @@ from typing_extensions import TypedDict
 
 from llm.anthropic_api import DEFAULT_MODEL, AnthropicAPIAdapter
 from llm.claude_code import CLAUDE_CLI_NAME
+from llm.codex_cli import CODEX_CLI_NAME
 from llm.errors import (
     LLMAuthError,
     LLMError,
@@ -71,6 +72,9 @@ def test_provider(
 
     if provider == "claude_code":
         return _test_claude_code()
+
+    if provider == "codex_cli":
+        return _test_codex_cli()
 
     if provider == "ollama":
         return _test_ollama(model or OLLAMA_DEFAULT_MODEL)
@@ -133,6 +137,61 @@ def _test_claude_code() -> TestProviderResult:
             "latency_ms": _elapsed_ms(started),
             "error": f"claude --version exited {result.returncode}: {stderr}",
             "error_kind": "bad_response",
+        }
+    return {"ok": True, "latency_ms": _elapsed_ms(started), "error": None, "error_kind": None}
+
+
+def _test_codex_cli() -> TestProviderResult:
+    """Verify the ``codex`` CLI is installed and logged in.
+
+    Like ``_test_claude_code`` we avoid a real (billable, slow) generation.
+    But Codex is useless until the user runs ``codex login``, so we check
+    ``codex login status`` — a free, fast round-trip that confirms both the
+    binary exists and an account/key is wired up. A missing login surfaces as
+    ``auth_failed`` so the wizard can prompt the user to run ``codex login``.
+    """
+    path = shutil.which(CODEX_CLI_NAME)
+    if not path:
+        return {
+            "ok": False,
+            "latency_ms": 0,
+            "error": (
+                "OpenAI Codex CLI not found on PATH. Install Codex "
+                "(https://github.com/openai/codex) and try again."
+            ),
+            "error_kind": "binary_missing",
+        }
+    started = time.perf_counter()
+    try:
+        result = subprocess.run(
+            [path, "login", "status"],
+            capture_output=True,
+            text=True,
+            timeout=_CLAUDE_VERSION_TIMEOUT_S,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        return {
+            "ok": False,
+            "latency_ms": _elapsed_ms(started),
+            "error": "codex login status timed out.",
+            "error_kind": "network_error",
+        }
+    except OSError as exc:
+        return {
+            "ok": False,
+            "latency_ms": _elapsed_ms(started),
+            "error": f"Could not run codex CLI: {exc}",
+            "error_kind": "binary_missing",
+        }
+    out = (result.stdout or result.stderr or "").lower()
+    logged_in = result.returncode == 0 and "logged in" in out and "not logged in" not in out
+    if not logged_in:
+        return {
+            "ok": False,
+            "latency_ms": _elapsed_ms(started),
+            "error": "Codex is installed but not logged in. Run `codex login` and try again.",
+            "error_kind": "auth_failed",
         }
     return {"ok": True, "latency_ms": _elapsed_ms(started), "error": None, "error_kind": None}
 

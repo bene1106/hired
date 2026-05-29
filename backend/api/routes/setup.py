@@ -27,15 +27,16 @@ from services.provider_setup import TestProviderResult, test_provider
 
 router = APIRouter(prefix="/api/setup", tags=["setup"])
 
-_SELECTABLE_PROVIDERS = {"mock", "anthropic_api", "claude_code", "ollama"}
+_SELECTABLE_PROVIDERS = {"mock", "anthropic_api", "claude_code", "codex_cli", "ollama"}
 
 
 class ProviderMetadata(TypedDict):
     """One provider option as the onboarding UI renders it.
 
     ``label`` is the user-visible name. ``is_experimental`` drives the
-    yellow "Experimental" badge — only ``claude_code`` carries it (per
-    ADR-0005 R-01 the CLI is a documented gray zone). ``requires_api_key``
+    yellow "Experimental" badge — the CLI providers (``claude_code`` and
+    ``codex_cli``) carry it (per ADR-0005 R-01 / ADR-0010 the CLIs are a
+    documented gray zone). ``requires_api_key``
     tells the wizard whether to render the API-key input. ``default_model``
     is what we save to ``app_config`` if the user doesn't override.
     """
@@ -63,6 +64,13 @@ _PROVIDER_METADATA: list[ProviderMetadata] = [
         "default_model": None,
     },
     {
+        "name": "codex_cli",
+        "label": "OpenAI Codex",
+        "is_experimental": True,
+        "requires_api_key": False,
+        "default_model": None,
+    },
+    {
         "name": "ollama",
         "label": "Ollama (local)",
         "is_experimental": False,
@@ -80,7 +88,9 @@ _PROVIDER_METADATA: list[ProviderMetadata] = [
 
 
 class TestProviderRequest(BaseModel):
-    provider: str = Field(..., description="One of: mock, anthropic_api, claude_code, ollama")
+    provider: str = Field(
+        ..., description="One of: mock, anthropic_api, claude_code, codex_cli, ollama"
+    )
     api_key: str | None = None
     model: str | None = None
 

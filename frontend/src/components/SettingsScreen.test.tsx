@@ -102,6 +102,23 @@ describe('SettingsScreen', () => {
     expect(await screen.findByText('$0.00 (subscription)')).toBeInTheDocument()
   })
 
+  it('shows the subscription label for codex_cli', async () => {
+    setMockState({
+      cost: {
+        provider: 'codex_cli',
+        label: 'subscription',
+        today_usd: null,
+        week_usd: null,
+        calls_today: 7,
+        calls_week: 19,
+      },
+    })
+
+    renderSettings()
+
+    expect(await screen.findByText('$0.00 (subscription)')).toBeInTheDocument()
+  })
+
   it('shows the local label for ollama', async () => {
     setMockState({
       cost: {
@@ -164,6 +181,26 @@ describe('SettingsScreen', () => {
     // content before asserting against the panel.
     const panel = await screen.findByTestId('provider-panel')
     await waitFor(() => expect(panel).toHaveTextContent(/Claude Code/))
+    expect(panel).toHaveTextContent(/Experimental/)
+  })
+
+  it('flags codex_cli as Experimental in the provider status panel', async () => {
+    setMockState({
+      providerStats: {
+        provider: 'codex_cli',
+        last_latency_ms: 1800,
+        last_success: true,
+        calls_today: 4,
+        success_rate_today: 1.0,
+        construct_ok: true,
+        construct_error: null,
+      },
+    })
+
+    renderSettings()
+
+    const panel = await screen.findByTestId('provider-panel')
+    await waitFor(() => expect(panel).toHaveTextContent(/OpenAI Codex/))
     expect(panel).toHaveTextContent(/Experimental/)
   })
 

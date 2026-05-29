@@ -3,9 +3,9 @@
 For ``anthropic_api`` we sum tokens × per-model rates from
 ``services.pricing`` and surface today's + this-week's totals. For
 ``mock`` we return ``label=unknown`` so the UI renders an em-dash; for
-``claude_code`` and ``ollama`` (Phase 6 adapters) the label tells the UI
-to show "$0.00 (subscription)" / "$0.00 (local)" — the rates table
-deliberately doesn't carry these so we don't accidentally invent costs.
+the CLI/local adapters (``claude_code``, ``codex_cli``, ``ollama``) the
+label tells the UI to show "$0.00 (subscription)" / "$0.00 (local)" — the
+rates table deliberately doesn't carry these so we don't invent costs.
 """
 
 from __future__ import annotations
@@ -33,6 +33,7 @@ class CostBreakdown:
 _PROVIDER_LABELS: dict[str, str] = {
     "anthropic_api": "priced",
     "claude_code": "subscription",
+    "codex_cli": "subscription",
     "ollama": "local",
     "mock": "unknown",
 }

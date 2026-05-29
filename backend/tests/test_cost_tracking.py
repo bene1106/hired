@@ -199,6 +199,13 @@ def test_cost_summary_for_claude_code_uses_subscription_label() -> None:
     assert summary.today_usd is None
 
 
+def test_cost_summary_for_codex_cli_uses_subscription_label() -> None:
+    _set_provider("codex_cli", model=None)
+    summary = get_cost_summary()
+    assert summary.label == "subscription"
+    assert summary.today_usd is None
+
+
 def test_cost_summary_for_ollama_uses_local_label() -> None:
     _set_provider("ollama", model=None)
     summary = get_cost_summary()

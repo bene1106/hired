@@ -283,6 +283,25 @@ class TestProviderFactory:
         assert isinstance(provider, RecordingProvider)
         assert isinstance(provider.inner, ClaudeCodeAdapter)
 
+    def test_factory_builds_codex_cli_adapter_when_configured(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from llm.codex_cli import CodexCLIAdapter
+
+        run_migrations()
+        with get_session() as session:
+            session.execute(
+                update(AppConfig).where(AppConfig.key == "provider").values(value="codex_cli")
+            )
+            session.commit()
+
+        monkeypatch.setattr("llm.codex_cli.shutil.which", lambda _name: "/fake/codex")
+        provider = get_provider()
+        assert isinstance(provider, RecordingProvider)
+        assert isinstance(provider.inner, CodexCLIAdapter)
+        # The configured Anthropic-default model must NOT leak into Codex.
+        assert provider.inner.model is None
+
     def test_factory_builds_ollama_adapter_when_configured(self) -> None:
         from llm.ollama import OllamaAdapter
 

@@ -89,6 +89,14 @@ def _build_inner_provider(provider_name: str, model: str | None) -> LLMProvider:
 
         return ClaudeCodeAdapter()
 
+    if provider_name == "codex_cli":
+        from .codex_cli import CodexCLIAdapter
+
+        # No model is passed: Codex uses its own ``~/.codex/config.toml``
+        # default so the app-wide ``app_config.model`` (an Anthropic default)
+        # never leaks into the ``codex -m`` flag. Mirrors ClaudeCodeAdapter.
+        return CodexCLIAdapter()
+
     if provider_name == "ollama":
         from .ollama import DEFAULT_MODEL as OLLAMA_DEFAULT_MODEL
         from .ollama import OllamaAdapter
@@ -97,7 +105,7 @@ def _build_inner_provider(provider_name: str, model: str | None) -> LLMProvider:
 
     raise LLMError(
         f"Unknown provider '{provider_name}'. Set app_config.provider to one of "
-        "'mock', 'anthropic_api', 'claude_code', or 'ollama'."
+        "'mock', 'anthropic_api', 'claude_code', 'codex_cli', or 'ollama'."
     )
 
 

@@ -5,6 +5,26 @@ All notable user-visible changes to Hired. are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **OpenAI Codex CLI provider.** A new `CodexCLIAdapter` lets users who run
+  the local `codex` CLI (authenticated against a ChatGPT plan or
+  `OPENAI_API_KEY`) route Hired.'s LLM calls through it — the OpenAI-side
+  counterpart to the existing Claude Code provider. It implements the full
+  `LLMProvider` interface by shelling out to `codex exec --json` in a
+  read-only sandbox, with token usage recorded the same way as every other
+  adapter.
+  - Onboarding and Settings list it as a first-class, provider-agnostic
+    option with an "Experimental" badge. Detection distinguishes
+    "not installed" / "installed but not logged in" / "ready", and the
+    Test CLI button verifies `codex login` status.
+  - Cost panel shows `$0.00 (subscription)` — usage is billed via the
+    user's ChatGPT plan / OpenAI key, so no per-call price is fabricated.
+  - See ADR-0010 for the design (CLI invocation, event-stream error
+    handling because `codex exec` exits 0 even on failure, and why no
+    model is pinned by the factory).
+
 ## [0.3.5] - 2026-05-21
 
 Five fixes addressing two failure classes the v0.3.4 RC smoke surfaced:

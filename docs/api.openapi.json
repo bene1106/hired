@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Hired. backend",
-    "version": "0.1.0"
+    "version": "0.1.1"
   },
   "paths": {
     "/health": {
@@ -456,6 +456,48 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/scoring-status": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Get Scoring Status",
+        "operationId": "get_scoring_status_api_jobs_scoring_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScoringStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/rescore": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Rescore Jobs",
+        "operationId": "rescore_jobs_api_jobs_rescore_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RescoreResponse"
                 }
               }
             }
@@ -1059,6 +1101,244 @@
         }
       }
     },
+    "/api/applications/{application_id}/interview/sessions": {
+      "post": {
+        "tags": [
+          "applications"
+        ],
+        "summary": "Create Interview Session",
+        "operationId": "create_interview_session_api_applications__application_id__interview_sessions_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterviewSessionDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "applications"
+        ],
+        "summary": "List Interview Sessions",
+        "operationId": "list_interview_sessions_api_applications__application_id__interview_sessions_get",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InterviewSessionSummary"
+                  },
+                  "title": "Response List Interview Sessions Api Applications  Application Id  Interview Sessions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/interview/sessions/{session_id}": {
+      "get": {
+        "tags": [
+          "applications"
+        ],
+        "summary": "Get Interview Session",
+        "operationId": "get_interview_session_api_applications__application_id__interview_sessions__session_id__get",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Application Id"
+            }
+          },
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterviewSessionDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "applications"
+        ],
+        "summary": "Delete Interview Session",
+        "operationId": "delete_interview_session_api_applications__application_id__interview_sessions__session_id__delete",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Application Id"
+            }
+          },
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/interview/sessions/{session_id}/messages": {
+      "post": {
+        "tags": [
+          "applications"
+        ],
+        "summary": "Post Chat Message",
+        "operationId": "post_chat_message_api_applications__application_id__interview_sessions__session_id__messages_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Application Id"
+            }
+          },
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatMessageRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/stats/cost": {
       "get": {
         "tags": [
@@ -1332,6 +1612,55 @@
         ],
         "title": "CVTextRequest"
       },
+      "ChatMessageRequest": {
+        "properties": {
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "title": "ChatMessageRequest"
+      },
+      "ChatTurnResponse": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant"
+            ],
+            "title": "Role"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "content",
+          "created_at"
+        ],
+        "title": "ChatTurnResponse"
+      },
       "ClaudeCodeDetection": {
         "properties": {
           "detected": {
@@ -1368,6 +1697,48 @@
           "version"
         ],
         "title": "ClaudeCodeDetection"
+      },
+      "CodexCliDetection": {
+        "properties": {
+          "detected": {
+            "type": "boolean",
+            "title": "Detected"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "logged_in": {
+            "type": "boolean",
+            "title": "Logged In"
+          }
+        },
+        "type": "object",
+        "required": [
+          "detected",
+          "path",
+          "version",
+          "logged_in"
+        ],
+        "title": "CodexCliDetection"
       },
       "CostResponse": {
         "properties": {
@@ -1798,6 +2169,92 @@
           "difficulty"
         ],
         "title": "InterviewQuestionResponse"
+      },
+      "InterviewSessionDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "application_id": {
+            "type": "integer",
+            "title": "Application Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/ChatTurnResponse"
+            },
+            "type": "array",
+            "title": "Messages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "application_id",
+          "created_at",
+          "messages"
+        ],
+        "title": "InterviewSessionDetail"
+      },
+      "InterviewSessionSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "application_id": {
+            "type": "integer",
+            "title": "Application Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "last_message_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Message At"
+          },
+          "turn_count": {
+            "type": "integer",
+            "title": "Turn Count"
+          },
+          "preview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "application_id",
+          "created_at",
+          "last_message_at",
+          "turn_count",
+          "preview"
+        ],
+        "title": "InterviewSessionSummary"
       },
       "JobActionRequest": {
         "properties": {
@@ -2255,6 +2712,9 @@
           "claude_code": {
             "$ref": "#/components/schemas/ClaudeCodeDetection"
           },
+          "codex_cli": {
+            "$ref": "#/components/schemas/CodexCliDetection"
+          },
           "ollama": {
             "$ref": "#/components/schemas/OllamaDetection"
           }
@@ -2263,6 +2723,7 @@
         "required": [
           "anthropic_api",
           "claude_code",
+          "codex_cli",
           "ollama"
         ],
         "title": "ProviderDetectionResult"
@@ -2306,7 +2767,7 @@
           "default_model"
         ],
         "title": "ProviderMetadata",
-        "description": "One provider option as the onboarding UI renders it.\n\n``label`` is the user-visible name. ``is_experimental`` drives the\nyellow \"Experimental\" badge \u2014 only ``claude_code`` carries it (per\nADR-0005 R-01 the CLI is a documented gray zone). ``requires_api_key``\ntells the wizard whether to render the API-key input. ``default_model``\nis what we save to ``app_config`` if the user doesn't override."
+        "description": "One provider option as the onboarding UI renders it.\n\n``label`` is the user-visible name. ``is_experimental`` drives the\nyellow \"Experimental\" badge \u2014 the CLI providers (``claude_code`` and\n``codex_cli``) carry it (per ADR-0005 R-01 / ADR-0010 the CLIs are a\ndocumented gray zone). ``requires_api_key``\ntells the wizard whether to render the API-key input. ``default_model``\nis what we save to ``app_config`` if the user doesn't override."
       },
       "ProviderStatsResponse": {
         "properties": {
@@ -2350,6 +2811,21 @@
               }
             ],
             "title": "Success Rate Today"
+          },
+          "construct_ok": {
+            "type": "boolean",
+            "title": "Construct Ok"
+          },
+          "construct_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Construct Error"
           }
         },
         "type": "object",
@@ -2358,9 +2834,62 @@
           "last_latency_ms",
           "last_success",
           "calls_today",
-          "success_rate_today"
+          "success_rate_today",
+          "construct_ok",
+          "construct_error"
         ],
         "title": "ProviderStatsResponse"
+      },
+      "RescoreResponse": {
+        "properties": {
+          "rescored": {
+            "type": "integer",
+            "title": "Rescored"
+          },
+          "total_candidates": {
+            "type": "integer",
+            "title": "Total Candidates"
+          },
+          "capped": {
+            "type": "boolean",
+            "title": "Capped"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rescored",
+          "total_candidates",
+          "capped"
+        ],
+        "title": "RescoreResponse"
+      },
+      "ScoringStatusResponse": {
+        "properties": {
+          "jobs_total": {
+            "type": "integer",
+            "title": "Jobs Total"
+          },
+          "jobs_with_current_score": {
+            "type": "integer",
+            "title": "Jobs With Current Score"
+          },
+          "rescore_candidate_count": {
+            "type": "integer",
+            "title": "Rescore Candidate Count"
+          },
+          "profile_version": {
+            "type": "integer",
+            "title": "Profile Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "jobs_total",
+          "jobs_with_current_score",
+          "rescore_candidate_count",
+          "profile_version"
+        ],
+        "title": "ScoringStatusResponse"
       },
       "SelectProviderRequest": {
         "properties": {
@@ -2476,7 +3005,7 @@
           "provider": {
             "type": "string",
             "title": "Provider",
-            "description": "One of: mock, anthropic_api, claude_code, ollama"
+            "description": "One of: mock, anthropic_api, claude_code, codex_cli, ollama"
           },
           "api_key": {
             "anyOf": [

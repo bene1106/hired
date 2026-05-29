@@ -72,6 +72,7 @@ const defaultState = (): MockState => ({
   detect: {
     anthropic_api: { key_in_env: false, key_in_keychain: false },
     claude_code: { detected: false, path: null, version: null },
+    codex_cli: { detected: false, path: null, version: null, logged_in: false },
     ollama: { detected: false, models: [] },
   },
   testProvider: { ok: true, latency_ms: 12, error: null, error_kind: null },
@@ -117,6 +118,13 @@ const defaultState = (): MockState => ({
     {
       name: 'claude_code',
       label: 'Claude Code',
+      is_experimental: true,
+      requires_api_key: false,
+      default_model: null,
+    },
+    {
+      name: 'codex_cli',
+      label: 'OpenAI Codex',
       is_experimental: true,
       requires_api_key: false,
       default_model: null,

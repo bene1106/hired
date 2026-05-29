@@ -175,9 +175,16 @@ export function SettingsScreen() {
 const PROVIDER_LABELS: Record<ProviderId, string> = {
   anthropic_api: 'Anthropic API',
   claude_code: 'Claude Code',
+  codex_cli: 'OpenAI Codex',
   ollama: 'Ollama (local)',
   mock: 'Mock (dev only)',
 }
+
+// The CLI-backed providers are flagged Experimental (ADR-0007 / ADR-0010).
+const EXPERIMENTAL_PROVIDERS: ReadonlySet<ProviderId> = new Set<ProviderId>([
+  'claude_code',
+  'codex_cli',
+])
 
 function ProviderStatus({ stats }: { stats: ProviderStats }) {
   const label = PROVIDER_LABELS[stats.provider] ?? stats.provider
@@ -196,7 +203,7 @@ function ProviderStatus({ stats }: { stats: ProviderStats }) {
     <div className="flex flex-col gap-1.5" aria-live="polite">
       <p className="flex items-center gap-2 text-[14px] font-medium text-ink">
         Currently using: {label}
-        {stats.provider === 'claude_code' ? (
+        {EXPERIMENTAL_PROVIDERS.has(stats.provider) ? (
           <Badge variant="destructive" className="align-middle">
             Experimental
           </Badge>

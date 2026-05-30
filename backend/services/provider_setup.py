@@ -312,7 +312,21 @@ def _test_ollama(model: str) -> TestProviderResult:
         for m in (body.get("models") or [])
         if isinstance(m, dict) and isinstance(m.get("name"), str)
     }
-    if model not in available_models:
+
+    # Try exact match first
+    matched_model = model if model in available_models else None
+
+    # If no exact match, try to find a model that starts with the requested name
+    # This handles cases like 'llama3.1:8b' matching 'llama3.1:8b:latest'
+    if not matched_model:
+        for available in available_models:
+            if isinstance(available, str) and available.startswith(model):
+                remainder = available[len(model) :]
+                if not remainder or remainder.startswith(":"):
+                    matched_model = available
+                    break
+
+    if not matched_model:
         return {
             "ok": False,
             "latency_ms": _elapsed_ms(started),
@@ -324,7 +338,7 @@ def _test_ollama(model: str) -> TestProviderResult:
         }
 
     # Check if the model is a chat model (not embedding-only)
-    model_obj = _find_matching_model(model, available_models)
+    model_obj = _find_matching_model(matched_model, available_models)
     if model_obj and not _is_chat_model(model_obj):
         return {
             "ok": False,

@@ -79,77 +79,12 @@ class OllamaAdapter:
         timeout_s: float = DEFAULT_TIMEOUT_S,
         client: httpx.Client | None = None,
     ) -> None:
+        self.model = model
         self._base_url = base_url.rstrip("/")
         self._timeout_s = timeout_s
         # If the caller supplied a client we don't own its lifecycle.
         self._client = client if client is not None else httpx.Client(timeout=timeout_s)
         self._owns_client = client is None
-
-        # Normalize the model name by matching against available models.
-        # This handles cases where model is stored as 'llama3.1:8b' but
-        # Ollama has it as 'llama3.1:8b:latest'.
-        self.model = self._normalize_model_name(model)
-
-    def _normalize_model_name(self, requested_model: str) -> str:
-        """Normalize model name to match what Ollama actually has.
-
-        If the exact model name doesn't exist, try to find a match with tags.
-        For example, 'llama3.1:8b' might match 'llama3.1:8b:latest'.
-        """
-        try:
-            # Try to get available models from Ollama
-            response = self._client.get(
-                f"{self._base_url}/api/tags",
-                timeout=5.0,
-            )
-            if response.status_code != 200:
-                # Can't fetch available models, use requested name as-is
-                logger.debug(
-                    "Could not fetch available models from Ollama, using requested: %s",
-                    requested_model,
-                )
-                return requested_model
-
-            try:
-                body = response.json()
-            except ValueError:
-                # Can't parse response, use requested name as-is
-                logger.debug("Could not parse Ollama /api/tags response")
-                return requested_model
-
-            available_models = set()
-            for m in body.get("models") or []:
-                if isinstance(m, dict) and isinstance(m.get("name"), str):
-                    available_models.add(m.get("name"))
-
-            # Try exact match
-            if requested_model in available_models:
-                return requested_model
-
-            # Try to find a model that starts with the requested name
-            for available in available_models:
-                if available.startswith(requested_model):
-                    remainder = available[len(requested_model) :]
-                    if not remainder or remainder.startswith(":"):
-                        logger.debug(
-                            "Normalized model name '%s' to '%s'",
-                            requested_model,
-                            available,
-                        )
-                        return available
-
-            # No match found, use requested name and let the error handler deal with it
-            logger.debug(
-                "Could not find matching model for '%s'. Available: %s",
-                requested_model,
-                available_models,
-            )
-            return requested_model
-
-        except Exception as exc:
-            # If anything goes wrong, just use the requested model name
-            logger.debug("Error normalizing model name: %s", exc)
-            return requested_model
 
     def close(self) -> None:
         if self._owns_client:

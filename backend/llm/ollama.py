@@ -82,12 +82,13 @@ class OllamaAdapter:
         self.model = model
         self._base_url = base_url.rstrip("/")
         self._timeout_s = timeout_s
-        # If the caller supplied a client we don't own its lifecycle.
-        self._client = client if client is not None else httpx.Client(timeout=timeout_s)
-        self._owns_client = client is None
+        # Store client for tests only; production uses httpx.post() directly
+        # to avoid issues with persistent client state on Windows.
+        self._client = client
 
     def close(self) -> None:
-        if self._owns_client:
+        # Only close if we created it (tests inject their own).
+        if self._client is not None:
             self._client.close()
 
     # ------------------------------------------------------------------
@@ -246,8 +247,13 @@ class OllamaAdapter:
             "options": {"temperature": DEFAULT_TEMPERATURE},
         }
 
+        # Use httpx.post() directly for production; only use self._client if provided
+        # by tests (which pass mock clients). Avoids persistent client state issues.
         try:
-            response = self._client.post(url, json=body, timeout=self._timeout_s)
+            if self._client is not None:
+                response = self._client.post(url, json=body, timeout=self._timeout_s)
+            else:
+                response = httpx.post(url, json=body, timeout=self._timeout_s)
         except httpx.TimeoutException as exc:
             raise LLMNetworkError(
                 f"Ollama timed out after {self._timeout_s:.0f}s. The model may be loading."

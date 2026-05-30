@@ -198,6 +198,32 @@ def test_ollama_running_but_non_200(monkeypatch: pytest.MonkeyPatch) -> None:
     assert pd.detect_ollama() == {"detected": False, "models": []}
 
 
+def test_ollama_filters_embedding_models(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify that embedding models are filtered out from the chat model list."""
+    payload = {
+        "models": [
+            {"name": "llama3:8b"},
+            {"name": "mistral"},
+            {"name": "nomic-embed-text"},  # Should be filtered out
+            {"name": "qwen2.5:14b"},
+            {"name": "mxbai-embed-large"},  # Should be filtered out
+        ]
+    }
+
+    def fake_get(*_args: Any, **_kwargs: Any) -> httpx.Response:
+        return httpx.Response(200, json=payload)
+
+    monkeypatch.setattr(pd.httpx, "get", fake_get)
+
+    result = pd.detect_ollama()
+
+    # Only chat models should be returned
+    assert result == {
+        "detected": True,
+        "models": ["llama3:8b", "mistral", "qwen2.5:14b"],
+    }
+
+
 # ---------------------------------------------------------------------------
 # /api/setup endpoints
 # ---------------------------------------------------------------------------
@@ -381,6 +407,31 @@ def test_test_provider_endpoint_ollama_model_present(monkeypatch: pytest.MonkeyP
     body = response.json()
     assert body["ok"] is True
     assert body["error_kind"] is None
+
+
+def test_test_provider_endpoint_ollama_embedding_model_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify that embedding models like nomic-embed-text are rejected."""
+    from services import provider_setup as ps
+
+    def fake_get(*_a: Any, **_k: Any) -> httpx.Response:
+        return httpx.Response(
+            200, json={"models": [{"name": "nomic-embed-text"}, {"name": "llama3:8b"}]}
+        )
+
+    monkeypatch.setattr(ps.httpx, "get", fake_get)
+
+    response = client.post(
+        "/api/setup/test-provider",
+        json={"provider": "ollama", "model": "nomic-embed-text"},
+    )
+
+    body = response.json()
+    assert body["ok"] is False
+    assert body["error_kind"] == "model_unavailable"
+    assert "embedding model" in body["error"]
+    assert "chat model" in body["error"]
 
 
 def test_test_provider_endpoint_missing_anthropic_key(monkeypatch: pytest.MonkeyPatch) -> None:

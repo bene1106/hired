@@ -142,8 +142,53 @@ def _codex_logged_in(path: str) -> bool:
     return "logged in" in out and "not logged in" not in out
 
 
+def _is_chat_model(model: dict) -> bool:
+    """Check if an Ollama model is suitable for chat (not embedding-only).
+
+    Embedding models like 'nomic-embed-text', 'mxbai-embed-large' are returned by
+    Ollama but cannot be used with /api/chat. We filter them out by name pattern.
+    """
+    name = model.get("name", "")
+    if not isinstance(name, str):
+        return False
+
+    # Blacklist known embedding models
+    embedding_models = {
+        "nomic-embed-text",
+        "mxbai-embed-large",
+        "mxbai-embed-small",
+        "all-minilm",
+        "bge-small",
+        "bge-large",
+        "snowflake-arctic-embed",
+        "e5-small",
+        "e5-base",
+        "e5-large",
+    }
+
+    # Check if the model name is or contains an embedding model name
+    for embedding_model in embedding_models:
+        if embedding_model in name.lower():
+            return False
+
+    # Also check the model details if available for better filtering
+    # Some models may have metadata indicating they're embedding-only
+    details = model.get("details", {})
+    if isinstance(details, dict):
+        # If the model explicitly marks it as embedding, skip it
+        model_type = details.get("type", "").lower()
+        if "embed" in model_type:
+            return False
+
+    return True
+
+
 def detect_ollama() -> OllamaDetection:
-    """Hit the local Ollama API; return the list of installed model names."""
+    """Hit the local Ollama API; return the list of installed chat model names.
+
+    Filters out embedding-only models (e.g. nomic-embed-text) that cannot be used
+    with the chat endpoint.
+    """
     try:
         response = httpx.get(OLLAMA_URL, timeout=_OLLAMA_TIMEOUT_S)
     except httpx.HTTPError as exc:
@@ -159,7 +204,10 @@ def detect_ollama() -> OllamaDetection:
         return {"detected": True, "models": []}
 
     models = payload.get("models") or []
-    names = [m.get("name") for m in models if isinstance(m, dict) and m.get("name")]
+    # Filter to only include chat models (exclude embedding models)
+    names = [
+        m.get("name") for m in models if isinstance(m, dict) and m.get("name") and _is_chat_model(m)
+    ]
     return {"detected": True, "models": names}
 
 

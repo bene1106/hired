@@ -49,6 +49,56 @@ _CLAUDE_VERSION_TIMEOUT_S = 10.0
 _OLLAMA_TAGS_TIMEOUT_S = 5.0
 
 
+def _is_chat_model(model: dict) -> bool:
+    """Check if an Ollama model is suitable for chat (not embedding-only).
+
+    Embedding models like 'nomic-embed-text', 'mxbai-embed-large' are returned by
+    Ollama but cannot be used with /api/chat. We filter them out by name pattern.
+    """
+    name = model.get("name", "")
+    if not isinstance(name, str):
+        return False
+
+    # Blacklist known embedding models
+    embedding_models = {
+        "nomic-embed-text",
+        "mxbai-embed-large",
+        "mxbai-embed-small",
+        "all-minilm",
+        "bge-small",
+        "bge-large",
+        "snowflake-arctic-embed",
+        "e5-small",
+        "e5-base",
+        "e5-large",
+    }
+
+    # Check if the model name is or contains an embedding model name
+    for embedding_model in embedding_models:
+        if embedding_model in name.lower():
+            return False
+
+    # Also check the model details if available for better filtering
+    details = model.get("details", {})
+    if isinstance(details, dict):
+        model_type = details.get("type", "").lower()
+        if "embed" in model_type:
+            return False
+
+    return True
+
+
+def _find_matching_model(model_name: str, available_models: set) -> dict | None:
+    """Find a model object from available models by exact name match.
+
+    This is a helper that would be used with the full models list from /api/tags
+    to get model metadata. For now, returns a simple dict with the name.
+    """
+    if model_name in available_models:
+        return {"name": model_name}
+    return None
+
+
 class TestProviderResult(TypedDict):
     ok: bool
     latency_ms: int
@@ -203,6 +253,8 @@ def _test_ollama(model: str) -> TestProviderResult:
     server-up and model-available without paying for a real generation.
     Models that aren't pulled return ``model_unavailable`` so the UI can
     suggest ``ollama pull <model>``.
+
+    Also verifies the model is a chat model (not embedding-only).
     """
     started = time.perf_counter()
     try:
@@ -240,21 +292,35 @@ def _test_ollama(model: str) -> TestProviderResult:
             "error": "Ollama returned non-JSON for /api/tags.",
             "error_kind": "bad_response",
         }
-    available = {
+    available_models = {
         m.get("name")
         for m in (body.get("models") or [])
         if isinstance(m, dict) and isinstance(m.get("name"), str)
     }
-    if model not in available:
+    if model not in available_models:
         return {
             "ok": False,
             "latency_ms": _elapsed_ms(started),
             "error": (
                 f"Model '{model}' is not pulled. Run `ollama pull {model}` "
-                f"or pick from: {sorted(available)}"
+                f"or pick from: {sorted(available_models)}"
             ),
             "error_kind": "model_unavailable",
         }
+
+    # Check if the model is a chat model (not embedding-only)
+    model_obj = _find_matching_model(model, available_models)
+    if model_obj and not _is_chat_model(model_obj):
+        return {
+            "ok": False,
+            "latency_ms": _elapsed_ms(started),
+            "error": (
+                f"Model '{model}' is an embedding model and cannot be used for chat. "
+                f"Pick a chat model like 'qwen2.5:14b' or 'llama3.2:3b'."
+            ),
+            "error_kind": "model_unavailable",
+        }
+
     return {"ok": True, "latency_ms": _elapsed_ms(started), "error": None, "error_kind": None}
 
 

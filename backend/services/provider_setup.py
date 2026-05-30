@@ -89,13 +89,28 @@ def _is_chat_model(model: dict) -> bool:
 
 
 def _find_matching_model(model_name: str, available_models: set) -> dict | None:
-    """Find a model object from available models by exact name match.
+    """Find a model object from available models, handling tag variations.
 
-    This is a helper that would be used with the full models list from /api/tags
-    to get model metadata. For now, returns a simple dict with the name.
+    Ollama models can have tags like :latest. This function tries to match:
+    1. Exact match (e.g., 'llama3.1:8b:latest' == 'llama3.1:8b:latest')
+    2. Base name match (e.g., 'llama3.1:8b' matches 'llama3.1:8b:latest')
+
+    Returns a dict with the actual model name from available_models, or None.
     """
+    # Try exact match first
     if model_name in available_models:
         return {"name": model_name}
+
+    # Try to find a model that starts with the requested name
+    # This handles cases like 'llama3.1:8b' matching 'llama3.1:8b:latest'
+    for available in available_models:
+        if isinstance(available, str) and available.startswith(model_name):
+            # Make sure it's not a false positive (e.g., don't match 'llama3' to 'llama3.1')
+            # The character after should be a tag separator (':') or end of string
+            remainder = available[len(model_name) :]
+            if not remainder or remainder.startswith(":"):
+                return {"name": available}
+
     return None
 
 

@@ -35,6 +35,9 @@ import type {
 export const BACKEND_URL =
   (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? 'http://localhost:8765'
 
+// HTTP request timeout in milliseconds (180s to match backend DEFAULT_TIMEOUT_S)
+const REQUEST_TIMEOUT_MS = 180_000
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -85,15 +88,24 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const url = `${BACKEND_URL}${path}`
   let response: Response
   try {
-    response = await fetch(url, {
-      ...init,
-      headers: {
-        ...(init?.body && !(init.body instanceof FormData)
-          ? { 'Content-Type': 'application/json' }
-          : {}),
-        ...(init?.headers ?? {}),
-      },
-    })
+    // Create abort controller with timeout to match backend (180s for inference tasks like CV parsing)
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
+    try {
+      response = await fetch(url, {
+        ...init,
+        signal: controller.signal,
+        headers: {
+          ...(init?.body && !(init.body instanceof FormData)
+            ? { 'Content-Type': 'application/json' }
+            : {}),
+          ...(init?.headers ?? {}),
+        },
+      })
+    } finally {
+      clearTimeout(timeoutId)
+    }
   } catch (err) {
     // A network-level failure ("Failed to fetch") is opaque on its own.
     // The v0.1.0 packaged Windows build hit this because the webview's
@@ -102,7 +114,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     // the AppGate error screen is itself a diagnostic — readable from a
     // screenshot, no devtools needed.
     const origin = typeof window !== 'undefined' ? window.location.origin : '<no window>'
-    const reason = err instanceof Error ? err.message : String(err)
+    let reason: string
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      reason = `Request timeout after ${REQUEST_TIMEOUT_MS / 1000}s (model may be slow to respond)`
+    } else {
+      reason = err instanceof Error ? err.message : String(err)
+    }
     console.error('[api] fetch failed', { url, origin, reason })
     throw new ApiError(0, `Network request failed (origin ${origin} → ${url}): ${reason}`, err)
   }

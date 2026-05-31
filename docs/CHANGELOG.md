@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **CV upload timeout errors with slower models.** The frontend HTTP client
+  was using browser default fetch timeout (varies by implementation, often
+  30-60 seconds), which was too short for CPU-intensive model inference.
+  When using slower models like `llama3.1:8b` (40-50 seconds per request),
+  users would see "Internal Server Error" even though the backend was
+  working correctly. Solution: Added explicit `AbortController` timeout
+  (180 seconds) to all frontend fetch requests, matching the backend's
+  `DEFAULT_TIMEOUT_S`. See the **Ollama Performance Guide** in
+  `docs/ollama-performance.md` for model speed recommendations.
+
 ### Added
 - **OpenAI Codex CLI provider.** A new `CodexCLIAdapter` lets users who run
   the local `codex` CLI (authenticated against a ChatGPT plan or

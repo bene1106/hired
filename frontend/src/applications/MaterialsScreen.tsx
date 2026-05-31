@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { ApiError, api } from '@/lib/api'
+import { downloadCoverLetterPdf, downloadCvPdf } from '@/lib/pdf'
 import type {
   ApplicationDetail,
   ApplicationStatus,
@@ -203,7 +204,7 @@ export function MaterialsScreen({ mode, jobId, applicationId }: MaterialsScreenP
   ]
 
   return (
-    <div className="screen mx-auto max-w-[1280px] px-8 py-6">
+    <div className="screen mx-auto max-w-[1600px] px-8 py-6">
       {/* Toolbar */}
       <div className="mb-5 flex items-center justify-between gap-3">
         <Button
@@ -289,8 +290,8 @@ export function MaterialsScreen({ mode, jobId, applicationId }: MaterialsScreenP
         </div>
       ) : null}
 
-      {/* Two-column: job post + research | generated tabs */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      {/* Asymmetric split: narrow job post + research | wide generated tabs */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
         <div className="flex flex-col gap-4">
           <Card className="p-5">
             <div className="mb-2 flex items-center gap-2">
@@ -355,6 +356,8 @@ export function MaterialsScreen({ mode, jobId, applicationId }: MaterialsScreenP
               materials?.cover_letter ? (
                 <CoverLetterEditor
                   material={materials.cover_letter}
+                  jobTitle={job?.title}
+                  company={job?.company}
                   onSave={onSaveCover}
                   onRegenerate={() => onRegenerate('cover_letter')}
                   regenerating={regenerating === 'cover_letter'}
@@ -366,7 +369,20 @@ export function MaterialsScreen({ mode, jobId, applicationId }: MaterialsScreenP
               materials?.cv_suggestions ? (
                 <div className="flex flex-col gap-3">
                   <SuggestionRenderer content={materials.cv_suggestions.content} />
-                  <div className="flex justify-end">
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        downloadCvPdf({
+                          content: materials.cv_suggestions!.content,
+                          jobTitle: job?.title,
+                          company: job?.company,
+                        })
+                      }
+                    >
+                      <Icon name="download" size={12} /> Download PDF
+                    </Button>
                     <Button
                       size="sm"
                       variant="outline"
@@ -483,13 +499,19 @@ function GeneratingState({ status }: { status: GenerationStatus | null }) {
 
 interface CoverLetterEditorProps {
   material: MaterialView
+  jobTitle?: string | null
+  company?: string | null
   onSave: (content: string) => Promise<void>
   onRegenerate: () => Promise<void>
   regenerating: boolean
 }
 
+type CoverView = 'edit' | 'preview'
+
 function CoverLetterEditor({
   material,
+  jobTitle,
+  company,
   onSave,
   onRegenerate,
   regenerating,
@@ -497,6 +519,7 @@ function CoverLetterEditor({
   const [draft, setDraft] = useState(material.content)
   const [saving, setSaving] = useState(false)
   const [savedHash, setSavedHash] = useState(material.content)
+  const [view, setView] = useState<CoverView>('edit')
 
   useEffect(() => {
     setDraft(material.content)
@@ -516,44 +539,96 @@ function CoverLetterEditor({
   }
 
   return (
-    <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-2">
-      <div className="flex flex-col gap-2">
-        <label className="text-[11px] font-medium text-ink-3" htmlFor="cover-letter-textarea">
-          Edit
-        </label>
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      {/* Full-width Edit | Preview toggle — far more readable than a nested
+          side-by-side split in this panel. */}
+      <div className="flex items-center justify-between gap-2">
+        <div
+          role="tablist"
+          aria-label="Cover letter view"
+          className="inline-flex w-fit rounded-md border border-line bg-surface p-0.5"
+        >
+          {(['edit', 'preview'] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              role="tab"
+              aria-selected={view === v}
+              onClick={() => setView(v)}
+              className={cn(
+                'rounded-[4px] px-3 py-1 text-[12px] font-medium capitalize transition-colors',
+                view === v ? 'bg-surface-2 text-ink shadow-sm' : 'text-ink-3 hover:text-ink',
+              )}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => downloadCoverLetterPdf({ content: draft, jobTitle, company })}
+        >
+          <Icon name="download" size={12} /> Download PDF
+        </Button>
+      </div>
+
+      {view === 'edit' ? (
         <Textarea
           id="cover-letter-textarea"
+          aria-label="Edit cover letter"
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          rows={16}
+          rows={22}
+          className="min-h-[460px] flex-1 text-[14px] leading-7"
         />
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-[11px] text-ink-4">
-            {material.edit_count > 0
-              ? `Edited ${material.edit_count} time${material.edit_count === 1 ? '' : 's'} since generation.`
-              : 'No edits yet.'}
-          </span>
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" disabled={regenerating} onClick={onRegenerate}>
-              <Icon name="refresh" size={12} className={regenerating ? 'animate-spin' : ''} />{' '}
-              {regenerating ? 'Regenerating…' : 'Regenerate'}
-            </Button>
-            <Button size="sm" disabled={!dirty || saving} onClick={handleSave}>
-              {saving ? 'Saving…' : 'Save edits'}
-            </Button>
+      ) : (
+        <div className="min-h-[460px] flex-1 overflow-y-auto rounded-md border border-line bg-surface-2 px-8 py-6">
+          <div className="prose prose-sm mx-auto max-w-[68ch] leading-relaxed text-ink-2">
+            <ReactMarkdown>{toMarkdownParagraphs(draft)}</ReactMarkdown>
           </div>
         </div>
-      </div>
-      <div className="flex flex-col gap-2">
-        <span className="text-[11px] font-medium text-ink-3">Preview</span>
-        <div className="rounded-md border border-line bg-surface-2 p-3">
-          <div className="prose prose-sm max-w-none">
-            <ReactMarkdown>{draft}</ReactMarkdown>
-          </div>
+      )}
+
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] text-ink-4">
+          {material.edit_count > 0
+            ? `Edited ${material.edit_count} time${material.edit_count === 1 ? '' : 's'} since generation.`
+            : 'No edits yet.'}
+        </span>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" disabled={regenerating} onClick={onRegenerate}>
+            <Icon name="refresh" size={12} className={regenerating ? 'animate-spin' : ''} />{' '}
+            {regenerating ? 'Regenerating…' : 'Regenerate'}
+          </Button>
+          <Button size="sm" disabled={!dirty || saving} onClick={handleSave}>
+            {saving ? 'Saving…' : 'Save edits'}
+          </Button>
         </div>
       </div>
     </div>
   )
+}
+
+/**
+ * Cover letters are often plain text with blank-line-separated paragraphs and
+ * hard-wrapped salutation/sign-off lines. Markdown collapses single newlines,
+ * so a salutation like "Dear team,\nSincerely,\nJane" would merge onto one
+ * line. Convert lone newlines to hard breaks (two trailing spaces) so the
+ * preview keeps the author's line structure while blank lines still become
+ * separate paragraphs.
+ */
+function toMarkdownParagraphs(text: string): string {
+  return text
+    .replace(/\r\n/g, '\n')
+    .split(/\n{2,}/)
+    .map((block) =>
+      block
+        .split('\n')
+        .map((line) => line.trimEnd())
+        .join('  \n'),
+    )
+    .join('\n\n')
 }
 
 function messageFor(err: unknown, fallback: string): string {

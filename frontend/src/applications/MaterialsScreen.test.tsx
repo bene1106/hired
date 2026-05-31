@@ -95,6 +95,35 @@ describe('MaterialsScreen (detail mode)', () => {
     })
   })
 
+  it('offers a Download PDF button on the cover letter and CV tabs', async () => {
+    seedApplication()
+    renderDetail()
+
+    // Cover letter tab (default) exposes a PDF download.
+    await screen.findByLabelText(/edit cover letter/i)
+    expect(screen.getByRole('button', { name: /download pdf/i })).toBeInTheDocument()
+
+    // CV tab exposes its own PDF download.
+    await userEvent.click(screen.getByRole('button', { name: /^cv$/i }))
+    expect(await screen.findByText(/Emphasise FastAPI/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /download pdf/i })).toBeInTheDocument()
+  })
+
+  it('toggles the cover letter between edit and preview', async () => {
+    seedApplication()
+    renderDetail()
+
+    const editor = (await screen.findByLabelText(/edit cover letter/i)) as HTMLTextAreaElement
+    expect(editor.value).toMatch(/Dear hiring team/i)
+
+    await userEvent.click(screen.getByRole('tab', { name: /preview/i }))
+    // The textarea is replaced by the rendered preview.
+    expect(screen.queryByLabelText(/edit cover letter/i)).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('tab', { name: /^edit$/i }))
+    expect(await screen.findByLabelText(/edit cover letter/i)).toBeInTheDocument()
+  })
+
   it('shows a toast after saving the cover letter (PR D feedback gap)', async () => {
     seedApplication()
     renderDetail()

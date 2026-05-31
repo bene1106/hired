@@ -194,6 +194,12 @@ class OllamaAdapter:
         prompt_tokens: int | None = None
         eval_tokens: int | None = None
 
+        if self._client is None:
+            raise RuntimeError(
+                "interview_chat_stream requires an injected httpx.Client. "
+                "Use parse_cv, score_job, etc. instead for production CV parsing."
+            )
+
         try:
             with self._client.stream("POST", url, json=body, timeout=self._timeout_s) as response:
                 if response.status_code >= 400:

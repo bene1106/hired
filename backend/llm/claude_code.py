@@ -74,6 +74,17 @@ logger = logging.getLogger(__name__)
 CLAUDE_CLI_NAME = "claude"
 DEFAULT_TIMEOUT_S = 120.0
 
+# Tool name to allow for the company-research call so the CLI can ground the
+# brief in live results. Verified against `claude --help` in this environment:
+#
+#     --allowedTools, --allowed-tools <tools...>
+#         Comma or space-separated list of tool names to allow (e.g. "Bash(git *) Edit")
+#
+# The built-in web-search tool is named "WebSearch" (see `--tools` help, which
+# lists it among the built-in set). We scope this to the research call only;
+# every other `_call` runs with no tools allowed.
+WEB_SEARCH_TOOL_NAME = "WebSearch"
+
 
 class ClaudeCodeAdapter:
     """LLMProvider implementation backed by the local ``claude`` CLI."""
@@ -123,7 +134,9 @@ class ClaudeCodeAdapter:
             company_url="",
             industry_hint="",
         )
-        text = self._call(rendered)
+        # Scope the web-search tool to *this* call only — every other `_call`
+        # runs with no tools allowed.
+        text = self._call(rendered, allowed_tools=[WEB_SEARCH_TOOL_NAME])
         return CompanyBrief(
             company=company,
             markdown=text.strip(),
@@ -261,7 +274,7 @@ class ClaudeCodeAdapter:
     # Subprocess plumbing
     # ------------------------------------------------------------------
 
-    def _call(self, rendered: RenderedPrompt) -> str:
+    def _call(self, rendered: RenderedPrompt, *, allowed_tools: list[str] | None = None) -> str:
         user_text = _flatten_for_single_turn(rendered)
         argv = [
             self._cli_path,
@@ -271,6 +284,10 @@ class ClaudeCodeAdapter:
             "--append-system-prompt",
             rendered.system,
         ]
+        if allowed_tools:
+            # Comma/space-separated list of tool names to allow (see
+            # `claude --help`). Without this the CLI runs prompt-only.
+            argv += ["--allowedTools", ",".join(allowed_tools)]
         try:
             completed = subprocess.run(
                 argv,
@@ -465,5 +482,6 @@ def _extract_markdown_sources(text: str) -> list[str]:
 __all__ = [
     "CLAUDE_CLI_NAME",
     "DEFAULT_TIMEOUT_S",
+    "WEB_SEARCH_TOOL_NAME",
     "ClaudeCodeAdapter",
 ]

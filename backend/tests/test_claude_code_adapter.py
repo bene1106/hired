@@ -195,6 +195,23 @@ def test_research_company_extracts_sources(monkeypatch: pytest.MonkeyPatch) -> N
     ]
 
 
+def test_research_company_allows_web_search_tool(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner = _success_run({"result": "## What they do\nstuff\n"})
+    adapter = _adapter(monkeypatch, runner)
+    adapter.research_company("Acme")
+    argv = runner.captured["argv"]  # type: ignore[attr-defined]
+    assert "--allowedTools" in argv
+    assert argv[argv.index("--allowedTools") + 1] == "WebSearch"
+
+
+def test_other_calls_do_not_allow_tools(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner = _success_run({"result": '{"name": "Alex", "skills": []}'})
+    adapter = _adapter(monkeypatch, runner)
+    adapter.parse_cv("CV body here.")
+    argv = runner.captured["argv"]  # type: ignore[attr-defined]
+    assert "--allowedTools" not in argv
+
+
 def test_generate_interview_questions_requires_list(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 
 import { Icon } from '@/components/icons/Icon'
 import { Badge } from '@/components/ui/badge'
@@ -79,6 +79,12 @@ function ProviderCard({
 export function ProviderStep() {
   const navigate = useNavigate()
   const onboarding = useOnboarding()
+  // When reached from Settings → "Switch provider" the wizard is being
+  // reused purely to change the active provider. ``?return=`` carries the
+  // route to go back to so we DON'T march an already-onboarded user through
+  // the rest of the CV/review/done steps again.
+  const [searchParams] = useSearchParams()
+  const returnTo = searchParams.get('return')
 
   const [detection, setDetection] = useState<ProviderDetectionResult | null>(null)
   const [detectionError, setDetectionError] = useState<string | null>(null)
@@ -168,7 +174,7 @@ export function ProviderStep() {
     setTestMessage(null)
     try {
       await api.selectProvider(selected, apiKey, model)
-      navigate('/onboarding/cv')
+      navigate(returnTo ?? '/onboarding/cv')
     } catch (err) {
       setTestStatus('error')
       setTestMessage(err instanceof Error ? err.message : String(err))
@@ -379,7 +385,7 @@ export function ProviderStep() {
 
         <div className="flex justify-end">
           <Button disabled={!canContinue()} onClick={continueToCV}>
-            Continue <Icon name="arrowRight" size={14} />
+            {returnTo ? 'Save provider' : 'Continue'} <Icon name="arrowRight" size={14} />
           </Button>
         </div>
       </CardContent>

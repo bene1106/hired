@@ -169,6 +169,28 @@ describe('ProviderStep', () => {
     expect(await screen.findByText('CV step')).toBeInTheDocument()
   })
 
+  it('returns to Settings (not the CV step) when switching provider from Settings', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter initialEntries={['/onboarding/provider?return=/app/settings']}>
+        <OnboardingProvider>
+          <Routes>
+            <Route path="/onboarding/provider" element={<ProviderStep />} />
+            <Route path="/onboarding/cv" element={<div>CV step</div>} />
+            <Route path="/app/settings" element={<div>Settings screen</div>} />
+          </Routes>
+        </OnboardingProvider>
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => screen.getByTestId('provider-card-mock'))
+    await user.click(screen.getByTestId('provider-card-mock'))
+    await user.click(screen.getByRole('button', { name: /save provider/i }))
+
+    expect(await screen.findByText('Settings screen')).toBeInTheDocument()
+    expect(screen.queryByText('CV step')).not.toBeInTheDocument()
+  })
+
   it('requires a successful test before letting the user advance with Anthropic', async () => {
     setMockState({
       detect: {

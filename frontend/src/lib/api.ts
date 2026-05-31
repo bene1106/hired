@@ -36,7 +36,7 @@ export const BACKEND_URL =
   (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? 'http://localhost:8765'
 
 // HTTP request timeout in milliseconds (180s to match backend DEFAULT_TIMEOUT_S)
-const REQUEST_TIMEOUT_MS = 180_000
+const REQUEST_TIMEOUT_MS = 300_000
 
 export class ApiError extends Error {
   constructor(

@@ -54,6 +54,13 @@ logger = logging.getLogger(__name__)
 DEFAULT_MODEL = "claude-opus-4-7"
 ANTHROPIC_API_KEY_NAME = "anthropic_api_key"
 
+# The stable server-side web-search tool. Works with the current generation
+# models and needs no extra deps (the newer ``web_search_20260209`` variant
+# requires the code-execution tool, which is overkill here). Activating it lets
+# ``research_company`` ground its brief in real results instead of fabricating
+# for small/new companies. See backend/prompts/research_company.md.
+WEB_SEARCH_TOOL: dict[str, str] = {"type": "web_search_20250305", "name": "web_search"}
+
 # Token budgets per task. Generous enough that legitimate outputs aren't
 # truncated; prompts are still the cheapest way to reduce spend.
 _MAX_TOKENS = {
@@ -118,11 +125,22 @@ class AnthropicAPIAdapter:
             company_url="",
             industry_hint="",
         )
-        text = self._call(rendered, max_tokens=_MAX_TOKENS["research_company"])
+        # Activate the real web-search tool *for this call only* so the brief is
+        # grounded in live sources rather than the model's memory.
+        response = self._raw_call(
+            rendered,
+            max_tokens=_MAX_TOKENS["research_company"],
+            tools=[WEB_SEARCH_TOOL],
+        )
+        text = _extract_text(response)
+        # Prefer real URLs returned by the web-search tool; fall back to scraping
+        # the model's ``## Sources`` section only when the tool returned nothing
+        # (e.g. it found no results and the model wrote them inline).
+        sources = _extract_web_search_sources(response) or _extract_markdown_sources(text)
         return CompanyBrief(
             company=company,
             markdown=text.strip(),
-            sources=_extract_markdown_sources(text),
+            sources=sources,
         )
 
     def tailor_cv(self, profile: Profile, job: Job) -> str:
@@ -218,13 +236,33 @@ class AnthropicAPIAdapter:
 
     def _call(self, rendered: RenderedPrompt, *, max_tokens: int) -> str:
         """Send `rendered` to the API and return the assistant's text reply."""
+        response = self._raw_call(rendered, max_tokens=max_tokens)
+        return _extract_text(response)
+
+    def _raw_call(
+        self,
+        rendered: RenderedPrompt,
+        *,
+        max_tokens: int,
+        tools: list[dict[str, Any]] | None = None,
+    ) -> Any:
+        """Send `rendered` to the API and return the raw Messages response.
+
+        Most callers want the concatenated text (``_call``); the company-research
+        path needs the full response so it can pull real source URLs out of the
+        web-search tool-result blocks. ``tools`` is omitted entirely when
+        ``None`` so we never force tool use onto plain prompt-only calls.
+        """
+        kwargs: dict[str, Any] = {
+            "model": self.model,
+            "max_tokens": max_tokens,
+            "system": rendered.system,
+            "messages": rendered.to_messages(),
+        }
+        if tools is not None:
+            kwargs["tools"] = tools
         try:
-            response = self._client.messages.create(
-                model=self.model,
-                max_tokens=max_tokens,
-                system=rendered.system,
-                messages=rendered.to_messages(),
-            )
+            response = self._client.messages.create(**kwargs)
         except anthropic.AuthenticationError as e:
             raise LLMAuthError("Anthropic rejected the API key.") from e
         except anthropic.RateLimitError as e:
@@ -237,7 +275,7 @@ class AnthropicAPIAdapter:
             raise LLMResponseError(f"Anthropic API error: {e}") from e
 
         _record_usage_from_response(response)
-        return _extract_text(response)
+        return response
 
 
 # ---------------------------------------------------------------------------
@@ -323,6 +361,51 @@ def _parse_pydantic(text: str, model: type) -> Any:
 
 _SOURCES_HEADER_RE = re.compile(r"^##\s*Sources\s*$", re.MULTILINE | re.IGNORECASE)
 _BULLET_RE = re.compile(r"^\s*[-*]\s+(.*)$", re.MULTILINE)
+
+
+def _extract_web_search_sources(response: Any) -> list[str]:
+    """Collect real source URLs from a web-search-enabled Messages response.
+
+    Walks ``response.content`` and pulls URLs from two places, de-duplicated and
+    order-preserving:
+
+    1. ``web_search_tool_result`` blocks → their ``.content`` list of
+       ``web_search_result`` items (each carrying ``url`` / ``title``).
+    2. Inline ``citations`` on text blocks — entries of type
+       ``web_search_result_location`` (also carry ``url`` / ``title``).
+
+    Blocks may be SDK objects (attribute access) or plain dicts; we use
+    ``getattr`` with a dict fallback so this stays robust to SDK shape changes
+    and is unit-testable with simple fakes.
+    """
+    urls: list[str] = []
+    seen: set[str] = set()
+
+    def _add(url: Any) -> None:
+        if isinstance(url, str) and url and url not in seen:
+            seen.add(url)
+            urls.append(url)
+
+    for block in getattr(response, "content", []) or []:
+        block_type = _get(block, "type")
+        if block_type == "web_search_tool_result":
+            results = _get(block, "content") or []
+            for item in results:
+                if _get(item, "type") == "web_search_result":
+                    _add(_get(item, "url"))
+        else:
+            # Text blocks may carry inline web-search citations.
+            for citation in _get(block, "citations") or []:
+                if _get(citation, "type") == "web_search_result_location":
+                    _add(_get(citation, "url"))
+    return urls
+
+
+def _get(obj: Any, name: str) -> Any:
+    """Attribute-or-key access for SDK objects and plain dicts alike."""
+    if isinstance(obj, dict):
+        return obj.get(name)
+    return getattr(obj, name, None)
 
 
 def _extract_markdown_sources(text: str) -> list[str]:

@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { api, ApiError } from '@/lib/api'
+import { cn } from '@/lib/utils'
 
 import { useOnboarding } from './OnboardingContext'
 
@@ -26,6 +27,7 @@ export function CVStep() {
   const [cvText, setCvText] = useState<string>('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [dragging, setDragging] = useState(false)
 
   const latencyHint =
     onboarding.selectedProvider !== null ? LATENCY_HINT[onboarding.selectedProvider] : null
@@ -98,13 +100,31 @@ export function CVStep() {
         {/* Drop zone */}
         <label
           htmlFor="cv-pdf"
-          onDragOver={(e) => e.preventDefault()}
+          onDragEnter={(e) => {
+            e.preventDefault()
+            setDragging(true)
+          }}
+          onDragOver={(e) => {
+            // preventDefault is required, or the browser never fires `drop`.
+            e.preventDefault()
+            setDragging(true)
+          }}
+          onDragLeave={(e) => {
+            e.preventDefault()
+            setDragging(false)
+          }}
           onDrop={(e) => {
             e.preventDefault()
+            setDragging(false)
             const file = e.dataTransfer.files?.[0]
             if (file) submitFile(file)
           }}
-          className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-line-strong bg-surface-2 px-6 py-10 text-center transition-colors hover:border-brand-green hover:bg-brand-green-tint"
+          className={cn(
+            'flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed px-6 py-10 text-center transition-colors',
+            dragging
+              ? 'border-brand-green bg-brand-green-tint'
+              : 'border-line-strong bg-surface-2 hover:border-brand-green hover:bg-brand-green-tint',
+          )}
         >
           <Icon name="upload" size={26} className="text-ink-3" />
           <span className="text-[14px] font-medium text-ink">

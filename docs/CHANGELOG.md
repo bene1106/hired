@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Settings → Cost now shows a billing note that matches the active provider
+  (Claude Code → Claude.ai plan, OpenAI Codex → ChatGPT plan / OpenAI key,
+  Ollama → local, Anthropic API → per token) instead of always claiming Claude
+  Code billing.
+- Switching the provider from Settings now returns you to Settings after the
+  change instead of dropping an already-onboarded user back into the full
+  CV → Review → Done onboarding wizard.
+- The onboarding CV dropzone now highlights while a PDF is dragged over it
+  (dragenter/dragover/dragleave) and resets on drop or leave.
+
 ## [0.3.6] - 2026-05-31
 
 ### Added

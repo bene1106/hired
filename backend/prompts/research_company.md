@@ -2,15 +2,27 @@
 
 **Purpose:** Generate a one-page company research brief for interview prep and cover letter context.
 **Used by:** `LLMProvider.research_company`
-**Last reviewed:** 2026-04-23
+**Last reviewed:** 2026-05-31
 **Owner:** AI Engineer
-**Version:** 1
+**Version:** 2
 
 ## Provider Notes
 
-- **Anthropic API**: enable web search tool for grounded results.
-- **Claude Code**: web search available; use it.
-- **Ollama**: no web access — produce a brief based on training data only, with a clear disclaimer that it may be outdated. Adjust prompt accordingly (omit "with sources" requirement).
+Web search is now wired up live for the web-capable providers — the "search the
+web" instruction in the user template is real, not aspirational, so the
+`## Sources` section should carry actual URLs the model retrieved.
+
+- **Anthropic API**: the stable `web_search_20250305` tool is activated on this
+  call. Sources are extracted from the real `web_search_tool_result` /
+  `web_search_result_location` blocks (the `## Sources` markdown is only a
+  fallback when the tool returned nothing).
+- **Claude Code**: the `WebSearch` tool is allow-listed for this call
+  (`--allowedTools WebSearch`). Sources are scraped from `## Sources`.
+- **Codex CLI**: web search is enabled via `-c tools.web_search=true` on this
+  call. Sources are scraped from `## Sources`.
+- **Ollama**: no web access — produce a brief based on training data only, with a
+  clear disclaimer that it may be outdated. Adjust prompt accordingly (omit
+  "with sources" requirement); the adapter never surfaces fabricated sources.
 - Temperature: 0.3 — factual task, low creativity.
 
 ## System Prompt

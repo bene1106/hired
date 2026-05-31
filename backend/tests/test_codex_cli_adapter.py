@@ -195,6 +195,26 @@ def test_research_company_extracts_sources(monkeypatch: pytest.MonkeyPatch) -> N
     assert brief.sources == ["https://acme.example/a", "https://news.example/b"]
 
 
+def test_research_company_enables_web_search(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner = _success_run("## What they do\nstuff\n")
+    adapter = _adapter(monkeypatch, runner)
+    adapter.research_company("Acme")
+    argv = runner.captured["argv"]  # type: ignore[attr-defined]
+    # `-c tools.web_search=true` is passed for the research call.
+    assert "tools.web_search=true" in argv
+    idx = argv.index("tools.web_search=true")
+    assert argv[idx - 1] == "-c"
+
+
+def test_other_calls_do_not_enable_web_search(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner = _success_run('{"name": "Alex", "skills": []}')
+    adapter = _adapter(monkeypatch, runner)
+    adapter.parse_cv("CV body here.")
+    argv = runner.captured["argv"]  # type: ignore[attr-defined]
+    assert "tools.web_search=true" not in argv
+    assert "-c" not in argv
+
+
 def test_generate_interview_questions_requires_list(monkeypatch: pytest.MonkeyPatch) -> None:
     runner = _success_run(json.dumps({"questions": "oops"}))
     adapter = _adapter(monkeypatch, runner)

@@ -84,6 +84,24 @@ logger = logging.getLogger(__name__)
 CODEX_CLI_NAME = "codex"
 DEFAULT_TIMEOUT_S = 180.0
 
+# Codex's built-in web-search tool is gated behind a config flag rather than a
+# CLI switch. Verified against `codex --version` 0.120.0 in this environment:
+#
+#   * `codex exec --help` exposes no `--web-search` / `--search` flag.
+#   * `codex features list` shows `search_tool` as **removed** and
+#     `web_search_request` / `web_search_cached` as **deprecated** — so there is
+#     no stable feature-flag toggle either.
+#   * The documented escape hatch is the config override `-c tools.web_search=true`
+#     (the same `-c key=value` mechanism `--model` etc. use). `codex exec -c
+#     tools.web_search=true ...` is accepted without error.
+#
+# We pass this override on the research call only. Codex streams the whole reply
+# as one `agent_message` (no structured web_search_result_location blocks like
+# the Anthropic API), so sources are still scraped from the model's `## Sources`
+# section. If a future Codex drops the key the override is simply ignored and the
+# brief degrades to training-data quality — no fabricated structured sources.
+WEB_SEARCH_CONFIG_OVERRIDE = "tools.web_search=true"
+
 
 class CodexCLIAdapter:
     """LLMProvider implementation backed by the local ``codex`` CLI."""
@@ -143,7 +161,9 @@ class CodexCLIAdapter:
             company_url="",
             industry_hint="",
         )
-        text = self._call(rendered)
+        # Enable Codex's web-search tool for this call only so the brief is
+        # grounded in live results instead of training data.
+        text = self._call(rendered, config_overrides=[WEB_SEARCH_CONFIG_OVERRIDE])
         return CompanyBrief(
             company=company,
             markdown=text.strip(),
@@ -277,7 +297,7 @@ class CodexCLIAdapter:
     # Subprocess plumbing
     # ------------------------------------------------------------------
 
-    def _build_argv(self) -> list[str]:
+    def _build_argv(self, *, config_overrides: list[str] | None = None) -> list[str]:
         argv = [
             self._cli_path,
             "exec",
@@ -289,14 +309,16 @@ class CodexCLIAdapter:
             "never",
             "--ephemeral",
         ]
+        for override in config_overrides or []:
+            argv += ["-c", override]
         if self._model:
             argv += ["--model", self._model]
         argv.append("-")  # read the prompt from stdin
         return argv
 
-    def _call(self, rendered: RenderedPrompt) -> str:
+    def _call(self, rendered: RenderedPrompt, *, config_overrides: list[str] | None = None) -> str:
         prompt = _compose_prompt(rendered)
-        argv = self._build_argv()
+        argv = self._build_argv(config_overrides=config_overrides)
         try:
             completed = subprocess.run(
                 argv,
@@ -526,5 +548,6 @@ def _extract_markdown_sources(text: str) -> list[str]:
 __all__ = [
     "CODEX_CLI_NAME",
     "DEFAULT_TIMEOUT_S",
+    "WEB_SEARCH_CONFIG_OVERRIDE",
     "CodexCLIAdapter",
 ]

@@ -107,7 +107,11 @@ export function SettingsScreen() {
               <ProviderStatus stats={stats} />
             )}
             <div>
-              <Button variant="outline" size="sm" onClick={() => navigate('/onboarding/provider')}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/onboarding/provider?return=/app/settings')}
+              >
                 Switch provider
               </Button>
             </div>
@@ -180,6 +184,18 @@ const PROVIDER_LABELS: Record<ProviderId, string> = {
   mock: 'Mock (dev only)',
 }
 
+// Where each provider's usage is actually billed. Keyed by ProviderId so a
+// new provider is a one-line addition, not another hardcoded sentence in the
+// cost panel. Used for the "subscription" cost label, which both the Claude
+// Code and OpenAI Codex CLIs report.
+const PROVIDER_BILLING_NOTE: Record<ProviderId, string> = {
+  anthropic_api: 'Anthropic API is billed per token via your API key.',
+  claude_code: 'Claude Code is billed via your Claude.ai plan.',
+  codex_cli: 'Codex is billed via your ChatGPT plan or OpenAI key.',
+  ollama: 'Local provider – no billing.',
+  mock: 'Mock provider – no billing.',
+}
+
 // The CLI-backed providers are flagged Experimental (ADR-0007 / ADR-0010).
 const EXPERIMENTAL_PROVIDERS: ReadonlySet<ProviderId> = new Set<ProviderId>([
   'claude_code',
@@ -240,8 +256,8 @@ function CostDisplay({ cost }: { cost: CostSummary }) {
       <div className="flex flex-col gap-1">
         <p className="text-[15px] font-semibold text-ink">$0.00 (subscription)</p>
         <p className="text-[12px] text-ink-3">
-          {cost.calls_today} calls today · {cost.calls_week} this week. Claude Code is billed via
-          your Claude.ai plan.
+          {cost.calls_today} calls today · {cost.calls_week} this week.{' '}
+          {PROVIDER_BILLING_NOTE[cost.provider]}
         </p>
       </div>
     )

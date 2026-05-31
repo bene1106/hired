@@ -136,6 +136,41 @@ describe('SettingsScreen', () => {
     expect(await screen.findByText('$0.00 (local)')).toBeInTheDocument()
   })
 
+  it('shows the Claude.ai billing note for claude_code', async () => {
+    setMockState({
+      cost: {
+        provider: 'claude_code',
+        label: 'subscription',
+        today_usd: null,
+        week_usd: null,
+        calls_today: 2,
+        calls_week: 5,
+      },
+    })
+
+    renderSettings()
+
+    expect(await screen.findByText(/Claude\.ai plan/i)).toBeInTheDocument()
+  })
+
+  it('shows the Codex billing note (not the Claude Code one) for codex_cli', async () => {
+    setMockState({
+      cost: {
+        provider: 'codex_cli',
+        label: 'subscription',
+        today_usd: null,
+        week_usd: null,
+        calls_today: 7,
+        calls_week: 19,
+      },
+    })
+
+    renderSettings()
+
+    expect(await screen.findByText(/ChatGPT plan or OpenAI key/i)).toBeInTheDocument()
+    expect(screen.queryByText(/Claude\.ai plan/i)).not.toBeInTheDocument()
+  })
+
   it('shows live provider status with latency and call count', async () => {
     setMockState({
       providerStats: {

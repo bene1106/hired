@@ -39,7 +39,7 @@ const PIPELINE: { type: Exclude<MaterialType, never>; label: string }[] = [
   { type: 'cover_letter', label: 'Cover letter' },
 ]
 
-type Tab = 'cover' | 'cv' | 'interview'
+type Tab = 'job' | 'cover' | 'cv' | 'research' | 'interview'
 
 interface MaterialsScreenProps {
   mode: 'generate' | 'detail'
@@ -57,7 +57,7 @@ export function MaterialsScreen({ mode, jobId, applicationId }: MaterialsScreenP
   const [status, setStatus] = useState<GenerationStatus | null>(null)
   const [detail, setDetail] = useState<ApplicationDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [tab, setTab] = useState<Tab>('cover')
+  const [tab, setTab] = useState<Tab>('job')
   const [marking, setMarking] = useState(false)
   const [savingStatus, setSavingStatus] = useState(false)
   const [rejectionNote, setRejectionNote] = useState('')
@@ -194,16 +194,18 @@ export function MaterialsScreen({ mode, jobId, applicationId }: MaterialsScreenP
     }
   }
 
-  const tabs: { id: Tab; label: string; icon: 'mail' | 'file' | 'sparkle' }[] = [
+  const tabs: { id: Tab; label: string; icon: 'file' | 'mail' | 'sparkle' | 'building' }[] = [
+    { id: 'job', label: 'Job post', icon: 'file' },
     { id: 'cover', label: 'Cover letter', icon: 'mail' },
-    { id: 'cv', label: 'CV', icon: 'file' },
+    { id: 'cv', label: 'CV suggestions', icon: 'sparkle' },
+    { id: 'research', label: 'Company research', icon: 'building' },
     ...(mode === 'detail'
       ? [{ id: 'interview' as const, label: 'Interview prep', icon: 'sparkle' as const }]
       : []),
   ]
 
   return (
-    <div className="screen mx-auto max-w-[1280px] px-8 py-6">
+    <div className="screen mx-auto max-w-[960px] px-8 py-6">
       {/* Toolbar */}
       <div className="mb-5 flex items-center justify-between gap-3">
         <Button
@@ -289,108 +291,88 @@ export function MaterialsScreen({ mode, jobId, applicationId }: MaterialsScreenP
         </div>
       ) : null}
 
-      {/* Two-column: job post + research | generated tabs */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="flex flex-col gap-4">
-          <Card className="p-5">
-            <div className="mb-2 flex items-center gap-2">
-              <Icon name="file" size={13} className="text-ink-3" />
-              <span className="text-[12px] font-medium text-ink">Job post</span>
-            </div>
-            {job?.description ? (
-              <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-ink-2">
-                {job.description}
-              </p>
-            ) : (
-              <p className="text-[13px] text-ink-3">
-                No job description was captured for this role.
-              </p>
+      {/* Tab bar */}
+      <div className="mb-4 flex items-center gap-1 border-b border-line">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={cn(
+              'flex items-center gap-1.5 border-b-2 px-3 py-2 text-[13px] transition-colors',
+              tab === t.id
+                ? '-mb-px border-ink font-medium text-ink'
+                : 'border-transparent text-ink-3 hover:text-ink-2',
             )}
-          </Card>
-
-          {materials?.company_brief ? (
-            <Card className="p-0">
-              <details data-testid="company-research">
-                <summary className="cursor-pointer list-none px-5 py-3 text-[12px] font-medium text-ink">
-                  Company research
-                  <span className="ml-2 font-normal text-ink-3">
-                    — used to shape the cover letter
-                  </span>
-                </summary>
-                <div className="border-t border-line px-5 py-4 text-[13px] leading-relaxed text-ink-2">
-                  <div className="prose prose-sm max-w-none">
-                    <ReactMarkdown>{materials.company_brief.content}</ReactMarkdown>
-                  </div>
-                </div>
-              </details>
-            </Card>
-          ) : null}
-        </div>
-
-        <Card className="flex min-h-[420px] flex-col p-0">
-          <div className="flex items-center gap-1 border-b border-line px-3 py-2">
-            {tabs.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={cn(
-                  'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] transition-colors',
-                  tab === t.id
-                    ? 'bg-surface-2 font-medium text-ink'
-                    : 'text-ink-3 hover:bg-surface-2',
-                )}
-              >
-                <Icon name={t.icon} size={12} /> {t.label}
-              </button>
-            ))}
-            {!generating && mode === 'generate' ? (
-              <span className="chip chip-green ml-auto">Generated</span>
-            ) : null}
-          </div>
-
-          <div className="flex min-h-0 flex-1 flex-col p-5">
-            {generating ? (
-              <GeneratingState status={status} />
-            ) : tab === 'cover' ? (
-              materials?.cover_letter ? (
-                <CoverLetterEditor
-                  material={materials.cover_letter}
-                  onSave={onSaveCover}
-                  onRegenerate={() => onRegenerate('cover_letter')}
-                  regenerating={regenerating === 'cover_letter'}
-                />
-              ) : (
-                <p className="text-[13px] text-ink-3">No cover letter yet.</p>
-              )
-            ) : tab === 'cv' ? (
-              materials?.cv_suggestions ? (
-                <div className="flex flex-col gap-3">
-                  <SuggestionRenderer content={materials.cv_suggestions.content} />
-                  <div className="flex justify-end">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={regenerating === 'cv_suggestions'}
-                      onClick={() => onRegenerate('cv_suggestions')}
-                    >
-                      <Icon
-                        name="refresh"
-                        size={12}
-                        className={regenerating === 'cv_suggestions' ? 'animate-spin' : ''}
-                      />{' '}
-                      {regenerating === 'cv_suggestions' ? 'Regenerating…' : 'Regenerate'}
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-[13px] text-ink-3">No CV tailoring yet.</p>
-              )
-            ) : appId !== null ? (
-              <InterviewPanel applicationId={appId} />
-            ) : null}
-          </div>
-        </Card>
+          >
+            <Icon name={t.icon} size={13} /> {t.label}
+          </button>
+        ))}
+        {!generating && mode === 'generate' ? (
+          <span className="chip chip-green ml-auto mb-1">Generated</span>
+        ) : null}
       </div>
+
+      {/* Full-width content panel */}
+      <Card className="min-h-[520px] p-6">
+        {generating ? (
+          <GeneratingState status={status} />
+        ) : tab === 'job' ? (
+          job?.description ? (
+            <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-ink-2">
+              {job.description}
+            </p>
+          ) : (
+            <p className="text-[13px] text-ink-3">No job description was captured for this role.</p>
+          )
+        ) : tab === 'cover' ? (
+          materials?.cover_letter ? (
+            <CoverLetterEditor
+              material={materials.cover_letter}
+              onSave={onSaveCover}
+              onRegenerate={() => onRegenerate('cover_letter')}
+              regenerating={regenerating === 'cover_letter'}
+            />
+          ) : (
+            <p className="text-[13px] text-ink-3">No cover letter yet.</p>
+          )
+        ) : tab === 'cv' ? (
+          materials?.cv_suggestions ? (
+            <div className="flex flex-col gap-3">
+              <SuggestionRenderer content={materials.cv_suggestions.content} />
+              <div className="flex justify-end">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={regenerating === 'cv_suggestions'}
+                  onClick={() => onRegenerate('cv_suggestions')}
+                >
+                  <Icon
+                    name="refresh"
+                    size={12}
+                    className={regenerating === 'cv_suggestions' ? 'animate-spin' : ''}
+                  />{' '}
+                  {regenerating === 'cv_suggestions' ? 'Regenerating…' : 'Regenerate'}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-[13px] text-ink-3">No CV tailoring yet.</p>
+          )
+        ) : tab === 'research' ? (
+          materials?.company_brief ? (
+            <div
+              className="prose prose-sm max-w-none text-[13px] leading-relaxed text-ink-2"
+              data-testid="company-research"
+            >
+              <ReactMarkdown>{materials.company_brief.content}</ReactMarkdown>
+            </div>
+          ) : (
+            <p className="text-[13px] text-ink-3">No company research yet.</p>
+          )
+        ) : appId !== null ? (
+          <InterviewPanel applicationId={appId} />
+        ) : null}
+      </Card>
 
       <Toast message={toastMsg} />
     </div>

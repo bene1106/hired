@@ -5,19 +5,22 @@ import { onGlobalAuthError } from '@/lib/api'
 
 import { Sidebar } from './Sidebar'
 
+const SIDEBAR_KEY = 'hired.sidebar.open'
+
 /**
- * 2-column app shell: fixed 244px sidebar + flexible main column.
- * Wraps every `/app/*` route. Onboarding and the boot gate render
- * outside the shell (no sidebar there).
- *
- * v0.3.5: subscribes to the api wrapper's global auth-error channel
- * and shows a top-of-app banner when the backend returns 401 with
- * ``error_kind=missing_api_key``. That class of error is recoverable
- * (re-enter the key in Settings) so the banner has a deep link, and
- * dismisses itself as soon as a subsequent request succeeds.
+ * 2-column app shell: resizable sidebar + flexible main column.
+ * Sidebar width is 244px when open, 56px (icon-only) when collapsed.
+ * State persists in localStorage.
  */
 export function AppShell() {
   const [authMessage, setAuthMessage] = useState<string | null>(null)
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(SIDEBAR_KEY) !== 'false'
+    } catch {
+      return true
+    }
+  })
 
   useEffect(
     () =>
@@ -27,9 +30,22 @@ export function AppShell() {
     [],
   )
 
+  function toggleSidebar() {
+    setSidebarOpen((v) => {
+      const next = !v
+      try {
+        localStorage.setItem(SIDEBAR_KEY, String(next))
+      } catch {}
+      return next
+    })
+  }
+
   return (
-    <div className="grid min-h-screen grid-cols-[244px_1fr] bg-background text-foreground">
-      <Sidebar />
+    <div
+      className="grid min-h-screen bg-background text-foreground"
+      style={{ gridTemplateColumns: sidebarOpen ? '244px 1fr' : '56px 1fr' }}
+    >
+      <Sidebar collapsed={!sidebarOpen} onToggle={toggleSidebar} />
       <main className="min-w-0">
         {authMessage !== null ? (
           <div

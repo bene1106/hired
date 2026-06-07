@@ -140,7 +140,10 @@ export function InterviewChat({ applicationId }: InterviewChatProps) {
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[220px_1fr]" data-testid="interview-chat">
+    <div
+      className="grid gap-4 lg:grid-cols-[minmax(0,260px)_minmax(0,1fr)]"
+      data-testid="interview-chat"
+    >
       <Card className="flex flex-col gap-3 p-4">
         <div className="flex items-center justify-between">
           <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-3">

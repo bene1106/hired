@@ -122,10 +122,13 @@ export interface ProfileResponse {
   id: number
   name: string | null
   email: string | null
+  phone: string | null
   target_roles: string[]
   target_locations: string[]
   target_salary_min: number | null
   priorities: string[]
+  skills: string[]
+  work_formats: string[]
   cv_text: string | null
   cv_parsed_json: CVParsedJson | null
   profile_version: number
@@ -139,10 +142,46 @@ export interface CVParseResponse {
 export interface ProfileUpdate {
   name?: string | null
   email?: string | null
+  phone?: string | null
   target_roles?: string[]
   target_locations?: string[]
   target_salary_min?: number | null
   priorities?: string[]
+  skills?: string[]
+  work_formats?: string[]
+}
+
+// ----- Job sources (scheduler) --------------------------------------------
+
+export type CrawlSourceType = 'greenhouse' | 'lever' | 'wellfound' | 'indeed'
+
+export interface JobSourceConfig {
+  id: number
+  source_type: CrawlSourceType
+  company_slug: string | null
+  label: string
+  enabled: boolean
+  last_checked_at: string | null
+  last_error: string | null
+  is_running: boolean
+  created_at: string
+}
+
+export interface SourceConfig {
+  interval_hours: number
+}
+
+export interface CreateSourcePayload {
+  source_type: CrawlSourceType
+  company_slug?: string | null
+  label: string
+  enabled?: boolean
+}
+
+export interface UpdateSourcePayload {
+  label?: string
+  enabled?: boolean
+  company_slug?: string
 }
 
 // ----- Phase 4 feed --------------------------------------------------------

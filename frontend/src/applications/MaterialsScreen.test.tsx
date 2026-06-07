@@ -26,10 +26,13 @@ function seedProfileCv(cvText: string) {
       id: 1,
       name: 'Jane Doe',
       email: null,
+      phone: null,
       target_roles: [],
       target_locations: [],
       target_salary_min: null,
       priorities: [],
+      skills: [],
+      work_formats: [],
       cv_text: cvText,
       cv_parsed_json: null,
       profile_version: 1,
@@ -101,10 +104,10 @@ describe('MaterialsScreen (detail mode)', () => {
     const textarea = (await screen.findByLabelText(/edit/i)) as HTMLTextAreaElement
     expect(textarea.value).toMatch(/Dear hiring team/i)
 
-    // Company brief retained as the secondary "Company research" block.
-    expect(screen.getByTestId('company-research')).toHaveTextContent(/AcmeCo brief/i)
+    // Company brief is always visible in the left column.
+    expect(await screen.findByTestId('company-research')).toHaveTextContent(/AcmeCo brief/i)
 
-    // CV behind its tab; Interview prep is offered in detail mode.
+    // CV and Interview prep tabs are offered in detail mode.
     expect(screen.getByRole('button', { name: /^cv$/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /interview prep/i })).toBeInTheDocument()
 

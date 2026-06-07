@@ -10,7 +10,7 @@ import { Sidebar } from './Sidebar'
 function renderSidebar(path = '/app') {
   return render(
     <MemoryRouter initialEntries={[path]}>
-      <Sidebar />
+      <Sidebar collapsed={false} onToggle={() => {}} />
     </MemoryRouter>,
   )
 }
@@ -31,11 +31,15 @@ describe('Sidebar', () => {
     expect(screen.getByText('Career Agent')).toBeInTheDocument()
 
     const links = screen.getAllByRole('link')
-    expect(links).toHaveLength(3)
+    expect(links).toHaveLength(4)
     expect(screen.getByRole('link', { name: /job feed/i })).toHaveAttribute('href', '/app')
     expect(screen.getByRole('link', { name: /applications/i })).toHaveAttribute(
       'href',
       '/app/applications',
+    )
+    expect(screen.getByRole('link', { name: /job sources/i })).toHaveAttribute(
+      'href',
+      '/app/sources',
     )
     expect(screen.getByRole('link', { name: /settings/i })).toHaveAttribute('href', '/app/settings')
   })
@@ -70,10 +74,13 @@ describe('Sidebar', () => {
         id: 1,
         name: 'Alex Morgan',
         email: 'alex@example.com',
+        phone: null,
         target_roles: ['Product Designer'],
         target_locations: ['Berlin'],
         target_salary_min: 80000,
         priorities: ['craft'],
+        skills: [],
+        work_formats: [],
         cv_text: 'cv',
         cv_parsed_json: null,
         profile_version: 1,

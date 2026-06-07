@@ -39,24 +39,33 @@ class ProfileResponse(BaseModel):
     id: int
     name: str | None
     email: str | None
+    phone: str | None
     target_roles: list[str]
     target_locations: list[str]
     target_salary_min: int | None
     priorities: list[str]
+    skills: list[str]
+    work_formats: list[str]
     cv_text: str | None
     cv_parsed_json: dict[str, Any] | None
     profile_version: int
 
     @classmethod
     def from_row(cls, row: ProfileRow) -> ProfileResponse:
+        # skills_json is the authoritative editable list; fall back to
+        # cv_parsed_json["skills"] only when the user hasn't explicitly saved one.
+        skills: list[str] = row.skills_json or ((row.cv_parsed_json or {}).get("skills") or [])
         return cls(
             id=row.id,
             name=row.name,
             email=row.email,
+            phone=row.phone,
             target_roles=row.target_roles_json or [],
             target_locations=row.target_locations_json or [],
             target_salary_min=row.target_salary_min,
             priorities=row.priorities_json or [],
+            skills=skills,
+            work_formats=row.work_formats_json or [],
             cv_text=row.cv_text,
             cv_parsed_json=row.cv_parsed_json,
             profile_version=row.profile_version or 0,
@@ -68,10 +77,13 @@ class ProfileUpdate(BaseModel):
 
     name: str | None = None
     email: str | None = None
+    phone: str | None = None
     target_roles: list[str] | None = None
     target_locations: list[str] | None = None
     target_salary_min: int | None = Field(default=None, ge=0)
     priorities: list[str] | None = None
+    skills: list[str] | None = None
+    work_formats: list[str] | None = None
 
 
 class CVTextRequest(BaseModel):
@@ -162,6 +174,9 @@ def post_profile(payload: ProfileUpdate) -> ProfileResponse:
         if payload.email is not None:
             row.email = payload.email
             mutated = True
+        if payload.phone is not None:
+            row.phone = payload.phone
+            mutated = True
         if payload.target_roles is not None:
             row.target_roles_json = payload.target_roles
             mutated = True
@@ -173,6 +188,12 @@ def post_profile(payload: ProfileUpdate) -> ProfileResponse:
             mutated = True
         if payload.priorities is not None:
             row.priorities_json = payload.priorities
+            mutated = True
+        if payload.skills is not None:
+            row.skills_json = payload.skills
+            mutated = True
+        if payload.work_formats is not None:
+            row.work_formats_json = payload.work_formats
             mutated = True
 
         # Bump on any real change so the score cache invalidates.

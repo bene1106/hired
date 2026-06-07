@@ -131,6 +131,11 @@ const config: Config = {
           from: { transform: 'rotate(0deg)' },
           to: { transform: 'rotate(360deg)' },
         },
+        'scrape-progress': {
+          '0%': { transform: 'translateX(-100%)' },
+          '50%': { transform: 'translateX(0%)' },
+          '100%': { transform: 'translateX(100%)' },
+        },
       },
       animation: {
         'fade-up': 'fade-up 0.5s ease both',
@@ -138,6 +143,7 @@ const config: Config = {
         'subtle-bounce': 'subtle-bounce 0.7s cubic-bezier(0.4, 1.4, 0.6, 1)',
         'pulse-dot': 'pulse-dot 2s ease-in-out infinite',
         spin: 'spin 1s linear infinite',
+        'scrape-progress': 'scrape-progress 1.8s ease-in-out infinite',
       },
     },
   },

@@ -8,6 +8,8 @@ import type {
   CrawlRequest,
   CrawlResponse,
   CrawlStatus,
+  CreateSourcePayload,
+  JobSourceConfig,
   FeedItem,
   GenerationStatus,
   InterviewQuestionBundle,
@@ -25,11 +27,13 @@ import type {
   ProviderId,
   ProviderMetadata,
   ProviderStats,
-  SelectProviderResponse,
-  StartGenerationResponse,
   RescoreResult,
   ScoringStatus,
+  SelectProviderResponse,
+  SourceConfig,
+  StartGenerationResponse,
   TestProviderResult,
+  UpdateSourcePayload,
 } from './types'
 
 export const BACKEND_URL =
@@ -377,6 +381,29 @@ export const api = {
   },
 
   getCostSummary: (): Promise<CostSummary> => request('/api/stats/cost'),
+
+  // ----- Job sources -------------------------------------------------------
+
+  listSources: (): Promise<JobSourceConfig[]> => request('/api/sources'),
+
+  createSource: (payload: CreateSourcePayload): Promise<JobSourceConfig> =>
+    request('/api/sources', { method: 'POST', body: JSON.stringify(payload) }),
+
+  updateSource: (id: number, payload: UpdateSourcePayload): Promise<JobSourceConfig> =>
+    request(`/api/sources/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+
+  deleteSource: (id: number): Promise<void> => request(`/api/sources/${id}`, { method: 'DELETE' }),
+
+  runSourceNow: (id: number): Promise<{ started: number[] }> =>
+    request(`/api/sources/${id}/run-now`, { method: 'POST' }),
+
+  runAllSourcesNow: (): Promise<{ started: number[] }> =>
+    request('/api/sources/run-now', { method: 'POST' }),
+
+  getSourceConfig: (): Promise<SourceConfig> => request('/api/sources/config'),
+
+  updateSourceConfig: (payload: SourceConfig): Promise<SourceConfig> =>
+    request('/api/sources/config', { method: 'PUT', body: JSON.stringify(payload) }),
 }
 
 function parseSseFrame(frame: string): ChatStreamEvent | null {

@@ -40,7 +40,7 @@ const PIPELINE: { type: Exclude<MaterialType, never>; label: string }[] = [
   { type: 'cover_letter', label: 'Cover letter' },
 ]
 
-type Tab = 'cover' | 'cv' | 'interview'
+type Tab = 'job' | 'cover' | 'cv' | 'research' | 'interview'
 
 interface MaterialsScreenProps {
   mode: 'generate' | 'detail'

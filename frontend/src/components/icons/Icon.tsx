@@ -29,6 +29,8 @@ export type IconName =
   | 'send'
   | 'trash'
   | 'plus'
+  | 'building'
+  | 'globe'
   | 'download'
 
 const PATHS: Record<IconName, ReactElement> = {
@@ -46,7 +48,7 @@ const PATHS: Record<IconName, ReactElement> = {
       <path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.5 1.5M17.6 17.6l1.5 1.5M4.9 19.1l1.5-1.5M17.6 6.4l1.5-1.5" />
     </>
   ),
-  moon: <path d="M20 15.5A8 8 0 1 1 8.5 4 7 7 0 0 0 20 15.5z" />,
+  moon: <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z" />,
   upload: <path d="M12 15V3M7 8l5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" />,
   check: <path d="M4 12l5 5L20 6" />,
   arrowRight: <path d="M5 12h14M12 5l7 7-7 7" />,
@@ -95,6 +97,18 @@ const PATHS: Record<IconName, ReactElement> = {
     </>
   ),
   plus: <path d="M12 5v14M5 12h14" />,
+  globe: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 3c-2.5 3-4 5.5-4 9s1.5 6 4 9M12 3c2.5 3 4 5.5 4 9s-1.5 6-4 9M3 12h18" />
+    </>
+  ),
+  building: (
+    <>
+      <rect x="3" y="3" width="18" height="18" rx="1" />
+      <path d="M9 21V9h6v12M9 13h2M13 13h2M9 17h2M13 17h2M9 9h6" />
+    </>
+  ),
   download: <path d="M12 3v12M7 10l5 5 5-5M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />,
 }
 

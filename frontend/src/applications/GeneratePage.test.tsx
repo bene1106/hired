@@ -50,7 +50,7 @@ describe('GeneratePage (generate mode)', () => {
     const textarea = (await screen.findByLabelText(/edit/i)) as HTMLTextAreaElement
     expect(textarea.value).toMatch(/Dear hiring team/i)
 
-    // Company brief is retained as a secondary "Company research" block.
+    // Company brief is always visible in the left column.
     expect(await screen.findByText(/AcmeCo brief/i)).toBeInTheDocument()
 
     // CV tailoring lives behind its own tab.

@@ -23,15 +23,21 @@ from api.routes.data import router as data_router
 from api.routes.jobs import router as jobs_router
 from api.routes.profile import router as profile_router
 from api.routes.setup import router as setup_router
+from api.routes.sources import router as sources_router
 from api.routes.stats import router as stats_router
 from db.migrations import run_migrations
 from llm.errors import LLMAuthError
+from services.source_scheduler import SourceScheduler
+
+_scheduler = SourceScheduler()
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     run_migrations()
+    _scheduler.start()
     yield
+    _scheduler.stop()
 
 
 app = FastAPI(title="Hired. backend", version=VERSION, lifespan=lifespan)
@@ -152,3 +158,4 @@ app.include_router(jobs_router)
 app.include_router(applications_router)
 app.include_router(stats_router)
 app.include_router(data_router)
+app.include_router(sources_router)

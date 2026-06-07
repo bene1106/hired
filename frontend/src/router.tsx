@@ -12,6 +12,7 @@ import { ProviderStep } from '@/components/onboarding/ProviderStep'
 import { ReviewStep } from '@/components/onboarding/ReviewStep'
 import { WelcomeStep } from '@/components/onboarding/WelcomeStep'
 import { SettingsScreen } from '@/components/SettingsScreen'
+import { SourcesScreen } from '@/components/SourcesScreen'
 import { FeedScreen } from '@/feed/FeedScreen'
 
 // Phase 5 routing.
@@ -41,6 +42,7 @@ export function AppRouter() {
         <Route path="applications" element={<ApplicationDashboard />} />
         <Route path="applications/:applicationId" element={<ApplicationDetailScreen />} />
         <Route path="settings" element={<SettingsScreen />} />
+        <Route path="sources" element={<SourcesScreen />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

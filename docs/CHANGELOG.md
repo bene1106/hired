@@ -5,31 +5,29 @@ All notable user-visible changes to Hired. are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.8] - 2026-06-07
 
 ### Added
 
-- **Cover letter PDF export.** The Application-Detail cover-letter tab now has
-  a "Download PDF" button that produces a clean, plain document (real selectable
-  text via jsPDF) with the salutation, paragraphs, and sign-off — no app UI
-  chrome.
-- **Tailored CV PDF export.** The CV tab can export the tailoring suggestions
-  (Overall fit + per-suggestion Current / Suggestion / Rationale, or the raw
-  markdown when unstructured) as a cleanly formatted PDF.
+- **Wider Application-Detail layout.** The Application-Detail view now uses the
+  available desktop width with an asymmetric split, so the Cover letter / CV /
+  Interview-prep tabs have room to breathe.
+- **CV and cover-letter PDF export with download toasts.** Both the CV tab and
+  the cover-letter tab can export a clean PDF (real selectable text via jsPDF),
+  with a confirmation toast on download.
 
 ### Changed
 
-- **Wider, rebalanced Application-Detail view.** The layout now uses the
-  available desktop width (cap raised to 1600px) with an asymmetric split — a
-  narrow Job-post / Company-research column beside a much wider generated-content
-  area — so all three tabs (Cover letter / CV / Interview prep) breathe.
-- **Readable cover-letter editor.** The cramped side-by-side Edit/Preview split
-  is replaced by a full-width Edit | Preview toggle: a roomier editor with
-  comfortable line-height, and a typeset preview that turns blank-line
-  paragraphs and hard-wrapped salutation/sign-off lines into proper formatting.
-- **Full-width CV suggestion cards** with Current vs Suggestion shown
-  side-by-side on wide screens, plus a wider, better-balanced Interview-prep
-  layout (Question Bank vs Practice/Coach).
+- README punctuation cleanup.
+
+### Fixed
+
+- **CV PDF exports the finished CV.** The CV PDF no longer exports the internal
+  tailoring analysis ("overall fit") — it now exports the finished CV.
+
+### Known issues
+
+- CV PDF layout/spacing improvements are still pending (#45).
 
 ## [0.3.7] - 2026-05-31
 

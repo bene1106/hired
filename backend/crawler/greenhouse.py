@@ -7,6 +7,7 @@ Each job card includes full HTML content which we strip to plain text.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from collections.abc import Iterable
 from datetime import datetime
@@ -38,7 +39,9 @@ class GreenhouseSource(JobSource):
     def fetch_jobs(self, query: CrawlQuery) -> Iterable[RawJob]:
         url = f"{_API_BASE}/{self.company_slug}/jobs?content=true"
         try:
-            with httpx.Client(headers={"User-Agent": _UA}, timeout=_TIMEOUT, follow_redirects=True) as client:
+            with httpx.Client(
+                headers={"User-Agent": _UA}, timeout=_TIMEOUT, follow_redirects=True
+            ) as client:
                 company_name = _fetch_company_name(self.company_slug, client)
                 resp = client.get(url)
                 resp.raise_for_status()
@@ -67,17 +70,13 @@ class GreenhouseSource(JobSource):
 
         content = raw.get("content") or ""
         if content and "<" in content:
-            try:
+            with contextlib.suppress(Exception):
                 content = BeautifulSoup(content, "html.parser").get_text(separator="\n").strip()
-            except Exception:
-                pass
 
         posted_at: datetime | None = None
         if raw.get("updated_at"):
-            try:
+            with contextlib.suppress(ValueError, AttributeError):
                 posted_at = datetime.fromisoformat(raw["updated_at"].replace("Z", "+00:00"))
-            except (ValueError, AttributeError):
-                pass
 
         if not company_name:
             company_name = self.company_slug.replace("-", " ").title()

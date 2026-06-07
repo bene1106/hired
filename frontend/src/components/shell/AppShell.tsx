@@ -35,7 +35,9 @@ export function AppShell() {
       const next = !v
       try {
         localStorage.setItem(SIDEBAR_KEY, String(next))
-      } catch {}
+      } catch {
+        // localStorage unavailable (private browsing, storage quota, etc.)
+      }
       return next
     })
   }

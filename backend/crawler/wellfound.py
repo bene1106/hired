@@ -18,6 +18,7 @@ listing URLs to the manual-URL source instead.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import re
@@ -95,7 +96,8 @@ class WellfoundSource(JobSource):
 
 def _parse_next_data(html: str, limit: int) -> Iterable[RawJob]:
     """Extract jobs from the Next.js server-side data blob, if present."""
-    m = re.search(r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', html, re.DOTALL)
+    pattern = r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>'
+    m = re.search(pattern, html, re.DOTALL)
     if not m:
         return
 
@@ -171,10 +173,8 @@ def _parse_job(raw: dict) -> RawJob | None:
 
     description = raw.get("description") or raw.get("jobDescription") or ""
     if description and "<" in description:
-        try:
+        with contextlib.suppress(Exception):
             description = BeautifulSoup(description, "html.parser").get_text(separator="\n").strip()
-        except Exception:
-            pass
 
     remote = raw.get("remote") or raw.get("isRemote") or False
     remote_policy = "remote" if remote else _infer_remote(str(location or ""))

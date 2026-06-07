@@ -53,7 +53,7 @@ class CrawlSourceResponse(BaseModel):
     created_at: datetime
 
     @classmethod
-    def from_row(cls, row: CrawlSourceRow) -> "CrawlSourceResponse":
+    def from_row(cls, row: CrawlSourceRow) -> CrawlSourceResponse:
         return cls(
             id=row.id,
             source_type=row.source_type,

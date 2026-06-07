@@ -7,9 +7,10 @@ we strip to plain text and reassemble from multiple content sections.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from collections.abc import Iterable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 from bs4 import BeautifulSoup
@@ -38,7 +39,9 @@ class LeverSource(JobSource):
     def fetch_jobs(self, query: CrawlQuery) -> Iterable[RawJob]:
         url = f"{_API_BASE}/{self.company_slug}?mode=json"
         try:
-            with httpx.Client(headers={"User-Agent": _UA}, timeout=_TIMEOUT, follow_redirects=True) as client:
+            with httpx.Client(
+                headers={"User-Agent": _UA}, timeout=_TIMEOUT, follow_redirects=True
+            ) as client:
                 company_name = _fetch_company_name(self.company_slug, client)
                 resp = client.get(url)
                 resp.raise_for_status()
@@ -75,10 +78,8 @@ class LeverSource(JobSource):
             text = raw.get(key) or ""
             if text:
                 if "<" in text:
-                    try:
+                    with contextlib.suppress(Exception):
                         text = BeautifulSoup(text, "html.parser").get_text(separator="\n").strip()
-                    except Exception:
-                        pass
                 parts.append(text)
                 break
 
@@ -88,10 +89,8 @@ class LeverSource(JobSource):
             label = section.get("text") or ""
             items = section.get("content") or ""
             if items and "<" in items:
-                try:
+                with contextlib.suppress(Exception):
                     items = BeautifulSoup(items, "html.parser").get_text(separator="\n").strip()
-                except Exception:
-                    pass
             chunk = "\n".join(x for x in (label, items) if x)
             if chunk:
                 parts.append(chunk)
@@ -99,10 +98,9 @@ class LeverSource(JobSource):
         additional = raw.get("additional") or ""
         if additional:
             if "<" in additional:
-                try:
-                    additional = BeautifulSoup(additional, "html.parser").get_text(separator="\n").strip()
-                except Exception:
-                    pass
+                with contextlib.suppress(Exception):
+                    additional = BeautifulSoup(additional, "html.parser") \
+                        .get_text(separator="\n").strip()
             parts.append(additional)
 
         description = "\n\n".join(p for p in parts if p)
@@ -110,10 +108,8 @@ class LeverSource(JobSource):
         posted_at: datetime | None = None
         created_ms = raw.get("createdAt")
         if isinstance(created_ms, (int, float)):
-            try:
-                posted_at = datetime.fromtimestamp(created_ms / 1000, tz=timezone.utc)
-            except (ValueError, OSError):
-                pass
+            with contextlib.suppress(ValueError, OSError):
+                posted_at = datetime.fromtimestamp(created_ms / 1000, tz=UTC)
 
         return RawJob(
             source=self.name,

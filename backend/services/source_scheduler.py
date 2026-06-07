@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 import threading
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select
@@ -117,7 +117,7 @@ def _tick() -> None:
     interval_hours = _read_interval_hours()
     if interval_hours == 0:
         return  # scheduler disabled by user
-    cutoff = datetime.now(tz=timezone.utc) - timedelta(hours=interval_hours)
+    cutoff = datetime.now(tz=UTC) - timedelta(hours=interval_hours)
 
     with get_session() as session:
         rows = session.execute(
@@ -146,11 +146,7 @@ def _run_one_safe(source_id: int) -> None:
 
 def _run_one(source_id: int) -> None:
     """Fetch jobs for a single CrawlSource row and score any new ones."""
-    from crawler.greenhouse import GreenhouseSource
-    from crawler.indeed import IndeedSource
-    from crawler.lever import LeverSource
     from crawler.service import CrawlResult, crawl
-    from crawler.wellfound import WellfoundSource
     from llm import get_provider
     from services.scoring_service import ScoringError, score_jobs
 
@@ -239,7 +235,7 @@ def _mark_done(source_id: int, error: str | None) -> None:
     with get_session() as session:
         row = session.get(CrawlSourceRow, source_id)
         if row is not None:
-            row.last_checked_at = datetime.now(tz=timezone.utc)
+            row.last_checked_at = datetime.now(tz=UTC)
             row.last_error = error
             session.commit()
 
@@ -257,7 +253,7 @@ def _read_interval_hours() -> int:
 
 def _as_utc(dt: datetime) -> datetime:
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
+        return dt.replace(tzinfo=UTC)
     return dt
 
 

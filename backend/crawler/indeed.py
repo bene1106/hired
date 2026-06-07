@@ -206,7 +206,8 @@ def _og_or_title(soup: BeautifulSoup, html: str) -> str:
 
 def _jsonld_company(html: str) -> str:
     """Extract hiringOrganization.name from JSON-LD JobPosting schema."""
-    for m in re.finditer(r'<script[^>]+type="application/ld\+json"[^>]*>(.*?)</script>', html, re.DOTALL):
+    pattern = r'<script[^>]+type="application/ld\+json"[^>]*>(.*?)</script>'
+    for m in re.finditer(pattern, html, re.DOTALL):
         try:
             data = json.loads(m.group(1))
             if not isinstance(data, dict):

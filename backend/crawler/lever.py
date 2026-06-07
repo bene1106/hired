@@ -99,8 +99,9 @@ class LeverSource(JobSource):
         if additional:
             if "<" in additional:
                 with contextlib.suppress(Exception):
-                    additional = BeautifulSoup(additional, "html.parser") \
-                        .get_text(separator="\n").strip()
+                    additional = (
+                        BeautifulSoup(additional, "html.parser").get_text(separator="\n").strip()
+                    )
             parts.append(additional)
 
         description = "\n\n".join(p for p in parts if p)

@@ -91,9 +91,11 @@ def run_source_now(source_id: int) -> bool:
 def run_all_now() -> list[int]:
     """Run all enabled sources that are not already running. Returns started IDs."""
     with get_session() as session:
-        rows = session.execute(
-            select(CrawlSourceRow).where(CrawlSourceRow.enabled.is_(True))
-        ).scalars().all()
+        rows = (
+            session.execute(select(CrawlSourceRow).where(CrawlSourceRow.enabled.is_(True)))
+            .scalars()
+            .all()
+        )
 
     started: list[int] = []
     for row in rows:
@@ -120,13 +122,12 @@ def _tick() -> None:
     cutoff = datetime.now(tz=UTC) - timedelta(hours=interval_hours)
 
     with get_session() as session:
-        rows = session.execute(
-            select(CrawlSourceRow).where(CrawlSourceRow.enabled.is_(True))
-        ).scalars().all()
-        due = [
-            r for r in rows
-            if r.last_checked_at is None or _as_utc(r.last_checked_at) < cutoff
-        ]
+        rows = (
+            session.execute(select(CrawlSourceRow).where(CrawlSourceRow.enabled.is_(True)))
+            .scalars()
+            .all()
+        )
+        due = [r for r in rows if r.last_checked_at is None or _as_utc(r.last_checked_at) < cutoff]
 
     logger.debug("Scheduler tick: %d source(s) due out of %d enabled", len(due), len(rows))
     for row in due:
@@ -190,7 +191,10 @@ def _run_one(source_id: int) -> None:
     _mark_done(source_id, error=None)
     logger.info(
         "Source id=%d done: fetched=%d new=%d scored=%d",
-        source_id, result.fetched, result.new, len(ids_to_score),
+        source_id,
+        result.fetched,
+        result.new,
+        len(ids_to_score),
     )
 
 
@@ -222,8 +226,10 @@ def _build_query():
         profile = session.execute(select(ProfileRow).limit(1)).scalar_one_or_none()
         if profile is None:
             from crawler.base import CrawlQuery
+
             return CrawlQuery()
         from crawler.base import CrawlQuery
+
         return CrawlQuery(
             target_roles=list(profile.target_roles_json or []),
             target_locations=list(profile.target_locations_json or []),

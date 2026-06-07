@@ -54,9 +54,7 @@ class ProfileResponse(BaseModel):
     def from_row(cls, row: ProfileRow) -> ProfileResponse:
         # skills_json is the authoritative editable list; fall back to
         # cv_parsed_json["skills"] only when the user hasn't explicitly saved one.
-        skills: list[str] = row.skills_json or (
-            (row.cv_parsed_json or {}).get("skills") or []
-        )
+        skills: list[str] = row.skills_json or ((row.cv_parsed_json or {}).get("skills") or [])
         return cls(
             id=row.id,
             name=row.name,

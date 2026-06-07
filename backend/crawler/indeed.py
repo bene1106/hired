@@ -60,11 +60,7 @@ class IndeedSource(JobSource):
         location = query.target_locations[0] if query.target_locations else "Berlin"
 
         search_url = (
-            f"{_BASE}/jobs"
-            f"?q={quote_plus(role)}"
-            f"&l={quote_plus(location)}"
-            "&fromage=14"
-            "&sort=date"
+            f"{_BASE}/jobs?q={quote_plus(role)}&l={quote_plus(location)}&fromage=14&sort=date"
         )
 
         with httpx.Client(headers=_HEADERS, timeout=_TIMEOUT, follow_redirects=True) as client:
@@ -125,7 +121,7 @@ class IndeedSource(JobSource):
         company = (
             _jsonld_company(html)
             or _text(soup, '[data-testid="inlineHeader-companyName"]')
-            or _text(soup, '[data-company-name]')
+            or _text(soup, "[data-company-name]")
         )
         job_location = _text(soup, '[data-testid="job-location"]') or location
 

@@ -62,9 +62,7 @@ class WellfoundSource(JobSource):
             search_url += f"&roles={quote_plus(role_slug)}"
 
         try:
-            with httpx.Client(
-                headers=_HEADERS, timeout=_TIMEOUT, follow_redirects=True
-            ) as client:
+            with httpx.Client(headers=_HEADERS, timeout=_TIMEOUT, follow_redirects=True) as client:
                 resp = client.get(search_url)
                 resp.raise_for_status()
                 html = resp.text
@@ -74,7 +72,8 @@ class WellfoundSource(JobSource):
 
         all_jobs = list(_parse_next_data(html, query.max_jobs))
         jobs = [
-            j for j in all_jobs
+            j
+            for j in all_jobs
             if location_matches(j.location, j.remote_policy, query.target_locations)
         ]
         if not jobs:
@@ -152,22 +151,23 @@ def _parse_job(raw: dict) -> RawJob | None:
 
     company_obj = raw.get("company") or raw.get("startup") or {}
     company = (
-        company_obj.get("name") if isinstance(company_obj, dict) else None
-    ) or raw.get("companyName") or ""
+        (company_obj.get("name") if isinstance(company_obj, dict) else None)
+        or raw.get("companyName")
+        or ""
+    )
 
     job_id = str(raw.get("id") or raw.get("slug") or "")
     slug = raw.get("slug") or job_id
-    company_slug = (
-        company_obj.get("slug") if isinstance(company_obj, dict) else None
-    ) or ""
-    url = raw.get("url") or (
-        f"{_BASE}/jobs/{company_slug}/{slug}" if company_slug and slug else ""
-    )
+    company_slug = (company_obj.get("slug") if isinstance(company_obj, dict) else None) or ""
+    url = raw.get("url") or (f"{_BASE}/jobs/{company_slug}/{slug}" if company_slug and slug else "")
 
     location_obj = raw.get("location") or raw.get("locationData") or {}
     location = (
-        location_obj.get("displayName") if isinstance(location_obj, dict) else None
-    ) or raw.get("locationName") or raw.get("location") or None
+        (location_obj.get("displayName") if isinstance(location_obj, dict) else None)
+        or raw.get("locationName")
+        or raw.get("location")
+        or None
+    )
     if isinstance(location, dict):
         location = location.get("displayName") or None
 

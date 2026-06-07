@@ -63,7 +63,10 @@ class GreenhouseSource(JobSource):
             return None
 
         job_id = raw.get("id")
-        url = raw.get("absolute_url") or f"https://boards.greenhouse.io/{self.company_slug}/jobs/{job_id}"
+        url = (
+            raw.get("absolute_url")
+            or f"https://boards.greenhouse.io/{self.company_slug}/jobs/{job_id}"
+        )
 
         loc_obj = raw.get("location") or {}
         location = loc_obj.get("name") if isinstance(loc_obj, dict) else None

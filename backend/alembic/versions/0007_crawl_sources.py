@@ -27,7 +27,12 @@ def upgrade() -> None:
         sa.Column("enabled", sa.Boolean(), nullable=False, server_default="1"),
         sa.Column("last_checked_at", sa.DateTime(), nullable=True),
         sa.Column("last_error", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(), server_default=sa.text("(CURRENT_TIMESTAMP)"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(),
+            server_default=sa.text("(CURRENT_TIMESTAMP)"),
+            nullable=False,
+        ),
     )
     # Seed the global scheduler interval (hours) into app_config.
     op.execute(

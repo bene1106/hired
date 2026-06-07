@@ -134,9 +134,13 @@ def trigger_all() -> RunNowResponse:
 @router.get("", response_model=list[CrawlSourceResponse])
 def list_sources() -> list[CrawlSourceResponse]:
     with get_session() as session:
-        rows = session.execute(
-            select(CrawlSourceRow).order_by(CrawlSourceRow.source_type, CrawlSourceRow.id)
-        ).scalars().all()
+        rows = (
+            session.execute(
+                select(CrawlSourceRow).order_by(CrawlSourceRow.source_type, CrawlSourceRow.id)
+            )
+            .scalars()
+            .all()
+        )
         return [CrawlSourceResponse.from_row(r) for r in rows]
 
 

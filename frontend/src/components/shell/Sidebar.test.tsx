@@ -10,7 +10,7 @@ import { Sidebar } from './Sidebar'
 function renderSidebar(path = '/app') {
   return render(
     <MemoryRouter initialEntries={[path]}>
-      <Sidebar />
+      <Sidebar collapsed={false} onToggle={() => {}} />
     </MemoryRouter>,
   )
 }
@@ -70,10 +70,13 @@ describe('Sidebar', () => {
         id: 1,
         name: 'Alex Morgan',
         email: 'alex@example.com',
+        phone: null,
         target_roles: ['Product Designer'],
         target_locations: ['Berlin'],
         target_salary_min: 80000,
         priorities: ['craft'],
+        skills: [],
+        work_formats: [],
         cv_text: 'cv',
         cv_parsed_json: null,
         profile_version: 1,

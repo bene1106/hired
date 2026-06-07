@@ -112,9 +112,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             className={({ isActive }) =>
               cn(
                 'flex w-full items-center rounded-[7px] border transition-colors',
-                collapsed
-                  ? 'justify-center px-1.5 py-2'
-                  : 'gap-2.5 px-2.5 py-2 text-[13px]',
+                collapsed ? 'justify-center px-1.5 py-2' : 'gap-2.5 px-2.5 py-2 text-[13px]',
                 isActive
                   ? 'border-line bg-surface font-medium text-ink shadow-sm'
                   : 'border-transparent text-ink-2 hover:bg-surface-2',

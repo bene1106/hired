@@ -392,8 +392,7 @@ export const api = {
   updateSource: (id: number, payload: UpdateSourcePayload): Promise<JobSourceConfig> =>
     request(`/api/sources/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
 
-  deleteSource: (id: number): Promise<void> =>
-    request(`/api/sources/${id}`, { method: 'DELETE' }),
+  deleteSource: (id: number): Promise<void> => request(`/api/sources/${id}`, { method: 'DELETE' }),
 
   runSourceNow: (id: number): Promise<{ started: number[] }> =>
     request(`/api/sources/${id}/run-now`, { method: 'POST' }),

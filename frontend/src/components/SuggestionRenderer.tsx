@@ -54,7 +54,10 @@ function chipClassFor(type: string): string {
 function parseStructured(content: string): StructuredSuggestions | null {
   try {
     // Strip markdown code fences (```json ... ``` or ``` ... ```)
-    const stripped = content.trim().replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '')
+    const stripped = content
+      .trim()
+      .replace(/^```(?:json)?\s*\n?/, '')
+      .replace(/\n?```\s*$/, '')
     const parsed: unknown = JSON.parse(stripped)
     return isStructuredSuggestions(parsed) ? parsed : null
   } catch {

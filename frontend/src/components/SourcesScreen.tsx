@@ -30,7 +30,8 @@ const SOURCE_META: Record<
   },
   lever: {
     label: 'Lever',
-    description: "Fetches all published postings from a company's Lever board via the public JSON API.",
+    description:
+      "Fetches all published postings from a company's Lever board via the public JSON API.",
     needsSlug: true,
     slugPlaceholder: 'company-slug  (e.g. vercel)',
   },
@@ -254,9 +255,7 @@ export function SourcesScreen() {
                 {starting && !anyRunning ? 'Starting…' : 'Fetching and scoring jobs…'}
               </span>
               {runningLabels.length > 0 && (
-                <span className="ml-1.5 text-[12px] text-ink-3">
-                  {runningLabels.join(', ')}
-                </span>
+                <span className="ml-1.5 text-[12px] text-ink-3">{runningLabels.join(', ')}</span>
               )}
             </div>
           </div>
@@ -265,12 +264,14 @@ export function SourcesScreen() {
 
       {/* Done banner — honest about what actually happened */}
       {showDone && (
-        <div className={cn(
-          'mb-5 flex items-center gap-3 rounded-lg border px-4 py-3',
-          completionNewJobs! > 0
-            ? 'border-brand-green-soft bg-brand-green-soft/40'
-            : 'border-line bg-surface-2',
-        )}>
+        <div
+          className={cn(
+            'mb-5 flex items-center gap-3 rounded-lg border px-4 py-3',
+            completionNewJobs! > 0
+              ? 'border-brand-green-soft bg-brand-green-soft/40'
+              : 'border-line bg-surface-2',
+          )}
+        >
           <Icon
             name={completionNewJobs! > 0 ? 'check' : 'refresh'}
             size={14}
@@ -304,11 +305,18 @@ export function SourcesScreen() {
           <Icon name="sparkle" size={14} className="shrink-0 text-info" />
           <span className="flex-1 text-[13px] text-ink">
             {unscoredCount} job{unscoredCount > 1 ? 's' : ''} in your database{' '}
-            {unscoredCount > 1 ? 'haven\'t' : 'hasn\'t'} been scored yet against your current profile.
+            {unscoredCount > 1 ? "haven't" : "hasn't"} been scored yet against your current profile.
           </span>
-          <Button size="sm" variant="outline" onClick={() => void handleRescore()} disabled={rescoring}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => void handleRescore()}
+            disabled={rescoring}
+          >
             {rescoring ? (
-              <><Icon name="refresh" size={11} className="animate-spin" /> Scoring…</>
+              <>
+                <Icon name="refresh" size={11} className="animate-spin" /> Scoring…
+              </>
             ) : (
               'Score now'
             )}
@@ -455,15 +463,13 @@ function SourceTypeCard({
               />
             ))}
           </div>
+        ) : !meta.needsSlug ? (
+          // Wellfound/Indeed: show a "not added yet" row with a single Add button
+          <AddSearchSourceRow type={type} meta={meta} onCreated={onCreated} />
         ) : (
-          !meta.needsSlug ? (
-            // Wellfound/Indeed: show a "not added yet" row with a single Add button
-            <AddSearchSourceRow type={type} meta={meta} onCreated={onCreated} />
-          ) : (
-            <p className="text-[12px] text-ink-4">
-              No companies added yet. Click <strong>Add</strong> to configure one.
-            </p>
-          )
+          <p className="text-[12px] text-ink-4">
+            No companies added yet. Click <strong>Add</strong> to configure one.
+          </p>
         )}
       </CardContent>
     </Card>
@@ -516,7 +522,10 @@ function SourceRow({ source, onDelete, onToggle, onRunOne }: SourceRowProps) {
             Checked: {formatChecked(source.last_checked_at)}
           </span>
           {source.last_error && (
-            <span className="max-w-[300px] truncate text-[11px] text-warn" title={source.last_error}>
+            <span
+              className="max-w-[300px] truncate text-[11px] text-warn"
+              title={source.last_error}
+            >
               {source.last_error}
             </span>
           )}
@@ -547,7 +556,11 @@ function SourceRow({ source, onDelete, onToggle, onRunOne }: SourceRowProps) {
         disabled={running || source.is_running}
         onClick={() => void handleRunOne()}
       >
-        <Icon name="refresh" size={11} className={running || source.is_running ? 'animate-spin' : ''} />
+        <Icon
+          name="refresh"
+          size={11}
+          className={running || source.is_running ? 'animate-spin' : ''}
+        />
         Run
       </Button>
 
@@ -597,7 +610,13 @@ function AddSearchSourceRow({ type, meta, onCreated }: AddSearchSourceRowProps) 
         Uses your profile's target role and location as search terms.
       </p>
       {err && <p className="text-[12px] text-warn">{err}</p>}
-      <Button size="sm" variant="outline" className="self-start" onClick={() => void handleAdd()} disabled={saving}>
+      <Button
+        size="sm"
+        variant="outline"
+        className="self-start"
+        onClick={() => void handleAdd()}
+        disabled={saving}
+      >
         <Icon name="plus" size={12} /> {saving ? 'Adding…' : `Enable ${meta.label}`}
       </Button>
     </div>

@@ -63,6 +63,10 @@ export function MaterialsScreen({ mode, jobId, applicationId }: MaterialsScreenP
   const [savingStatus, setSavingStatus] = useState(false)
   const [rejectionNote, setRejectionNote] = useState('')
   const [regenerating, setRegenerating] = useState<MaterialType | null>(null)
+  // The finished CV to export lives on the profile (`cv_text`), not in the
+  // application materials. `cv_suggestions` is the internal tailoring analysis
+  // and must never be what the CV PDF exports — so we load the résumé here.
+  const [cvText, setCvText] = useState<string | null>(null)
   const { message: toastMsg, show: showToast } = useToast()
 
   const startedRef = useRef(false)
@@ -70,6 +74,22 @@ export function MaterialsScreen({ mode, jobId, applicationId }: MaterialsScreenP
   const loadDetail = useCallback(async (id: number) => {
     const data = await api.getApplication(id)
     setDetail(data)
+  }, [])
+
+  // Load the user's finished résumé once so the CV tab can export it as a PDF.
+  useEffect(() => {
+    let cancelled = false
+    void api
+      .getProfile()
+      .then((profile) => {
+        if (!cancelled) setCvText(profile?.cv_text ?? null)
+      })
+      .catch(() => {
+        if (!cancelled) setCvText(null)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   // --- generate mode: kick off the pipeline once -------------------------
@@ -361,6 +381,7 @@ export function MaterialsScreen({ mode, jobId, applicationId }: MaterialsScreenP
                   onSave={onSaveCover}
                   onRegenerate={() => onRegenerate('cover_letter')}
                   regenerating={regenerating === 'cover_letter'}
+                  onDownloaded={() => showToast('Cover letter PDF saved')}
                 />
               ) : (
                 <p className="text-[13px] text-ink-3">No cover letter yet.</p>
@@ -373,13 +394,17 @@ export function MaterialsScreen({ mode, jobId, applicationId }: MaterialsScreenP
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() =>
+                      disabled={!cvText}
+                      title={cvText ? undefined : 'Add a CV to your profile to export it as a PDF.'}
+                      onClick={() => {
+                        if (!cvText) return
                         downloadCvPdf({
-                          content: materials.cv_suggestions!.content,
+                          content: cvText,
                           jobTitle: job?.title,
                           company: job?.company,
                         })
-                      }
+                        showToast('CV PDF saved')
+                      }}
                     >
                       <Icon name="download" size={12} /> Download PDF
                     </Button>
@@ -504,6 +529,8 @@ interface CoverLetterEditorProps {
   onSave: (content: string) => Promise<void>
   onRegenerate: () => Promise<void>
   regenerating: boolean
+  /** Called after a successful PDF download so the parent can show a toast. */
+  onDownloaded: () => void
 }
 
 type CoverView = 'edit' | 'preview'
@@ -515,6 +542,7 @@ function CoverLetterEditor({
   onSave,
   onRegenerate,
   regenerating,
+  onDownloaded,
 }: CoverLetterEditorProps) {
   const [draft, setDraft] = useState(material.content)
   const [saving, setSaving] = useState(false)
@@ -567,7 +595,10 @@ function CoverLetterEditor({
         <Button
           size="sm"
           variant="outline"
-          onClick={() => downloadCoverLetterPdf({ content: draft, jobTitle, company })}
+          onClick={() => {
+            downloadCoverLetterPdf({ content: draft, jobTitle, company })
+            onDownloaded()
+          }}
         >
           <Icon name="download" size={12} /> Download PDF
         </Button>

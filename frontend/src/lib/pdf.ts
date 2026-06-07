@@ -24,9 +24,6 @@ interface FontSpec {
 }
 
 const BODY: FontSpec = { size: 11, leading: 16, style: 'normal' }
-const HEADING: FontSpec = { size: 15, leading: 22, style: 'bold' }
-const SUBHEADING: FontSpec = { size: 12, leading: 18, style: 'bold' }
-const LABEL: FontSpec = { size: 8, leading: 12, style: 'bold' }
 
 /**
  * Split plain text into paragraphs on blank lines. Single newlines inside a
@@ -59,58 +56,6 @@ export function stripInlineMarkdown(text: string): string {
     .replace(/`(.+?)`/g, '$1')
     .replace(/^#{1,6}\s+/gm, '')
     .replace(/^\s*[-*]\s+/gm, '• ')
-}
-
-interface CvSuggestion {
-  type: string
-  current: string
-  suggestion: string
-  rationale: string
-}
-
-interface CvDocument {
-  overallFit: string | null
-  suggestions: CvSuggestion[]
-  /** Raw markdown/plain text fallback when content is not structured JSON. */
-  raw: string | null
-}
-
-/**
- * Parse the cv_suggestions material content. Mirrors SuggestionRenderer:
- * structured JSON ({ overall_fit?, suggestions: [...] }) renders as cards,
- * anything else is treated as markdown/plain text.
- */
-export function parseCvContent(content: string): CvDocument {
-  try {
-    const parsed: unknown = JSON.parse(content)
-    if (typeof parsed === 'object' && parsed !== null) {
-      const record = parsed as Record<string, unknown>
-      const suggestions = Array.isArray(record.suggestions)
-        ? record.suggestions.filter(isCvSuggestion)
-        : []
-      if (suggestions.length > 0 || typeof record.overall_fit === 'string') {
-        return {
-          overallFit: typeof record.overall_fit === 'string' ? record.overall_fit : null,
-          suggestions,
-          raw: null,
-        }
-      }
-    }
-  } catch {
-    // fall through to raw
-  }
-  return { overallFit: null, suggestions: [], raw: content }
-}
-
-function isCvSuggestion(value: unknown): value is CvSuggestion {
-  if (typeof value !== 'object' || value === null) return false
-  const r = value as Record<string, unknown>
-  return (
-    typeof r.type === 'string' &&
-    typeof r.current === 'string' &&
-    typeof r.suggestion === 'string' &&
-    typeof r.rationale === 'string'
-  )
 }
 
 /** Slugify a string for use in a download filename. */
@@ -158,11 +103,23 @@ class Layout {
     }
   }
 
-  rule() {
-    this.ensureRoom(8)
-    this.doc.setDrawColor(210)
-    this.doc.line(MARGIN, this.y, PAGE.width - MARGIN, this.y)
-    this.y += 8
+  /**
+   * Render text preserving its source line structure: each newline starts a
+   * new line, a blank line becomes a small vertical gap. Long lines still
+   * wrap to the content width. Unlike `splitParagraphs` (which collapses
+   * single newlines for prose), a résumé's line breaks — section headers,
+   * one-bullet-per-line entries — carry meaning, so we keep them.
+   */
+  lines(value: string, font: FontSpec) {
+    const sourceLines = value.replace(/\r\n/g, '\n').split('\n')
+    for (const raw of sourceLines) {
+      const line = raw.trimEnd()
+      if (line.length === 0) {
+        this.gap(font.leading * 0.5)
+        continue
+      }
+      this.text(line, font)
+    }
   }
 }
 
@@ -212,63 +169,28 @@ export function downloadCoverLetterPdf(input: CoverLetterPdfInput): void {
 }
 
 export interface CvPdfInput {
-  /** The cv_suggestions material content (structured JSON or markdown). */
+  /**
+   * The finished CV to export — the user's résumé text from their profile
+   * (`profile.cv_text`). This is the application-ready document, NOT the
+   * internal `cv_suggestions` tailoring analysis, which stays in the UI and
+   * must never end up in the exported CV PDF.
+   */
   content: string
   jobTitle?: string | null
   company?: string | null
 }
 
 /**
- * Build a clean "tailored CV" PDF from the cv_suggestions material. Structured
- * suggestions render as a titled document (Overall fit + one block per
- * suggestion with Current / Suggestion / Rationale). Unstructured content is
- * laid out as plain prose.
+ * Build a clean CV PDF from the user's finished résumé text. The source line
+ * structure is preserved (section headers, bullet lines) and laid out as
+ * selectable text with no app chrome. Layout fidelity to the original upload
+ * is a separate concern (see the export-layout work) — this renders the
+ * stored plain-text résumé faithfully.
  */
 export function buildCvPdf(input: CvPdfInput): jsPDF {
   const doc = newDoc()
   const layout = new Layout(doc)
-  const parsed = parseCvContent(input.content)
-
-  const titleParts = ['CV tailoring', input.jobTitle ?? undefined].filter(Boolean) as string[]
-  layout.text(titleParts.join(' — '), HEADING)
-  layout.gap(6)
-
-  if (parsed.raw !== null) {
-    for (const para of splitParagraphs(stripInlineMarkdown(parsed.raw))) {
-      layout.text(para, BODY)
-      layout.gap(BODY.leading * 0.6)
-    }
-    return doc
-  }
-
-  if (parsed.overallFit) {
-    layout.text('Overall fit', LABEL)
-    layout.gap(2)
-    layout.text(parsed.overallFit, BODY)
-    layout.gap(BODY.leading * 0.6)
-  }
-
-  for (let i = 0; i < parsed.suggestions.length; i += 1) {
-    const s = parsed.suggestions[i]
-    if (i > 0) {
-      layout.gap(4)
-      layout.rule()
-    }
-    layout.text(s.type.toUpperCase(), SUBHEADING)
-    layout.gap(2)
-
-    layout.text('Current', LABEL)
-    layout.text(s.current, BODY)
-    layout.gap(4)
-
-    layout.text('Suggestion', LABEL)
-    layout.text(s.suggestion, BODY)
-    layout.gap(4)
-
-    layout.text('Rationale', LABEL)
-    layout.text(s.rationale, BODY)
-  }
-
+  layout.lines(stripInlineMarkdown(input.content), BODY)
   return doc
 }
 

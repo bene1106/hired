@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Cover letter PDF export.** The Application-Detail cover-letter tab now has
+  a "Download PDF" button that produces a clean, plain document (real selectable
+  text via jsPDF) with the salutation, paragraphs, and sign-off — no app UI
+  chrome.
+- **Tailored CV PDF export.** The CV tab can export the tailoring suggestions
+  (Overall fit + per-suggestion Current / Suggestion / Rationale, or the raw
+  markdown when unstructured) as a cleanly formatted PDF.
+
+### Changed
+
+- **Wider, rebalanced Application-Detail view.** The layout now uses the
+  available desktop width (cap raised to 1600px) with an asymmetric split — a
+  narrow Job-post / Company-research column beside a much wider generated-content
+  area — so all three tabs (Cover letter / CV / Interview prep) breathe.
+- **Readable cover-letter editor.** The cramped side-by-side Edit/Preview split
+  is replaced by a full-width Edit | Preview toggle: a roomier editor with
+  comfortable line-height, and a typeset preview that turns blank-line
+  paragraphs and hard-wrapped salutation/sign-off lines into proper formatting.
+- **Full-width CV suggestion cards** with Current vs Suggestion shown
+  side-by-side on wide screens, plus a wider, better-balanced Interview-prep
+  layout (Question Bank vs Practice/Coach).
+
 ## [0.3.7] - 2026-05-31
 
 ### Fixed

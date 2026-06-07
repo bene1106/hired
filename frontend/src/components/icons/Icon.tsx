@@ -29,6 +29,7 @@ export type IconName =
   | 'send'
   | 'trash'
   | 'plus'
+  | 'download'
 
 const PATHS: Record<IconName, ReactElement> = {
   feed: <path d="M4 7h16M4 12h16M4 17h10" />,
@@ -94,6 +95,7 @@ const PATHS: Record<IconName, ReactElement> = {
     </>
   ),
   plus: <path d="M12 5v14M5 12h14" />,
+  download: <path d="M12 3v12M7 10l5 5 5-5M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />,
 }
 
 export interface IconProps {

@@ -1,12 +1,12 @@
 # Hired.
 
-> Find jobs, write tailored applications, and prep for interviews — entirely on your own machine. No cloud backend, no third-party data collection, no subscription beyond whichever LLM you already have.
+> Find jobs, write tailored applications, and prep for interviews, entirely on your own machine. No cloud backend, no third-party data collection, no subscription beyond whichever LLM you already have.
 
-Hired. is a desktop app (macOS · Windows · Linux) that runs your job search end-to-end against a local SQLite database and a pluggable LLM provider. Plug in **Claude Code**, **Ollama**, or the **Anthropic API** — switch any time without losing data.
+Hired. is a desktop app (macOS · Windows · Linux) that runs your job search end-to-end against a local SQLite database and a pluggable LLM provider. Plug in **Claude Code**, **Ollama**, or the **Anthropic API**; switch any time without losing data.
 
 ## Screenshots
 
-v0.2.0 introduces a full redesign — a warm off-white / deep-ink / muted-green
+v0.2.0 introduces a full redesign, a warm off-white / deep-ink / muted-green
 visual language with light **and** dark mode, a two-column app shell, a redesigned
 onboarding wizard, a restyled ranked feed, a unified materials screen, and a
 five-column Kanban board for applications.
@@ -31,7 +31,7 @@ Download the latest installer for your OS from the [Releases page](https://githu
 | Windows | `Hired._<version>_x64-setup.exe` or `…_x64_en-US.msi` |
 | Linux   | `Hired._<version>_amd64.AppImage` (or `.deb`)        |
 
-Builds are currently **unsigned** — your OS will prompt the first time you launch:
+Builds are currently **unsigned**; your OS will prompt the first time you launch:
 
 - **macOS**: right-click the app → *Open*. See [`docs/install/macos.md`](docs/install/macos.md).
 - **Windows**: SmartScreen → *More info* → *Run anyway*. See [`docs/install/windows.md`](docs/install/windows.md).
@@ -42,7 +42,7 @@ Builds are currently **unsigned** — your OS will prompt the first time you lau
 ```bash
 git clone https://github.com/bene1106/hired
 cd hired
-./scripts/bootstrap.sh    # macOS/Linux — or scripts\bootstrap.ps1 on Windows
+./scripts/bootstrap.sh    # macOS/Linux, or scripts\bootstrap.ps1 on Windows
 pnpm tauri dev            # opens the app window
 ```
 
@@ -53,7 +53,7 @@ Requires Node 20+, Python 3.11+, and a Rust toolchain.
 1. **Pick a provider** during onboarding. The wizard probes for an Anthropic API key, the local `claude` CLI, and a running Ollama server, and lets you test each end-to-end before committing.
 2. **Upload your CV.** PDF or paste; it's parsed once into a structured profile and stored locally.
 3. **Crawl jobs.** Paste URLs (the reliable path) or kick off an experimental LinkedIn run. Jobs are deduped and scored against your profile.
-4. **Apply.** Hired. researches the company, tailors your CV, and drafts a cover letter — all editable side-by-side with a live markdown preview.
+4. **Apply.** Hired. researches the company, tailors your CV, and drafts a cover letter, all editable side-by-side with a live markdown preview.
 5. **Interview prep.** A cached question bank per application plus a practice mode that critiques your answers.
 
 The defining constraint is local-first: your CV, jobs, applications, and API keys never leave your machine. The keychain stores secrets via the OS-native API (Keychain Access / Credential Manager / Secret Service).
@@ -116,4 +116,4 @@ See [`CLAUDE.md`](CLAUDE.md) for the full conventions, decision hierarchy, and p
 
 ## License
 
-MIT — see [`LICENSE`](LICENSE).
+MIT, see [`LICENSE`](LICENSE).

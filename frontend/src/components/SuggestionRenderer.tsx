@@ -53,7 +53,9 @@ function chipClassFor(type: string): string {
 
 function parseStructured(content: string): StructuredSuggestions | null {
   try {
-    const parsed: unknown = JSON.parse(content)
+    // Strip markdown code fences (```json ... ``` or ``` ... ```)
+    const stripped = content.trim().replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '')
+    const parsed: unknown = JSON.parse(stripped)
     return isStructuredSuggestions(parsed) ? parsed : null
   } catch {
     return null
@@ -67,7 +69,7 @@ export function SuggestionRenderer({ content }: { content: string }) {
 
   if (!structured) {
     return (
-      <div className="prose prose-sm max-w-none">
+      <div className="prose prose-sm max-w-none overflow-x-auto [&_pre]:whitespace-pre-wrap [&_code]:break-all">
         <ReactMarkdown>{content}</ReactMarkdown>
       </div>
     )

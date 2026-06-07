@@ -38,6 +38,9 @@ class Profile(Base):
     target_locations_json: Mapped[list | None] = mapped_column(JSON)
     target_salary_min: Mapped[int | None] = mapped_column(Integer)
     priorities_json: Mapped[list | None] = mapped_column(JSON)
+    phone: Mapped[str | None] = mapped_column(String(64))
+    skills_json: Mapped[list | None] = mapped_column(JSON)
+    work_formats_json: Mapped[list | None] = mapped_column(JSON)
     cv_text: Mapped[str | None] = mapped_column(Text)
     cv_parsed_json: Mapped[dict | None] = mapped_column(JSON)
     # Bumped on every profile mutation. Score cache keys on this so a profile
@@ -50,6 +53,30 @@ class Profile(Base):
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
+class CrawlSource(Base):
+    """One configured job source — a Greenhouse/Lever company board or a
+    Wellfound/Indeed keyword search. The background scheduler checks each
+    enabled row against ``last_checked_at + interval_hours`` to decide
+    whether a run is due."""
+
+    __tablename__ = "crawl_sources"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    # "greenhouse" | "lever" | "wellfound" | "indeed"
+    source_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    # company board slug for greenhouse/lever; null for wellfound/indeed
+    company_slug: Mapped[str | None] = mapped_column(String(255))
+    # human-readable display name shown in the UI
+    label: Mapped[str] = mapped_column(String(255), nullable=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime)
+    # null on success; last error message on failure
+    last_error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
     )
 
 

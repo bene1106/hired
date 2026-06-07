@@ -6,17 +6,29 @@ import { Icon } from '@/components/icons/Icon'
 import { Toast, useToast } from '@/components/Toast'
 import { api } from '@/lib/api'
 import type { ProfileResponse } from '@/lib/types'
+import { cn } from '@/lib/utils'
 
 interface PreferencesPanelProps {
   profile: ProfileResponse
   onSaved: (next: ProfileResponse) => void
 }
 
+const WORK_FORMAT_OPTIONS = [
+  'Full-time',
+  'Part-time',
+  'Hybrid',
+  'Remote',
+  'On-site',
+  'Internship',
+  'Working student',
+]
+
 interface DraftState {
   roles: string[]
   locations: string[]
   salaryMin: string
   priorities: string
+  workFormats: string[]
 }
 
 function fromProfile(p: ProfileResponse): DraftState {
@@ -25,6 +37,7 @@ function fromProfile(p: ProfileResponse): DraftState {
     locations: p.target_locations,
     salaryMin: p.target_salary_min === null ? '' : String(p.target_salary_min),
     priorities: p.priorities.join('\n'),
+    workFormats: p.work_formats ?? [],
   }
 }
 
@@ -54,7 +67,8 @@ export function PreferencesPanel({ profile, onSaved }: PreferencesPanelProps) {
     !arraysEqual(draft.roles, profile.target_roles) ||
     !arraysEqual(draft.locations, profile.target_locations) ||
     parsedSalary(draft.salaryMin) !== profile.target_salary_min ||
-    !arraysEqual(parsePriorities(draft.priorities), profile.priorities)
+    !arraysEqual(parsePriorities(draft.priorities), profile.priorities) ||
+    !arraysEqual(draft.workFormats, profile.work_formats ?? [])
 
   async function save() {
     setSaving(true)
@@ -65,6 +79,7 @@ export function PreferencesPanel({ profile, onSaved }: PreferencesPanelProps) {
         target_locations: draft.locations,
         target_salary_min: parsedSalary(draft.salaryMin),
         priorities: parsePriorities(draft.priorities),
+        work_formats: draft.workFormats,
       })
       onSaved(next)
       toast.show('Preferences saved')
@@ -100,6 +115,36 @@ export function PreferencesPanel({ profile, onSaved }: PreferencesPanelProps) {
             placeholder="Berlin, Remote (EU)…"
             testId="locations-input"
           />
+        </Field>
+
+        <Field label="Work format" hint="Select all that interest you.">
+          <div className="flex flex-wrap gap-1.5">
+            {WORK_FORMAT_OPTIONS.map((fmt) => {
+              const active = draft.workFormats.includes(fmt)
+              return (
+                <button
+                  key={fmt}
+                  type="button"
+                  onClick={() =>
+                    setDraft((d) => ({
+                      ...d,
+                      workFormats: active
+                        ? d.workFormats.filter((x) => x !== fmt)
+                        : [...d.workFormats, fmt],
+                    }))
+                  }
+                  className={cn(
+                    'rounded-full border px-3 py-1 text-[12px] transition-colors',
+                    active
+                      ? 'border-brand-green bg-brand-green-soft font-medium text-brand-green'
+                      : 'border-line bg-surface text-ink-3 hover:border-line-strong hover:text-ink',
+                  )}
+                >
+                  {fmt}
+                </button>
+              )
+            })}
+          </div>
         </Field>
 
         <Field label="Minimum salary (EUR / year)" hint="Optional. Leave blank to skip.">

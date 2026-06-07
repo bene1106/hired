@@ -90,6 +90,13 @@ def upsert_profile_with_cv(cv_text: str, parsed: dict[str, Any]) -> ProfileRow:
             row.name = parsed["name"]
         if not row.email and parsed.get("email"):
             row.email = parsed["email"]
+        if not row.phone and parsed.get("phone"):
+            row.phone = parsed["phone"]
+        # Seed skills_json from the parsed list only on first upload; the
+        # user can then add/remove skills in the review step without losing
+        # their edits on a re-upload.
+        if not row.skills_json and parsed.get("skills"):
+            row.skills_json = parsed["skills"]
 
         # CV re-upload changes the skill/experience signal the scorer sees,
         # so bump profile_version to invalidate cached scores.

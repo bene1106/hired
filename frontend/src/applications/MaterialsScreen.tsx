@@ -57,7 +57,7 @@ export function MaterialsScreen({ mode, jobId, applicationId }: MaterialsScreenP
   const [status, setStatus] = useState<GenerationStatus | null>(null)
   const [detail, setDetail] = useState<ApplicationDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [tab, setTab] = useState<Tab>('job')
+  const [tab, setTab] = useState<Tab>('cover')
   const [marking, setMarking] = useState(false)
   const [savingStatus, setSavingStatus] = useState(false)
   const [rejectionNote, setRejectionNote] = useState('')

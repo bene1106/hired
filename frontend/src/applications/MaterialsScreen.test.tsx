@@ -71,14 +71,15 @@ describe('MaterialsScreen (detail mode)', () => {
     const textarea = (await screen.findByLabelText(/edit/i)) as HTMLTextAreaElement
     expect(textarea.value).toMatch(/Dear hiring team/i)
 
-    // Company brief retained as the secondary "Company research" block.
-    expect(screen.getByTestId('company-research')).toHaveTextContent(/AcmeCo brief/i)
+    // Company brief is behind the Company research tab.
+    await userEvent.click(screen.getByRole('button', { name: /company research/i }))
+    expect(await screen.findByTestId('company-research')).toHaveTextContent(/AcmeCo brief/i)
 
-    // CV behind its tab; Interview prep is offered in detail mode.
-    expect(screen.getByRole('button', { name: /^cv$/i })).toBeInTheDocument()
+    // CV and Interview prep tabs are offered in detail mode.
+    expect(screen.getByRole('button', { name: /cv suggestions/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /interview prep/i })).toBeInTheDocument()
 
-    await userEvent.click(screen.getByRole('button', { name: /^cv$/i }))
+    await userEvent.click(screen.getByRole('button', { name: /cv suggestions/i }))
     expect(await screen.findByText(/Emphasise FastAPI/i)).toBeInTheDocument()
   })
 

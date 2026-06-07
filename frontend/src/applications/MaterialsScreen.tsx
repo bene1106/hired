@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { ApiError, api } from '@/lib/api'
+import { downloadCoverLetterPdf, downloadCvPdf } from '@/lib/pdf'
 import type {
   ApplicationDetail,
   ApplicationStatus,
@@ -62,6 +63,10 @@ export function MaterialsScreen({ mode, jobId, applicationId }: MaterialsScreenP
   const [savingStatus, setSavingStatus] = useState(false)
   const [rejectionNote, setRejectionNote] = useState('')
   const [regenerating, setRegenerating] = useState<MaterialType | null>(null)
+  // The finished CV to export lives on the profile (`cv_text`), not in the
+  // application materials. `cv_suggestions` is the internal tailoring analysis
+  // and must never be what the CV PDF exports — so we load the résumé here.
+  const [cvText, setCvText] = useState<string | null>(null)
   const { message: toastMsg, show: showToast } = useToast()
 
   const startedRef = useRef(false)
@@ -69,6 +74,22 @@ export function MaterialsScreen({ mode, jobId, applicationId }: MaterialsScreenP
   const loadDetail = useCallback(async (id: number) => {
     const data = await api.getApplication(id)
     setDetail(data)
+  }, [])
+
+  // Load the user's finished résumé once so the CV tab can export it as a PDF.
+  useEffect(() => {
+    let cancelled = false
+    void api
+      .getProfile()
+      .then((profile) => {
+        if (!cancelled) setCvText(profile?.cv_text ?? null)
+      })
+      .catch(() => {
+        if (!cancelled) setCvText(null)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   // --- generate mode: kick off the pipeline once -------------------------
@@ -194,18 +215,16 @@ export function MaterialsScreen({ mode, jobId, applicationId }: MaterialsScreenP
     }
   }
 
-  const tabs: { id: Tab; label: string; icon: 'file' | 'mail' | 'sparkle' | 'building' }[] = [
-    { id: 'job', label: 'Job post', icon: 'file' },
+  const tabs: { id: Tab; label: string; icon: 'mail' | 'file' | 'sparkle' }[] = [
     { id: 'cover', label: 'Cover letter', icon: 'mail' },
-    { id: 'cv', label: 'CV suggestions', icon: 'sparkle' },
-    { id: 'research', label: 'Company research', icon: 'building' },
+    { id: 'cv', label: 'CV', icon: 'file' },
     ...(mode === 'detail'
       ? [{ id: 'interview' as const, label: 'Interview prep', icon: 'sparkle' as const }]
       : []),
   ]
 
   return (
-    <div className="screen mx-auto max-w-[960px] px-8 py-6">
+    <div className="screen mx-auto max-w-[1600px] px-8 py-6">
       {/* Toolbar */}
       <div className="mb-5 flex items-center justify-between gap-3">
         <Button
@@ -291,88 +310,128 @@ export function MaterialsScreen({ mode, jobId, applicationId }: MaterialsScreenP
         </div>
       ) : null}
 
-      {/* Tab bar */}
-      <div className="mb-4 flex items-center gap-1 border-b border-line">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={cn(
-              'flex items-center gap-1.5 border-b-2 px-3 py-2 text-[13px] transition-colors',
-              tab === t.id
-                ? '-mb-px border-ink font-medium text-ink'
-                : 'border-transparent text-ink-3 hover:text-ink-2',
+      {/* Asymmetric split: narrow job post + research | wide generated tabs */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
+        <div className="flex flex-col gap-4">
+          <Card className="p-5">
+            <div className="mb-2 flex items-center gap-2">
+              <Icon name="file" size={13} className="text-ink-3" />
+              <span className="text-[12px] font-medium text-ink">Job post</span>
+            </div>
+            {job?.description ? (
+              <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-ink-2">
+                {job.description}
+              </p>
+            ) : (
+              <p className="text-[13px] text-ink-3">
+                No job description was captured for this role.
+              </p>
             )}
-          >
-            <Icon name={t.icon} size={13} /> {t.label}
-          </button>
-        ))}
-        {!generating && mode === 'generate' ? (
-          <span className="chip chip-green ml-auto mb-1">Generated</span>
-        ) : null}
-      </div>
+          </Card>
 
-      {/* Full-width content panel */}
-      <Card className="min-h-[520px] p-6">
-        {generating ? (
-          <GeneratingState status={status} />
-        ) : tab === 'job' ? (
-          job?.description ? (
-            <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-ink-2">
-              {job.description}
-            </p>
-          ) : (
-            <p className="text-[13px] text-ink-3">No job description was captured for this role.</p>
-          )
-        ) : tab === 'cover' ? (
-          materials?.cover_letter ? (
-            <CoverLetterEditor
-              material={materials.cover_letter}
-              onSave={onSaveCover}
-              onRegenerate={() => onRegenerate('cover_letter')}
-              regenerating={regenerating === 'cover_letter'}
-            />
-          ) : (
-            <p className="text-[13px] text-ink-3">No cover letter yet.</p>
-          )
-        ) : tab === 'cv' ? (
-          materials?.cv_suggestions ? (
-            <div className="flex flex-col gap-3">
-              <SuggestionRenderer content={materials.cv_suggestions.content} />
-              <div className="flex justify-end">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={regenerating === 'cv_suggestions'}
-                  onClick={() => onRegenerate('cv_suggestions')}
-                >
-                  <Icon
-                    name="refresh"
-                    size={12}
-                    className={regenerating === 'cv_suggestions' ? 'animate-spin' : ''}
-                  />{' '}
-                  {regenerating === 'cv_suggestions' ? 'Regenerating…' : 'Regenerate'}
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <p className="text-[13px] text-ink-3">No CV tailoring yet.</p>
-          )
-        ) : tab === 'research' ? (
-          materials?.company_brief ? (
-            <div
-              className="prose prose-sm max-w-none text-[13px] leading-relaxed text-ink-2"
-              data-testid="company-research"
-            >
-              <ReactMarkdown>{materials.company_brief.content}</ReactMarkdown>
-            </div>
-          ) : (
-            <p className="text-[13px] text-ink-3">No company research yet.</p>
-          )
-        ) : appId !== null ? (
-          <InterviewPanel applicationId={appId} />
-        ) : null}
-      </Card>
+          {materials?.company_brief ? (
+            <Card className="p-0">
+              <details data-testid="company-research">
+                <summary className="cursor-pointer list-none px-5 py-3 text-[12px] font-medium text-ink">
+                  Company research
+                  <span className="ml-2 font-normal text-ink-3">
+                    — used to shape the cover letter
+                  </span>
+                </summary>
+                <div className="border-t border-line px-5 py-4 text-[13px] leading-relaxed text-ink-2">
+                  <div className="prose prose-sm max-w-none">
+                    <ReactMarkdown>{materials.company_brief.content}</ReactMarkdown>
+                  </div>
+                </div>
+              </details>
+            </Card>
+          ) : null}
+        </div>
+
+        <Card className="flex min-h-[420px] flex-col p-0">
+          <div className="flex items-center gap-1 border-b border-line px-3 py-2">
+            {tabs.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] transition-colors',
+                  tab === t.id
+                    ? 'bg-surface-2 font-medium text-ink'
+                    : 'text-ink-3 hover:bg-surface-2',
+                )}
+              >
+                <Icon name={t.icon} size={12} /> {t.label}
+              </button>
+            ))}
+            {!generating && mode === 'generate' ? (
+              <span className="chip chip-green ml-auto">Generated</span>
+            ) : null}
+          </div>
+
+          <div className="flex min-h-0 flex-1 flex-col p-5">
+            {generating ? (
+              <GeneratingState status={status} />
+            ) : tab === 'cover' ? (
+              materials?.cover_letter ? (
+                <CoverLetterEditor
+                  material={materials.cover_letter}
+                  jobTitle={job?.title}
+                  company={job?.company}
+                  onSave={onSaveCover}
+                  onRegenerate={() => onRegenerate('cover_letter')}
+                  regenerating={regenerating === 'cover_letter'}
+                  onDownloaded={() => showToast('Cover letter PDF saved')}
+                />
+              ) : (
+                <p className="text-[13px] text-ink-3">No cover letter yet.</p>
+              )
+            ) : tab === 'cv' ? (
+              materials?.cv_suggestions ? (
+                <div className="flex flex-col gap-3">
+                  <SuggestionRenderer content={materials.cv_suggestions.content} />
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={!cvText}
+                      title={cvText ? undefined : 'Add a CV to your profile to export it as a PDF.'}
+                      onClick={() => {
+                        if (!cvText) return
+                        downloadCvPdf({
+                          content: cvText,
+                          jobTitle: job?.title,
+                          company: job?.company,
+                        })
+                        showToast('CV PDF saved')
+                      }}
+                    >
+                      <Icon name="download" size={12} /> Download PDF
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={regenerating === 'cv_suggestions'}
+                      onClick={() => onRegenerate('cv_suggestions')}
+                    >
+                      <Icon
+                        name="refresh"
+                        size={12}
+                        className={regenerating === 'cv_suggestions' ? 'animate-spin' : ''}
+                      />{' '}
+                      {regenerating === 'cv_suggestions' ? 'Regenerating…' : 'Regenerate'}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-[13px] text-ink-3">No CV tailoring yet.</p>
+              )
+            ) : appId !== null ? (
+              <InterviewPanel applicationId={appId} />
+            ) : null}
+          </div>
+        </Card>
+      </div>
 
       <Toast message={toastMsg} />
     </div>
@@ -465,20 +524,30 @@ function GeneratingState({ status }: { status: GenerationStatus | null }) {
 
 interface CoverLetterEditorProps {
   material: MaterialView
+  jobTitle?: string | null
+  company?: string | null
   onSave: (content: string) => Promise<void>
   onRegenerate: () => Promise<void>
   regenerating: boolean
+  /** Called after a successful PDF download so the parent can show a toast. */
+  onDownloaded: () => void
 }
+
+type CoverView = 'edit' | 'preview'
 
 function CoverLetterEditor({
   material,
+  jobTitle,
+  company,
   onSave,
   onRegenerate,
   regenerating,
+  onDownloaded,
 }: CoverLetterEditorProps) {
   const [draft, setDraft] = useState(material.content)
   const [saving, setSaving] = useState(false)
   const [savedHash, setSavedHash] = useState(material.content)
+  const [view, setView] = useState<CoverView>('edit')
 
   useEffect(() => {
     setDraft(material.content)
@@ -498,44 +567,99 @@ function CoverLetterEditor({
   }
 
   return (
-    <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-2">
-      <div className="flex flex-col gap-2">
-        <label className="text-[11px] font-medium text-ink-3" htmlFor="cover-letter-textarea">
-          Edit
-        </label>
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      {/* Full-width Edit | Preview toggle — far more readable than a nested
+          side-by-side split in this panel. */}
+      <div className="flex items-center justify-between gap-2">
+        <div
+          role="tablist"
+          aria-label="Cover letter view"
+          className="inline-flex w-fit rounded-md border border-line bg-surface p-0.5"
+        >
+          {(['edit', 'preview'] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              role="tab"
+              aria-selected={view === v}
+              onClick={() => setView(v)}
+              className={cn(
+                'rounded-[4px] px-3 py-1 text-[12px] font-medium capitalize transition-colors',
+                view === v ? 'bg-surface-2 text-ink shadow-sm' : 'text-ink-3 hover:text-ink',
+              )}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            downloadCoverLetterPdf({ content: draft, jobTitle, company })
+            onDownloaded()
+          }}
+        >
+          <Icon name="download" size={12} /> Download PDF
+        </Button>
+      </div>
+
+      {view === 'edit' ? (
         <Textarea
           id="cover-letter-textarea"
+          aria-label="Edit cover letter"
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          rows={16}
+          rows={22}
+          className="min-h-[460px] flex-1 text-[14px] leading-7"
         />
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-[11px] text-ink-4">
-            {material.edit_count > 0
-              ? `Edited ${material.edit_count} time${material.edit_count === 1 ? '' : 's'} since generation.`
-              : 'No edits yet.'}
-          </span>
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" disabled={regenerating} onClick={onRegenerate}>
-              <Icon name="refresh" size={12} className={regenerating ? 'animate-spin' : ''} />{' '}
-              {regenerating ? 'Regenerating…' : 'Regenerate'}
-            </Button>
-            <Button size="sm" disabled={!dirty || saving} onClick={handleSave}>
-              {saving ? 'Saving…' : 'Save edits'}
-            </Button>
+      ) : (
+        <div className="min-h-[460px] flex-1 overflow-y-auto rounded-md border border-line bg-surface-2 px-8 py-6">
+          <div className="prose prose-sm mx-auto max-w-[68ch] leading-relaxed text-ink-2">
+            <ReactMarkdown>{toMarkdownParagraphs(draft)}</ReactMarkdown>
           </div>
         </div>
-      </div>
-      <div className="flex flex-col gap-2">
-        <span className="text-[11px] font-medium text-ink-3">Preview</span>
-        <div className="rounded-md border border-line bg-surface-2 p-3">
-          <div className="prose prose-sm max-w-none">
-            <ReactMarkdown>{draft}</ReactMarkdown>
-          </div>
+      )}
+
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] text-ink-4">
+          {material.edit_count > 0
+            ? `Edited ${material.edit_count} time${material.edit_count === 1 ? '' : 's'} since generation.`
+            : 'No edits yet.'}
+        </span>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" disabled={regenerating} onClick={onRegenerate}>
+            <Icon name="refresh" size={12} className={regenerating ? 'animate-spin' : ''} />{' '}
+            {regenerating ? 'Regenerating…' : 'Regenerate'}
+          </Button>
+          <Button size="sm" disabled={!dirty || saving} onClick={handleSave}>
+            {saving ? 'Saving…' : 'Save edits'}
+          </Button>
         </div>
       </div>
     </div>
   )
+}
+
+/**
+ * Cover letters are often plain text with blank-line-separated paragraphs and
+ * hard-wrapped salutation/sign-off lines. Markdown collapses single newlines,
+ * so a salutation like "Dear team,\nSincerely,\nJane" would merge onto one
+ * line. Convert lone newlines to hard breaks (two trailing spaces) so the
+ * preview keeps the author's line structure while blank lines still become
+ * separate paragraphs.
+ */
+function toMarkdownParagraphs(text: string): string {
+  return text
+    .replace(/\r\n/g, '\n')
+    .split(/\n{2,}/)
+    .map((block) =>
+      block
+        .split('\n')
+        .map((line) => line.trimEnd())
+        .join('  \n'),
+    )
+    .join('\n\n')
 }
 
 function messageFor(err: unknown, fallback: string): string {

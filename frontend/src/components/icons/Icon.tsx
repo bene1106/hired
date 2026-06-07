@@ -31,6 +31,7 @@ export type IconName =
   | 'plus'
   | 'building'
   | 'globe'
+  | 'download'
 
 const PATHS: Record<IconName, ReactElement> = {
   feed: <path d="M4 7h16M4 12h16M4 17h10" />,
@@ -108,6 +109,7 @@ const PATHS: Record<IconName, ReactElement> = {
       <path d="M9 21V9h6v12M9 13h2M13 13h2M9 17h2M13 17h2M9 9h6" />
     </>
   ),
+  download: <path d="M12 3v12M7 10l5 5 5-5M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />,
 }
 
 export interface IconProps {

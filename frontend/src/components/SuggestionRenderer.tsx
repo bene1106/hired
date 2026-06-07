@@ -76,33 +76,37 @@ export function SuggestionRenderer({ content }: { content: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex w-full max-w-none flex-col gap-3">
       {structured.overall_fit && structured.overall_fit.length > 0 ? (
         <div className="flex flex-col gap-1">
           <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-3">
             Overall fit
           </span>
-          <p className="text-[13px] text-ink-2">{structured.overall_fit}</p>
+          <p className="text-[14px] leading-relaxed text-ink-2">{structured.overall_fit}</p>
         </div>
       ) : null}
 
       {structured.suggestions.map((item, index) => (
-        <Card key={`suggestion-${index}`} className="flex flex-col gap-3 p-4">
+        <Card key={`suggestion-${index}`} className="flex flex-col gap-4 p-5">
           <span className={chipClassFor(item.type)}>{item.type}</span>
 
-          <div className="flex flex-col gap-1">
-            <span className={SECTION_LABEL}>Current</span>
-            <p className="text-[13px] text-ink-3">{item.current}</p>
+          {/* Current vs Suggestion side-by-side on wide screens so the change
+              is easy to scan; stacks on narrow screens. */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="flex flex-col gap-1">
+              <span className={SECTION_LABEL}>Current</span>
+              <p className="text-[14px] leading-relaxed text-ink-3">{item.current}</p>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <span className={SECTION_LABEL}>Suggestion</span>
+              <p className="text-[14px] leading-relaxed text-ink">{item.suggestion}</p>
+            </div>
           </div>
 
-          <div className="flex flex-col gap-1">
-            <span className={SECTION_LABEL}>Suggestion</span>
-            <p className="text-[13px] text-ink">{item.suggestion}</p>
-          </div>
-
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 border-t border-line pt-3">
             <span className={SECTION_LABEL}>Rationale</span>
-            <p className="text-[12px] text-ink-3">{item.rationale}</p>
+            <p className="text-[13px] leading-relaxed text-ink-3">{item.rationale}</p>
           </div>
         </Card>
       ))}

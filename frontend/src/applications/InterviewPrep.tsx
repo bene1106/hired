@@ -98,7 +98,7 @@ export function InterviewPrep({ applicationId }: InterviewPrepProps) {
   const practicedSet = new Set(attempts.map((a) => a.question))
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)]">
       <Card className="flex flex-col p-5">
         <div className="mb-4 font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-3">
           Question bank
@@ -162,7 +162,8 @@ export function InterviewPrep({ applicationId }: InterviewPrepProps) {
                 value={answer}
                 onChange={(event) => setAnswer(event.target.value)}
                 placeholder="Type your answer…"
-                rows={6}
+                rows={10}
+                className="min-h-[220px] leading-relaxed"
                 aria-label="Practice answer"
               />
               <div className="flex justify-end">

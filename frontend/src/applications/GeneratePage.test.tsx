@@ -50,12 +50,11 @@ describe('GeneratePage (generate mode)', () => {
     const textarea = (await screen.findByLabelText(/edit/i)) as HTMLTextAreaElement
     expect(textarea.value).toMatch(/Dear hiring team/i)
 
-    // Company brief is behind the Company research tab.
-    await userEvent.click(screen.getByRole('button', { name: /company research/i }))
+    // Company brief is always visible in the left column.
     expect(await screen.findByText(/AcmeCo brief/i)).toBeInTheDocument()
 
     // CV tailoring lives behind its own tab.
-    await userEvent.click(screen.getByRole('button', { name: /cv suggestions/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^cv$/i }))
     expect(await screen.findByText(/Emphasise FastAPI experience/i)).toBeInTheDocument()
   })
 

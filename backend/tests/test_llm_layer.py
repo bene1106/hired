@@ -426,6 +426,65 @@ class _FakeResponse:
         self.content = [_FakeContentBlock(text)]
 
 
+class _FakeWebSearchResultItem:
+    def __init__(self, url: str, title: str) -> None:
+        self.type = "web_search_result"
+        self.url = url
+        self.title = title
+
+
+class _FakeToolResultBlock:
+    def __init__(self, items: list[_FakeWebSearchResultItem]) -> None:
+        self.type = "web_search_tool_result"
+        self.content = items
+
+
+class _FakeCitation:
+    def __init__(self, url: str, title: str) -> None:
+        self.type = "web_search_result_location"
+        self.url = url
+        self.title = title
+
+
+class _FakeTextBlockWithCitations:
+    def __init__(self, text: str, citations: list[_FakeCitation]) -> None:
+        self.type = "text"
+        self.text = text
+        self.citations = citations
+
+
+class _FakeWebSearchResponse:
+    """Mimics a Messages response from a web-search-enabled call."""
+
+    def __init__(
+        self,
+        *,
+        tool_result_urls: list[tuple[str, str]],
+        text: str,
+        citation_urls: list[tuple[str, str]],
+    ) -> None:
+        tool_block = _FakeToolResultBlock(
+            [_FakeWebSearchResultItem(url, title) for url, title in tool_result_urls]
+        )
+        text_block = _FakeTextBlockWithCitations(
+            text, [_FakeCitation(url, title) for url, title in citation_urls]
+        )
+        self.content = [tool_block, text_block]
+        self.usage = _FakeUsage(100, 50)
+
+
+class _FakeResponseMessages:
+    """A ``messages`` stand-in that returns a pre-built response object."""
+
+    def __init__(self, response: Any) -> None:
+        self._response = response
+        self.last_kwargs: dict[str, Any] | None = None
+
+    def create(self, **kwargs: Any) -> Any:
+        self.last_kwargs = kwargs
+        return self._response
+
+
 class _FakeUsage:
     def __init__(self, input_tokens: int, output_tokens: int) -> None:
         self.input_tokens = input_tokens
@@ -557,7 +616,57 @@ class TestAnthropicAPIAdapter:
         adapter = _make_adapter(response_text=markdown)
         brief = adapter.research_company("Acme")
         assert brief.company == "Acme"
+        # No tool-result blocks in the fake → falls back to markdown scrape.
         assert len(brief.sources) == 2
+
+    def test_research_company_activates_web_search_tool(self) -> None:
+        markdown = "## What they do\nThings.\n"
+        fake = _FakeAnthropic(response_text=markdown)
+        adapter = AnthropicAPIAdapter(client=fake)  # type: ignore[arg-type]
+        adapter.research_company("Acme")
+        kwargs = fake.messages.last_kwargs
+        assert kwargs is not None
+        assert kwargs.get("tools") == [{"type": "web_search_20250305", "name": "web_search"}]
+
+    def test_other_calls_do_not_pass_tools(self, sample_profile: Profile, sample_job: Job) -> None:
+        fake = _FakeAnthropic(response_text="**Emphasize** Python.\n")
+        adapter = AnthropicAPIAdapter(client=fake)  # type: ignore[arg-type]
+        adapter.tailor_cv(sample_profile, sample_job)
+        assert fake.messages.last_kwargs is not None
+        assert "tools" not in fake.messages.last_kwargs
+
+    def test_research_company_extracts_sources_from_tool_results(self) -> None:
+        # A response containing a web_search_tool_result block plus a text block
+        # with inline web_search_result_location citations. Real URLs win over
+        # any ## Sources markdown, de-duplicated and order-preserving.
+        response = _FakeWebSearchResponse(
+            tool_result_urls=[
+                ("https://acme.example/about", "About Acme"),
+                ("https://news.example/acme", "Acme raises"),
+            ],
+            text="## What they do\nThings.\n## Sources\n- https://hallucinated.example\n",
+            citation_urls=[
+                ("https://news.example/acme", "Acme raises"),  # duplicate, dropped
+                ("https://blog.example/acme", "Acme blog"),
+            ],
+        )
+        fake = _FakeAnthropic()
+        fake.messages = _FakeResponseMessages(response)  # type: ignore[assignment]
+        adapter = AnthropicAPIAdapter(client=fake)  # type: ignore[arg-type]
+        brief = adapter.research_company("Acme")
+        assert brief.sources == [
+            "https://acme.example/about",
+            "https://news.example/acme",
+            "https://blog.example/acme",
+        ]
+
+    def test_research_company_falls_back_to_markdown_without_tool_blocks(self) -> None:
+        # Web search returned no results → no tool-result blocks → scrape the
+        # model's ## Sources section so we still surface what it cited inline.
+        markdown = "## What they do\nThings.\n## Sources\n- https://acme.example/about\n"
+        adapter = _make_adapter(response_text=markdown)
+        brief = adapter.research_company("Acme")
+        assert brief.sources == ["https://acme.example/about"]
 
     def test_generate_interview_questions_round_trip(self, sample_job: Job) -> None:
         payload = (

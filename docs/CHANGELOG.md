@@ -31,7 +31,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   side-by-side on wide screens, plus a wider, better-balanced Interview-prep
   layout (Question Bank vs Practice/Coach).
 
+## [0.3.7] - 2026-05-31
+
 ### Fixed
+
+- Company research now uses **real web search** instead of relying on the
+  model's memory, so briefs for small or newly founded companies are grounded
+  in current sources rather than fabricated. The Anthropic API provider
+  activates the stable web-search tool and lists the actual URLs it retrieved;
+  the Claude Code and OpenAI Codex providers enable their respective web-search
+  tools for the research call. Ollama (no web access) keeps its training-data
+  disclaimer and never invents sources.
 
 - Settings → Cost now shows a billing note that matches the active provider
   (Claude Code → Claude.ai plan, OpenAI Codex → ChatGPT plan / OpenAI key,

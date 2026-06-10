@@ -286,6 +286,7 @@ export const handlers = [
     const next: CrawlStatus = {
       job_id: 'crawl-test',
       state: 'done',
+      phase: null,
       fetched: state.feed.length,
       total: state.feed.length,
       new: state.feed.length,

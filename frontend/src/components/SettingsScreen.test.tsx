@@ -178,6 +178,7 @@ describe('SettingsScreen', () => {
     setMockState({
       providerStats: {
         provider: 'anthropic_api',
+        model: null,
         last_latency_ms: 187,
         last_success: true,
         calls_today: 12,
@@ -204,6 +205,7 @@ describe('SettingsScreen', () => {
     setMockState({
       providerStats: {
         provider: 'claude_code',
+        model: null,
         last_latency_ms: 1500,
         last_success: true,
         calls_today: 3,
@@ -226,6 +228,7 @@ describe('SettingsScreen', () => {
     setMockState({
       providerStats: {
         provider: 'codex_cli',
+        model: null,
         last_latency_ms: 1800,
         last_success: true,
         calls_today: 4,

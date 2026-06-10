@@ -35,7 +35,7 @@ def test_initial_migration_creates_all_tables_and_seeds_provider() -> None:
             select(AppConfig.value).where(AppConfig.key == "model")
         ).scalar_one()
     assert provider == "mock"
-    assert model == "claude-opus-4-7"
+    assert model == "claude-haiku-4-5-20251001"
 
 
 def test_run_migrations_is_idempotent() -> None:

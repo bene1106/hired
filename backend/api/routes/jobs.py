@@ -34,6 +34,7 @@ from db.models import Profile as ProfileRow
 from db.session import get_session
 from llm import LLMProvider
 from services.crawl_progress import (
+    CrawlPhase,
     CrawlState,
     create_entry,
     get_entry,
@@ -70,6 +71,7 @@ class CrawlResponse(BaseModel):
 class CrawlStatusResponse(BaseModel):
     job_id: str
     state: CrawlState
+    phase: CrawlPhase | None
     fetched: int
     total: int
     new: int
@@ -139,6 +141,7 @@ def get_crawl_status(job_id: str) -> CrawlStatusResponse:
     return CrawlStatusResponse(
         job_id=entry.job_id,
         state=entry.state,
+        phase=entry.phase,
         fetched=entry.fetched,
         total=entry.total,
         new=entry.new,
@@ -347,7 +350,7 @@ def _run_crawl_pipeline(
     provider: LLMProvider,
 ) -> None:
     """Crawl, persist, score. Updates the in-process progress registry."""
-    update_entry(job_id, state="running", total=max_jobs)
+    update_entry(job_id, state="running", phase="crawling", total=max_jobs)
 
     try:
         query = _build_query(urls=urls, max_jobs=max_jobs)
@@ -393,9 +396,10 @@ def _run_crawl_pipeline(
     # show an empty state even though the job was in the DB.
     ids_to_score = list(crawl_result.new_job_ids) + list(crawl_result.rescore_job_ids)
     if not ids_to_score:
-        update_entry(job_id, state="done", scored=0, finished_at=_utcnow())
+        update_entry(job_id, state="done", phase=None, scored=0, finished_at=_utcnow())
         return
 
+    update_entry(job_id, phase="scoring")
     try:
         scored = score_jobs(provider, ids_to_score)
     except ScoringError as exc:
@@ -408,7 +412,7 @@ def _run_crawl_pipeline(
         )
         return
 
-    update_entry(job_id, state="done", scored=len(scored), finished_at=_utcnow())
+    update_entry(job_id, state="done", phase=None, scored=len(scored), finished_at=_utcnow())
 
 
 def _build_query(*, urls: list[str], max_jobs: int) -> CrawlQuery:

@@ -51,7 +51,7 @@ from .usage import TokenUsage, record_usage
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MODEL = "claude-opus-4-7"
+DEFAULT_MODEL = "claude-haiku-4-5-20251001"
 ANTHROPIC_API_KEY_NAME = "anthropic_api_key"
 
 # The stable server-side web-search tool. Works with the current generation

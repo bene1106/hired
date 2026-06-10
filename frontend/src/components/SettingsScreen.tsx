@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { api } from '@/lib/api'
 import type { CostSummary, ProfileResponse, ProviderId, ProviderStats } from '@/lib/types'
+import { cn } from '@/lib/utils'
 
 // Phase 6 Settings: live provider status alongside the wizard re-entry,
 // profile editing, cost rollups, and the two-step "Delete everything"
@@ -19,6 +20,14 @@ export function SettingsScreen() {
   const [deleting, setDeleting] = useState(false)
   const [cost, setCost] = useState<CostSummary | null>(null)
   const [stats, setStats] = useState<ProviderStats | null>(null)
+  const [modelSaving, setModelSaving] = useState(false)
+
+  function refreshStats() {
+    api
+      .getProviderStats()
+      .then(setStats)
+      .catch(() => setStats(null))
+  }
 
   useEffect(() => {
     api
@@ -29,11 +38,19 @@ export function SettingsScreen() {
       .getCostSummary()
       .then(setCost)
       .catch(() => setCost(null))
-    api
-      .getProviderStats()
-      .then(setStats)
-      .catch(() => setStats(null))
+    refreshStats()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  async function handleModelChange(model: string) {
+    setModelSaving(true)
+    try {
+      await api.updateModel(model)
+      refreshStats()
+    } finally {
+      setModelSaving(false)
+    }
+  }
 
   async function handleWipe() {
     setDeleting(true)
@@ -105,6 +122,13 @@ export function SettingsScreen() {
               <p className="text-[13px] text-ink-3">Loading provider status…</p>
             ) : (
               <ProviderStatus stats={stats} />
+            )}
+            {stats?.provider === 'anthropic_api' && (
+              <ModelSelector
+                currentModel={stats.model}
+                saving={modelSaving}
+                onChange={handleModelChange}
+              />
             )}
             <div>
               <Button
@@ -299,4 +323,68 @@ function CostDisplay({ cost }: { cost: CostSummary }) {
 function formatUsd(value: number | null): string {
   if (value === null) return '—'
   return `$${value.toFixed(2)}`
+}
+
+// ---------------------------------------------------------------------------
+// Model selector (Anthropic API only)
+// ---------------------------------------------------------------------------
+
+const ANTHROPIC_MODELS: { value: string; label: string; note: string }[] = [
+  {
+    value: 'claude-haiku-4-5-20251001',
+    label: 'Haiku 4.5',
+    note: 'Fast & cheap — great for scoring',
+  },
+  {
+    value: 'claude-sonnet-4-6',
+    label: 'Sonnet 4.6',
+    note: 'Balanced quality and cost',
+  },
+  {
+    value: 'claude-opus-4-7',
+    label: 'Opus 4.7',
+    note: 'Most capable, highest cost',
+  },
+]
+
+function ModelSelector({
+  currentModel,
+  saving,
+  onChange,
+}: {
+  currentModel: string | null
+  saving: boolean
+  onChange: (model: string) => void
+}) {
+  const active = currentModel ?? 'claude-haiku-4-5-20251001'
+  const meta = ANTHROPIC_MODELS.find((m) => m.value === active)
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <p className="text-[12px] font-medium text-ink-3">Model</p>
+      <div className="flex flex-wrap gap-1.5">
+        {ANTHROPIC_MODELS.map((m) => {
+          const isActive = active === m.value
+          return (
+            <button
+              key={m.value}
+              type="button"
+              disabled={saving}
+              onClick={() => onChange(m.value)}
+              className={cn(
+                'rounded-md border px-3 py-1.5 text-[12px] font-medium transition-colors disabled:opacity-50',
+                isActive
+                  ? 'border-ink bg-ink text-paper'
+                  : 'border-line bg-surface text-ink hover:border-line-strong',
+              )}
+            >
+              {m.label}
+            </button>
+          )
+        })}
+        {saving && <span className="self-center text-[12px] text-ink-3">Saving…</span>}
+      </div>
+      {meta && <p className="text-[12px] text-ink-4">{meta.note}</p>}
+    </div>
+  )
 }

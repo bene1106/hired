@@ -22,19 +22,6 @@ const SOURCE_META: Record<
   CrawlSourceType,
   { label: string; description: string; needsSlug: boolean; slugPlaceholder?: string }
 > = {
-  greenhouse: {
-    label: 'Greenhouse',
-    description: "Fetches all open jobs from a company's Greenhouse board via the public JSON API.",
-    needsSlug: true,
-    slugPlaceholder: 'company-slug  (e.g. stripe)',
-  },
-  lever: {
-    label: 'Lever',
-    description:
-      "Fetches all published postings from a company's Lever board via the public JSON API.",
-    needsSlug: true,
-    slugPlaceholder: 'company-slug  (e.g. vercel)',
-  },
   wellfound: {
     label: 'Wellfound',
     description:
@@ -45,6 +32,18 @@ const SOURCE_META: Record<
     label: 'Indeed.de',
     description:
       'Searches de.indeed.com using your target role and location. Scrapes HTML with a conservative delay between requests.',
+    needsSlug: false,
+  },
+  remotive: {
+    label: 'Remotive',
+    description:
+      'Fetches remote jobs from remotive.com via their public API. Automatically filtered by your target role keywords.',
+    needsSlug: false,
+  },
+  stepstone: {
+    label: 'Stepstone.de',
+    description:
+      'Searches stepstone.de using your target role and location. One of the largest job boards in Germany and Europe.',
     needsSlug: false,
   },
 }
@@ -202,7 +201,15 @@ export function SourcesScreen() {
 
   const anyRunning = sources.some((s) => s.is_running)
   const showRunning = anyRunning || starting
-  const runningLabels = sources.filter((s) => s.is_running).map((s) => s.label)
+  const runningSources = sources.filter((s) => s.is_running)
+  const runningLabels = runningSources.map((s) => s.label)
+  // Determine the current phase across all running sources:
+  // if any source is scoring, show scoring; else show crawling.
+  const activePhase: 'crawling' | 'scoring' = runningSources.some(
+    (s) => s.crawl_phase === 'scoring',
+  )
+    ? 'scoring'
+    : 'crawling'
   const showDone = completionNewJobs !== null && !showRunning
 
   if (loading) {
@@ -245,19 +252,69 @@ export function SourcesScreen() {
       {/* Running banner — shown immediately on click, stays until done */}
       {showRunning && (
         <div className="mb-5 overflow-hidden rounded-lg border border-line bg-surface">
-          <div className="h-1 w-full overflow-hidden bg-line">
-            <div className="h-full w-full animate-scrape-progress bg-brand-green" />
+          {/* Two-step progress bar */}
+          <div className="flex h-1 w-full overflow-hidden bg-line">
+            {starting && !anyRunning ? (
+              <div className="h-full w-full animate-scrape-progress bg-brand-green" />
+            ) : activePhase === 'crawling' ? (
+              <div className="h-full w-1/2 animate-scrape-progress bg-brand-green" />
+            ) : (
+              <>
+                <div className="h-full w-1/2 bg-brand-green" />
+                <div className="h-full w-1/2 animate-scrape-progress bg-brand-green" />
+              </>
+            )}
           </div>
           <div className="flex items-center gap-3 px-4 py-3">
             <Icon name="refresh" size={14} className="animate-spin shrink-0 text-brand-green" />
             <div className="min-w-0 flex-1">
               <span className="text-[13px] font-medium text-ink">
-                {starting && !anyRunning ? 'Starting…' : 'Fetching and scoring jobs…'}
+                {starting && !anyRunning
+                  ? 'Starting…'
+                  : activePhase === 'crawling'
+                    ? 'Crawling jobs…'
+                    : 'Scoring jobs…'}
               </span>
               {runningLabels.length > 0 && (
                 <span className="ml-1.5 text-[12px] text-ink-3">{runningLabels.join(', ')}</span>
               )}
             </div>
+            {/* Step indicators */}
+            {anyRunning && (
+              <div className="flex items-center gap-1.5 text-[11px]">
+                <span
+                  className={cn(
+                    'flex items-center gap-1 rounded px-1.5 py-0.5',
+                    activePhase === 'crawling'
+                      ? 'bg-brand-green/15 text-brand-green'
+                      : 'text-ink-4',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'inline-block h-1.5 w-1.5 rounded-full',
+                      activePhase === 'crawling' ? 'bg-brand-green' : 'bg-ink-4',
+                    )}
+                  />
+                  Crawl
+                </span>
+                <span className="text-ink-4">→</span>
+                <span
+                  className={cn(
+                    'flex items-center gap-1 rounded px-1.5 py-0.5',
+                    activePhase === 'scoring' ? 'bg-brand-green/15 text-brand-green' : 'text-ink-4',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'inline-block h-1.5 w-1.5 rounded-full',
+                      activePhase === 'scoring' ? 'bg-brand-green' : 'bg-ink-4',
+                    )}
+                  />
+                  Score
+                </span>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -331,7 +388,7 @@ export function SourcesScreen() {
       )}
 
       <div className="flex flex-col gap-6">
-        {(['greenhouse', 'lever', 'wellfound', 'indeed'] as CrawlSourceType[]).map((type) => {
+        {(['indeed', 'stepstone', 'remotive', 'wellfound'] as CrawlSourceType[]).map((type) => {
           const meta = SOURCE_META[type]
           const typeSources = sources.filter((s) => s.source_type === type)
           return (
@@ -377,13 +434,11 @@ function SourceTypeCard({
 }: SourceTypeCardProps) {
   const [adding, setAdding] = useState(false)
   const [slug, setSlug] = useState('')
-  const [label, setLabel] = useState('')
   const [saving, setSaving] = useState(false)
   const [addError, setAddError] = useState<string | null>(null)
 
   async function handleAdd() {
     const trimSlug = slug.trim()
-    const trimLabel = label.trim() || (meta.needsSlug ? trimSlug : meta.label)
     if (meta.needsSlug && !trimSlug) {
       setAddError('Company slug is required.')
       return
@@ -394,11 +449,9 @@ function SourceTypeCard({
       const created = await api.createSource({
         source_type: type,
         company_slug: meta.needsSlug ? trimSlug : null,
-        label: trimLabel,
       })
       onCreated(created)
       setSlug('')
-      setLabel('')
       setAdding(false)
     } catch (err) {
       setAddError(err instanceof ApiError ? err.message : String(err))
@@ -432,16 +485,10 @@ function SourceTypeCard({
               onChange={(e) => setSlug(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && void handleAdd()}
             />
-            <Input
-              placeholder="Display label (optional)"
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && void handleAdd()}
-            />
             {addError && <p className="text-[12px] text-warn">{addError}</p>}
             <div className="flex gap-2">
               <Button size="sm" onClick={() => void handleAdd()} disabled={saving}>
-                {saving ? 'Adding…' : 'Add'}
+                {saving ? 'Resolving…' : 'Add'}
               </Button>
               <Button size="sm" variant="outline" onClick={() => setAdding(false)}>
                 Cancel
@@ -508,12 +555,14 @@ function SourceRow({ source, onDelete, onToggle, onRunOne }: SourceRowProps) {
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
           <span className="text-[13px] font-medium text-ink">{source.label}</span>
-          {source.company_slug && (
-            <span className="font-mono text-[11px] text-ink-4">{source.company_slug}</span>
-          )}
+          {source.company_slug &&
+            source.company_slug.toLowerCase() !== source.label.toLowerCase() && (
+              <span className="font-mono text-[11px] text-ink-4">{source.company_slug}</span>
+            )}
           {source.is_running && (
             <span className="flex items-center gap-1 text-[11px] text-brand-green">
-              <Icon name="refresh" size={10} className="animate-spin" /> Running…
+              <Icon name="refresh" size={10} className="animate-spin" />
+              {source.crawl_phase === 'scoring' ? 'Scoring…' : 'Crawling…'}
             </span>
           )}
         </div>
@@ -595,7 +644,7 @@ function AddSearchSourceRow({ type, meta, onCreated }: AddSearchSourceRowProps) 
     setSaving(true)
     setErr(null)
     try {
-      const created = await api.createSource({ source_type: type, label: meta.label })
+      const created = await api.createSource({ source_type: type })
       onCreated(created)
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : String(e))

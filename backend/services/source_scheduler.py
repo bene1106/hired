@@ -33,6 +33,7 @@ _DEFAULT_INTERVAL_HOURS = 6
 
 # In-process set of source IDs currently being crawled (resets on restart).
 _running: set[int] = set()
+_running_phase: dict[int, str] = {}  # source_id → "crawling" | "scoring"
 _running_lock = threading.Lock()
 
 
@@ -77,6 +78,7 @@ def run_source_now(source_id: int) -> bool:
         if source_id in _running:
             return False
         _running.add(source_id)
+        _running_phase[source_id] = "crawling"
 
     thread = threading.Thread(
         target=_run_one_safe,
@@ -107,6 +109,11 @@ def run_all_now() -> list[int]:
 def is_running(source_id: int) -> bool:
     with _running_lock:
         return source_id in _running
+
+
+def get_source_phase(source_id: int) -> str | None:
+    with _running_lock:
+        return _running_phase.get(source_id)
 
 
 # ---------------------------------------------------------------------------
@@ -143,6 +150,7 @@ def _run_one_safe(source_id: int) -> None:
     finally:
         with _running_lock:
             _running.discard(source_id)
+            _running_phase.pop(source_id, None)
 
 
 def _run_one(source_id: int) -> None:
@@ -167,6 +175,8 @@ def _run_one(source_id: int) -> None:
         return
 
     logger.info("Running source id=%d type=%s slug=%s", source_id, source_type, company_slug)
+    with _running_lock:
+        _running_phase[source_id] = "crawling"
     result: CrawlResult = crawl(source, query)
 
     if result.error:
@@ -175,9 +185,12 @@ def _run_one(source_id: int) -> None:
 
     ids_to_score = list(result.new_job_ids) + list(result.rescore_job_ids)
     if not ids_to_score:
-        _mark_done(source_id, error=None)
+        company_name = _get_company_from_jobs(result.new_job_ids)
+        _mark_done(source_id, error=None, company_name=company_name)
         return
 
+    with _running_lock:
+        _running_phase[source_id] = "scoring"
     try:
         provider = get_provider()
         score_jobs(provider, ids_to_score)
@@ -188,7 +201,8 @@ def _run_one(source_id: int) -> None:
         _mark_done(source_id, error=f"{type(exc).__name__}: {exc}")
         return
 
-    _mark_done(source_id, error=None)
+    company_name = _get_company_from_jobs(result.new_job_ids)
+    _mark_done(source_id, error=None, company_name=company_name)
     logger.info(
         "Source id=%d done: fetched=%d new=%d scored=%d",
         source_id,
@@ -198,24 +212,20 @@ def _run_one(source_id: int) -> None:
     )
 
 
-def _build_source(source_type: str, company_slug: str | None):
-    from crawler.greenhouse import GreenhouseSource
+def _build_source(source_type: str, company_slug: str | None):  # noqa: ARG001
     from crawler.indeed import IndeedSource
-    from crawler.lever import LeverSource
+    from crawler.remotive import RemotiveSource
+    from crawler.stepstone import StepstoneSource
     from crawler.wellfound import WellfoundSource
 
-    if source_type == "greenhouse":
-        if not company_slug:
-            raise ValueError("Greenhouse source requires a company_slug")
-        return GreenhouseSource(company_slug)
-    if source_type == "lever":
-        if not company_slug:
-            raise ValueError("Lever source requires a company_slug")
-        return LeverSource(company_slug)
     if source_type == "wellfound":
         return WellfoundSource()
     if source_type == "indeed":
         return IndeedSource()
+    if source_type == "remotive":
+        return RemotiveSource()
+    if source_type == "stepstone":
+        return StepstoneSource()
     raise ValueError(f"Unknown source_type '{source_type}'")
 
 
@@ -237,13 +247,30 @@ def _build_query():
         )
 
 
-def _mark_done(source_id: int, error: str | None) -> None:
+def _mark_done(source_id: int, error: str | None, company_name: str | None = None) -> None:
     with get_session() as session:
         row = session.get(CrawlSourceRow, source_id)
         if row is not None:
             row.last_checked_at = datetime.now(tz=UTC)
             row.last_error = error
+            # Auto-label: if the source label still looks like the slug (never
+            # customised), replace it with the real company name from the jobs.
+            if company_name and row.company_slug:
+                slug_as_label = row.company_slug.lower()
+                if row.label.lower() == slug_as_label:
+                    row.label = company_name
             session.commit()
+
+
+def _get_company_from_jobs(job_ids: list[int]) -> str | None:
+    """Read the company name from the first job in the list."""
+    if not job_ids:
+        return None
+    from db.models import Job
+
+    with get_session() as session:
+        job = session.get(Job, job_ids[0])
+        return job.company if job else None
 
 
 def _read_interval_hours() -> int:
@@ -263,4 +290,4 @@ def _as_utc(dt: datetime) -> datetime:
     return dt
 
 
-__all__ = ["SourceScheduler", "is_running", "run_all_now", "run_source_now"]
+__all__ = ["SourceScheduler", "get_source_phase", "is_running", "run_all_now", "run_source_now"]

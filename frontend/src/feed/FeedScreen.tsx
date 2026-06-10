@@ -118,6 +118,7 @@ export function FeedScreen() {
       setActiveCrawl({
         job_id: response.job_id,
         state: 'queued',
+        phase: null,
         fetched: 0,
         total: urls.length,
         new: 0,

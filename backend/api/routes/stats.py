@@ -38,15 +38,11 @@ class CostResponse(BaseModel):
 
 class ProviderStatsResponse(BaseModel):
     provider: str
+    model: str | None
     last_latency_ms: int | None
     last_success: bool | None
     calls_today: int
     success_rate_today: float | None
-    # v0.3.5: live construction state. ``construct_ok=False`` means the
-    # next real request will fail — typically because the keychain
-    # entry is missing or the provider config points at something the
-    # adapter can't reach. The Settings panel surfaces this as a
-    # "Disconnected" pill so the user knows to re-enter their key.
     construct_ok: bool
     construct_error: str | None
 
@@ -68,10 +64,12 @@ def get_cost() -> CostResponse:
 @router.get("/provider", response_model=ProviderStatsResponse)
 def get_provider_activity() -> ProviderStatsResponse:
     provider = _read_active_provider()
+    model = _read_active_model()
     stats = get_provider_stats(provider)
     construct_ok, construct_error = _probe_provider_construct()
     return ProviderStatsResponse(
         provider=provider,
+        model=model,
         last_latency_ms=stats["last_latency_ms"],
         last_success=stats["last_success"],
         calls_today=stats["calls_today"],
@@ -87,6 +85,14 @@ def _read_active_provider() -> str:
             select(AppConfig.value).where(AppConfig.key == "provider")
         ).scalar_one_or_none()
         return (row or "mock").strip() or "mock"
+
+
+def _read_active_model() -> str | None:
+    with get_session() as session:
+        row = session.execute(
+            select(AppConfig.value).where(AppConfig.key == "model")
+        ).scalar_one_or_none()
+        return row or None
 
 
 def _probe_provider_construct() -> tuple[bool, str | None]:

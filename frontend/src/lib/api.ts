@@ -178,6 +178,9 @@ export const api = {
 
   getProviderStats: (): Promise<ProviderStats> => request('/api/stats/provider'),
 
+  updateModel: (model: string): Promise<{ model: string }> =>
+    request('/api/setup/model', { method: 'PUT', body: JSON.stringify({ model }) }),
+
   postCvText: (cvText: string): Promise<CVParseResponse> =>
     request('/api/profile/cv', {
       method: 'POST',

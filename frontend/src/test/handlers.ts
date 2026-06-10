@@ -146,6 +146,7 @@ const defaultState = (): MockState => ({
   ],
   providerStats: {
     provider: 'mock',
+    model: null,
     last_latency_ms: null,
     last_success: null,
     calls_today: 0,
@@ -285,6 +286,7 @@ export const handlers = [
     const next: CrawlStatus = {
       job_id: 'crawl-test',
       state: 'done',
+      phase: null,
       fetched: state.feed.length,
       total: state.feed.length,
       new: state.feed.length,

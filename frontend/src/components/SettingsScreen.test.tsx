@@ -54,7 +54,6 @@ describe('SettingsScreen', () => {
     setMockState({
       cost: {
         provider: 'anthropic_api',
-        model: null,
         label: 'priced',
         today_usd: 0.27,
         week_usd: 1.42,

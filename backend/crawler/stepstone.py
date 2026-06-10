@@ -54,9 +54,7 @@ class StepstoneSource(JobSource):
 
         logger.info("Stepstone fetching: %s", url)
         try:
-            with httpx.Client(
-                headers=_HEADERS, timeout=_TIMEOUT, follow_redirects=True
-            ) as client:
+            with httpx.Client(headers=_HEADERS, timeout=_TIMEOUT, follow_redirects=True) as client:
                 resp = client.get(url)
                 resp.raise_for_status()
         except Exception as exc:
@@ -64,9 +62,7 @@ class StepstoneSource(JobSource):
             return
 
         jobs = _parse_cards(resp.text)
-        logger.info(
-            "Stepstone: extracted %d jobs (page size=%d)", len(jobs), len(resp.text)
-        )
+        logger.info("Stepstone: extracted %d jobs (page size=%d)", len(jobs), len(resp.text))
         yield from jobs[: query.max_jobs]
 
 

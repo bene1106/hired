@@ -24,6 +24,7 @@ from datetime import datetime
 from typing import Literal
 
 CrawlState = Literal["queued", "running", "done", "error"]
+CrawlPhase = Literal["crawling", "scoring"]
 
 _MAX_ENTRIES = 50
 
@@ -32,6 +33,7 @@ _MAX_ENTRIES = 50
 class CrawlProgress:
     job_id: str
     state: CrawlState = "queued"
+    phase: CrawlPhase | None = None
     fetched: int = 0
     total: int = 0
     new: int = 0
@@ -94,6 +96,7 @@ def reset_registry() -> None:
 
 
 __all__ = [
+    "CrawlPhase",
     "CrawlProgress",
     "CrawlState",
     "create_entry",

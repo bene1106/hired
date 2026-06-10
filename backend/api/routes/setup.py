@@ -106,6 +106,14 @@ class SelectProviderResponse(BaseModel):
     model: str | None = None
 
 
+class UpdateModelRequest(BaseModel):
+    model: str = Field(..., min_length=1, max_length=128)
+
+
+class UpdateModelResponse(BaseModel):
+    model: str
+
+
 @router.get("/providers", response_model=list[ProviderMetadata])
 def list_providers() -> list[ProviderMetadata]:
     """List every provider the wizard can show, with UI-flavored metadata."""
@@ -146,6 +154,16 @@ def select_provider(payload: SelectProviderRequest) -> SelectProviderResponse:
 
     reset_provider_cache()
     return SelectProviderResponse(provider=payload.provider, model=resolved_model)
+
+
+@router.put("/model", response_model=UpdateModelResponse)
+def update_model(payload: UpdateModelRequest) -> UpdateModelResponse:
+    """Update only the active model without changing the provider."""
+    with get_session() as session:
+        _upsert_config(session, "model", payload.model)
+        session.commit()
+    reset_provider_cache()
+    return UpdateModelResponse(model=payload.model)
 
 
 def _resolve_model(provider: str, requested: str | None) -> str | None:

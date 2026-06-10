@@ -24,15 +24,14 @@ from sqlalchemy import select
 from db.models import AppConfig
 from db.models import CrawlSource as CrawlSourceRow
 from db.session import get_session
-from services.source_scheduler import is_running, run_all_now, run_source_now
+from services.source_scheduler import get_source_phase, is_running, run_all_now, run_source_now
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/sources", tags=["sources"])
 
-SourceType = Literal["greenhouse", "lever", "wellfound", "indeed"]
+SourceType = Literal["wellfound", "indeed", "remotive", "stepstone"]
 
-_SLUG_REQUIRED = {"greenhouse", "lever"}
 _DEFAULT_INTERVAL = 6
 
 
@@ -50,6 +49,7 @@ class CrawlSourceResponse(BaseModel):
     last_checked_at: datetime | None
     last_error: str | None
     is_running: bool
+    crawl_phase: str | None
     created_at: datetime
 
     @classmethod
@@ -63,6 +63,7 @@ class CrawlSourceResponse(BaseModel):
             last_checked_at=row.last_checked_at,
             last_error=row.last_error,
             is_running=is_running(row.id),
+            crawl_phase=get_source_phase(row.id),
             created_at=row.created_at,
         )
 
@@ -70,7 +71,7 @@ class CrawlSourceResponse(BaseModel):
 class CreateSourceRequest(BaseModel):
     source_type: SourceType
     company_slug: str | None = Field(default=None, max_length=255)
-    label: str = Field(max_length=255)
+    label: str | None = Field(default=None, max_length=255)
     enabled: bool = True
 
 
@@ -146,17 +147,13 @@ def list_sources() -> list[CrawlSourceResponse]:
 
 @router.post("", response_model=CrawlSourceResponse, status_code=201)
 def create_source(payload: CreateSourceRequest) -> CrawlSourceResponse:
-    if payload.source_type in _SLUG_REQUIRED and not payload.company_slug:
-        raise HTTPException(
-            status_code=422,
-            detail=f"company_slug is required for source_type '{payload.source_type}'",
-        )
+    label = payload.label or payload.source_type
 
     with get_session() as session:
         row = CrawlSourceRow(
             source_type=payload.source_type,
-            company_slug=payload.company_slug or None,
-            label=payload.label,
+            company_slug=None,
+            label=label,
             enabled=payload.enabled,
         )
         session.add(row)

@@ -61,14 +61,11 @@ export interface ProviderMetadata {
 
 export interface ProviderStats {
   provider: ProviderId
+  model: string | null
   last_latency_ms: number | null
   last_success: boolean | null
   calls_today: number
   success_rate_today: number | null
-  // v0.3.5: live construction probe. ``construct_ok=false`` means the
-  // next real request will fail (typically a missing/invalid Anthropic
-  // key); Settings surfaces a "Disconnected" pill so the user can fix it
-  // before opening Application Detail or hitting Generate.
   construct_ok: boolean
   construct_error: string | null
 }
@@ -153,7 +150,7 @@ export interface ProfileUpdate {
 
 // ----- Job sources (scheduler) --------------------------------------------
 
-export type CrawlSourceType = 'greenhouse' | 'lever' | 'wellfound' | 'indeed'
+export type CrawlSourceType = 'wellfound' | 'indeed' | 'remotive' | 'stepstone'
 
 export interface JobSourceConfig {
   id: number
@@ -164,6 +161,7 @@ export interface JobSourceConfig {
   last_checked_at: string | null
   last_error: string | null
   is_running: boolean
+  crawl_phase: 'crawling' | 'scoring' | null
   created_at: string
 }
 
@@ -174,7 +172,7 @@ export interface SourceConfig {
 export interface CreateSourcePayload {
   source_type: CrawlSourceType
   company_slug?: string | null
-  label: string
+  label?: string
   enabled?: boolean
 }
 
@@ -203,6 +201,7 @@ export interface CrawlResponse {
 export interface CrawlStatus {
   job_id: string
   state: CrawlState
+  phase: 'crawling' | 'scoring' | null
   fetched: number
   total: number
   new: number

@@ -146,6 +146,7 @@ const defaultState = (): MockState => ({
   ],
   providerStats: {
     provider: 'mock',
+    model: null,
     last_latency_ms: null,
     last_success: null,
     calls_today: 0,

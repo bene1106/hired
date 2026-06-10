@@ -264,7 +264,7 @@ class TestProviderFactory:
         provider = get_provider()
         assert isinstance(provider, RecordingProvider)
         assert isinstance(provider.inner, AnthropicAPIAdapter)
-        assert provider.inner.model == "claude-opus-4-7"
+        assert provider.inner.model == "claude-haiku-4-5-20251001"
 
     def test_factory_builds_claude_code_adapter_when_configured(
         self, monkeypatch: pytest.MonkeyPatch
@@ -596,7 +596,7 @@ class TestAnthropicAPIAdapter:
         # whatever the developer happens to have stored locally.
         monkeypatch.setattr("llm.anthropic_api.get_credential", lambda _name: None)
         adapter = AnthropicAPIAdapter(api_key="sk-ant-explicit")
-        assert adapter.model == "claude-opus-4-7"
+        assert adapter.model == "claude-haiku-4-5-20251001"
 
     def test_score_job_round_trip(self, sample_profile: Profile, sample_job: Job) -> None:
         payload = (

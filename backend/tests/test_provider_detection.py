@@ -448,7 +448,7 @@ def test_select_provider_anthropic_stores_key(monkeypatch: pytest.MonkeyPatch) -
     assert stored == [("anthropic_api_key", "sk-ant-XXXX")]
     body = response.json()
     assert body["provider"] == "anthropic_api"
-    assert body["model"] == "claude-opus-4-7"
+    assert body["model"] == "claude-haiku-4-5-20251001"
 
 
 def test_select_provider_claude_code_now_accepted(monkeypatch: pytest.MonkeyPatch) -> None:

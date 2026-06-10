@@ -30,6 +30,7 @@ from db.models import Profile as ProfileRow
 from db.session import get_session
 
 from .base import CrawlQuery, JobSource, RawJob
+from .pre_filter import pre_filter
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +74,7 @@ def crawl(source: JobSource, query: CrawlQuery) -> CrawlResult:
         return result
 
     with get_session() as session:
+        profile_row = session.execute(select(ProfileRow).limit(1)).scalar_one_or_none()
         existing_map = _existing_source_id_map(
             session, source.name, [j.source_id for j in raw_jobs]
         )
@@ -82,6 +84,8 @@ def crawl(source: JobSource, query: CrawlQuery) -> CrawlResult:
         )
 
         for raw in raw_jobs:
+            if not pre_filter(raw, profile_row):
+                continue
             if raw.source_id in existing_map:
                 result.duplicates += 1
                 job_id = existing_map[raw.source_id]
@@ -97,12 +101,13 @@ def crawl(source: JobSource, query: CrawlQuery) -> CrawlResult:
         session.commit()
 
     logger.info(
-        "Crawl finished: source=%s fetched=%d new=%d duplicates=%d rescore=%d",
+        "Crawl finished: source=%s fetched=%d new=%d duplicates=%d rescore=%d filtered=%d",
         source.name,
         result.fetched,
         result.new,
         result.duplicates,
         len(result.rescore_job_ids),
+        result.fetched - result.new - result.duplicates,
     )
     return result
 

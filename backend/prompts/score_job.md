@@ -33,6 +33,8 @@ Consider these factors:
 5. Salary alignment (if both stated)
 6. Career trajectory fit
 
+If the candidate's profile contains "USER FEEDBACK PREFERENCES", treat them as strict positive/negative signals. Heavily penalize jobs matching the rejected titles or skills. Boost jobs matching the liked titles.
+
 Return ONLY valid JSON matching the schema. No prose, no markdown, no preamble.
 ```
 

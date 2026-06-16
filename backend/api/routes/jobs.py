@@ -28,7 +28,7 @@ from crawler.base import CrawlQuery
 from crawler.linkedin import LinkedInSource, LinkedInUnavailableError
 from crawler.manual_urls import ManualURLSource
 from crawler.service import crawl
-from db.models import Application, Job
+from db.models import Application, Job, JobInteraction
 from db.models import JobScore as JobScoreRow
 from db.models import Profile as ProfileRow
 from db.session import get_session
@@ -93,6 +93,31 @@ class FeedItem(BaseModel):
     missing_skills: list[str]
     red_flags: list[str]
     status: str | None  # None | applied | saved | skipped
+    unread: bool
+    feedback_signal: int | None
+    feedback_reason: str | None
+
+
+class JobInteractRequest(BaseModel):
+    action: Literal["read", "thumbs_up", "thumbs_down"]
+    reason: Literal["company", "location", "tech_stack"] | None = None
+
+
+class JobInteractResponse(BaseModel):
+    job_id: int
+    read_at: str | None
+    feedback_signal: int | None
+    feedback_reason: str | None
+
+
+class InteractionHistoryItem(BaseModel):
+    job_id: int
+    title: str
+    company: str | None
+    location: str | None
+    feedback_signal: int
+    feedback_reason: str | None
+    updated_at: str
 
 
 class JobActionRequest(BaseModel):
@@ -178,22 +203,37 @@ def get_feed(
         latest_scores = _latest_scores_subquery(profile_version)
 
         rows = session.execute(
-            select(Job, JobScoreRow, Application)
+            select(Job, JobScoreRow, Application, JobInteraction)
             .select_from(latest_scores)
             .join(JobScoreRow, JobScoreRow.id == latest_scores.c.score_id)
             .join(Job, Job.id == JobScoreRow.job_id)
             .outerjoin(Application, Application.job_id == Job.id)
+            .outerjoin(JobInteraction, JobInteraction.job_id == Job.id)
             .where(JobScoreRow.score >= min_score)
             .order_by(desc(JobScoreRow.score), Job.id)
             .limit(limit)
         ).all()
 
     items: list[FeedItem] = []
-    for job, score_row, application in rows:
+    for job, score_row, application, interaction in rows:
         status = application.status if application else None
         if exclude_status and status == exclude_status:
             continue
         rationale_payload = score_row.rationale_json or {}
+
+        unread = True
+        feedback_signal = None
+        feedback_reason = None
+
+        if interaction:
+            if interaction.read_at is not None:
+                unread = False
+            feedback_signal = interaction.feedback_signal
+            feedback_reason = interaction.feedback_reason
+
+        if status in ("applied", "saved", "skipped"):
+            unread = False
+
         items.append(
             FeedItem(
                 job_id=job.id,
@@ -208,6 +248,9 @@ def get_feed(
                 missing_skills=list(rationale_payload.get("missing_skills") or []),
                 red_flags=list(rationale_payload.get("red_flags") or []),
                 status=status,
+                unread=unread,
+                feedback_signal=feedback_signal,
+                feedback_reason=feedback_reason,
             )
         )
     return items
@@ -331,9 +374,95 @@ def post_job_action(job_id: int, payload: JobActionRequest) -> JobActionResponse
             session.add(application)
         else:
             application.status = new_status
+
+        interaction = session.execute(
+            select(JobInteraction).where(JobInteraction.job_id == job_id)
+        ).scalar_one_or_none()
+        if interaction is None:
+            interaction = JobInteraction(job_id=job_id, read_at=_utcnow())
+            session.add(interaction)
+        elif interaction.read_at is None:
+            interaction.read_at = _utcnow()
+
         session.commit()
         session.refresh(application)
     return JobActionResponse(job_id=job_id, status=new_status)
+
+
+@router.post("/{job_id}/interact", response_model=JobInteractResponse)
+def post_job_interact(job_id: int, payload: JobInteractRequest) -> JobInteractResponse:
+    with get_session() as session:
+        job = session.get(Job, job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail="Unknown job id.")
+
+        interaction = session.execute(
+            select(JobInteraction).where(JobInteraction.job_id == job_id)
+        ).scalar_one_or_none()
+
+        if interaction is None:
+            interaction = JobInteraction(job_id=job_id)
+            session.add(interaction)
+
+        interaction.read_at = _utcnow()
+
+        if payload.action == "thumbs_up":
+            interaction.feedback_signal = 1
+            interaction.feedback_reason = payload.reason
+        elif payload.action == "thumbs_down":
+            interaction.feedback_signal = -1
+            interaction.feedback_reason = payload.reason
+
+        session.commit()
+        session.refresh(interaction)
+
+    return JobInteractResponse(
+        job_id=job_id,
+        read_at=interaction.read_at.isoformat() if interaction.read_at else None,
+        feedback_signal=interaction.feedback_signal,
+        feedback_reason=interaction.feedback_reason,
+    )
+
+
+@router.delete("/{job_id}/interact")
+def delete_job_interact(job_id: int) -> dict[str, bool]:
+    with get_session() as session:
+        interaction = session.execute(
+            select(JobInteraction).where(JobInteraction.job_id == job_id)
+        ).scalar_one_or_none()
+
+        if interaction is not None:
+            interaction.feedback_signal = None
+            interaction.feedback_reason = None
+            session.commit()
+
+    return {"success": True}
+
+
+@router.get("/interactions", response_model=list[InteractionHistoryItem])
+def get_interactions() -> list[InteractionHistoryItem]:
+    with get_session() as session:
+        rows = session.execute(
+            select(Job, JobInteraction)
+            .join(JobInteraction, JobInteraction.job_id == Job.id)
+            .where(JobInteraction.feedback_signal.is_not(None))
+            .order_by(desc(JobInteraction.updated_at))
+        ).all()
+
+    items: list[InteractionHistoryItem] = []
+    for job, interaction in rows:
+        items.append(
+            InteractionHistoryItem(
+                job_id=job.id,
+                title=job.title,
+                company=job.company,
+                location=job.location,
+                feedback_signal=interaction.feedback_signal,
+                feedback_reason=interaction.feedback_reason,
+                updated_at=interaction.updated_at.isoformat() if interaction.updated_at else "",
+            )
+        )
+    return items
 
 
 # ---------------------------------------------------------------------------

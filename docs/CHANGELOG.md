@@ -5,6 +5,16 @@ All notable user-visible changes to Hired. are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-06-14
+
+### Added
+
+- **Phase 9 — Feedback Loop.** The feed now supports explicit thumbs up/down feedback on jobs, with reasons (Company, Location, Tech-Stack).
+- New `JobInteraction` table tracks reads, saves, skips, and thumbs up/down actions.
+- Heuristic scoring adjustments: -25 points applied automatically for companies or locations you have explicitly rejected.
+- LLM scoring context: Positive and negative job titles and skills are injected into the grading prompt.
+- Unread badges and a "Mark all as read" button help manage the daily feed.
+
 ## [0.3.8] - 2026-06-07
 
 ### Added

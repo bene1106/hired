@@ -39,7 +39,6 @@ export function SettingsScreen() {
       .then(setCost)
       .catch(() => setCost(null))
     refreshStats()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function handleModelChange(model: string) {
@@ -155,6 +154,22 @@ export function SettingsScreen() {
             ) : (
               <CostDisplay cost={cost} />
             )}
+          </CardContent>
+        </Card>
+
+        <Card data-testid="feedback-history-panel">
+          <CardHeader>
+            <CardTitle className="text-[18px] tracking-[-0.01em] text-ink">
+              Feedback History
+            </CardTitle>
+            <CardDescription className="text-[13px] text-ink-3">
+              Review jobs you've previously evaluated with thumbs up or thumbs down.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button variant="outline" size="sm" onClick={() => navigate('/app/settings/feedback')}>
+              View feedback history
+            </Button>
           </CardContent>
         </Card>
 

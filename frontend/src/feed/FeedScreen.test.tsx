@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { FeedItem } from '@/lib/types'
 import { setMockState } from '@/test/handlers'
+import { api } from '@/lib/api'
 
 import { FeedScreen } from './FeedScreen'
 
@@ -22,6 +23,9 @@ function feedItem(overrides: Partial<FeedItem> & { job_id: number }): FeedItem {
     missing_skills: overrides.missing_skills ?? ['Rust'],
     red_flags: overrides.red_flags ?? [],
     status: overrides.status ?? null,
+    unread: overrides.unread ?? false,
+    feedback_signal: overrides.feedback_signal ?? null,
+    feedback_reason: overrides.feedback_reason ?? null,
   }
 }
 
@@ -174,5 +178,33 @@ describe('FeedScreen', () => {
     expect(
       await screen.findByText(/Rescored 50 jobs · 10 more queued — run again\./i),
     ).toBeInTheDocument()
+  })
+
+  it('shows unread counter and mark all as read button', async () => {
+    setMockState({
+      feed: [
+        feedItem({ job_id: 1, unread: true }),
+        feedItem({ job_id: 2, unread: true }),
+        feedItem({ job_id: 3, unread: false }),
+      ],
+    })
+    const postInteract = vi
+      .spyOn(api, 'postJobInteract')
+      .mockResolvedValue({ job_id: 1, read_at: null, feedback_signal: null, feedback_reason: null })
+
+    renderFeed()
+
+    // Verify unread text
+    expect(await screen.findByText('2 unread')).toBeInTheDocument()
+
+    // Verify mark all as read button is present
+    const markAllBtn = screen.getByRole('button', { name: /mark all as read/i })
+    expect(markAllBtn).toBeInTheDocument()
+
+    // Click it and verify API calls
+    await userEvent.click(markAllBtn)
+    expect(postInteract).toHaveBeenCalledWith(1, { action: 'read' })
+    expect(postInteract).toHaveBeenCalledWith(2, { action: 'read' })
+    expect(postInteract).not.toHaveBeenCalledWith(3, { action: 'read' })
   })
 })

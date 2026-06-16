@@ -23,6 +23,9 @@ function seed(): FeedItem {
     missing_skills: [],
     red_flags: [],
     status: null,
+    unread: false,
+    feedback_signal: null,
+    feedback_reason: null,
   }
 }
 

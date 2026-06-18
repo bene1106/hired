@@ -125,3 +125,5 @@ logs/
 .claude/settings.local.json
 
 scratch-snapshot.db
+backend/scratch.db
+backend/test_cv_direct.py

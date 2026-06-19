@@ -12,11 +12,14 @@ import type {
   JobSourceConfig,
   FeedItem,
   GenerationStatus,
+  InteractionHistoryItem,
   InterviewQuestionBundle,
   InterviewSessionDetail,
   InterviewSessionSummary,
   JobAction,
   JobActionStatus,
+  JobInteractPayload,
+  JobInteractResponse,
   MaterialType,
   MaterialView,
   MaterialsBundle,
@@ -235,7 +238,18 @@ export const api = {
       body: JSON.stringify({ action }),
     }),
 
+  postJobInteract: (jobId: number, payload: JobInteractPayload): Promise<JobInteractResponse> =>
+    request(`/api/jobs/${jobId}/interact`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
   getScoringStatus: (): Promise<ScoringStatus> => request('/api/jobs/scoring-status'),
+
+  getInteractions: (): Promise<InteractionHistoryItem[]> => request('/api/jobs/interactions'),
+
+  deleteInteraction: (jobId: number): Promise<{ success: boolean }> =>
+    request(`/api/jobs/${jobId}/interact`, { method: 'DELETE' }),
 
   rescoreJobs: (): Promise<RescoreResult> => request('/api/jobs/rescore', { method: 'POST' }),
 

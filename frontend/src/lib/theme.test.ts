@@ -4,12 +4,12 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { applyTheme, getStoredTheme, useTheme } from './theme'
 
 beforeEach(() => {
-  localStorage.clear()
+  window.localStorage.clear()
   document.documentElement.removeAttribute('data-theme')
 })
 
 afterEach(() => {
-  localStorage.clear()
+  window.localStorage.clear()
   document.documentElement.removeAttribute('data-theme')
 })
 

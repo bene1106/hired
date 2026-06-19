@@ -24,10 +24,10 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import desc, func, select
 from sqlalchemy.orm import Session
 
-from db.models import Application, Job
+from db.models import Application, Job, JobInteraction
 from db.models import JobScore as JobScoreRow
 from db.models import Profile as ProfileRow
 from db.session import get_session
@@ -77,11 +77,62 @@ def score_jobs(
         llm_profile = profile_row_to_llm(profile)
         jobs = _load_jobs(session, job_ids)
         cached = _load_cached_scores(session, profile_version, [j.id for j in jobs])
+        heuristics, llm_ctx = _build_feedback_context(session)
+
+    if (
+        llm_ctx["positive_titles"]
+        or llm_ctx["negative_titles"]
+        or llm_ctx["rejected_skills"]
+        or llm_ctx["liked_skills"]
+    ):
+        feedback_str = "\n\n--- USER FEEDBACK PREFERENCES ---\n"
+        if llm_ctx["positive_titles"]:
+            titles = ", ".join(llm_ctx["positive_titles"])
+            feedback_str += f"The user recently LIKED jobs with these titles: {titles}\n"
+        if llm_ctx["negative_titles"]:
+            titles = ", ".join(llm_ctx["negative_titles"])
+            feedback_str += f"The user recently REJECTED jobs with these titles: {titles}\n"
+        if llm_ctx["rejected_skills"]:
+            skills = ", ".join(llm_ctx["rejected_skills"])
+            feedback_str += (
+                f"The user explicitly REJECTED jobs because they require these skills: {skills}\n"
+            )
+        if llm_ctx["liked_skills"]:
+            skills = ", ".join(llm_ctx["liked_skills"])
+            feedback_str += (
+                f"The user explicitly LIKED jobs because they feature these skills: {skills}\n"
+            )
+        feedback_str += (
+            "Please heavily penalize jobs that match the rejected titles or skills, "
+            "and boost jobs matching the liked titles or skills."
+        )
+        llm_profile.cv_text = (llm_profile.cv_text or "") + feedback_str
 
     to_score = [j for j in jobs if j.id not in cached]
     fresh: dict[int, ScoreResult] = {}
     if to_score:
         fresh = _score_in_parallel(provider, llm_profile, to_score, batch_size)
+
+        # Apply heuristics to fresh scores
+        for job in to_score:
+            result = fresh.get(job.id)
+            if result is None:
+                continue
+
+            if job.company and job.company in heuristics["companies"]:
+                result.score = max(0, result.score - 25)
+                result.red_flags.append("You previously rejected this employer")
+
+            if job.company and job.company in heuristics["positive_companies"]:
+                result.score = min(100, result.score + 25)
+
+            if job.location and job.location in heuristics["locations"]:
+                result.score = max(0, result.score - 25)
+                result.red_flags.append(f"You explicitly rejected the location: {job.location}")
+
+            if job.location and job.location in heuristics["positive_locations"]:
+                result.score = min(100, result.score + 25)
+
         with get_session() as session:
             for job in to_score:
                 result = fresh.get(job.id)
@@ -130,6 +181,134 @@ class ScoringError(RuntimeError):
 
 def _read_profile(session: Session) -> ProfileRow | None:
     return session.execute(select(ProfileRow).limit(1)).scalar_one_or_none()
+
+
+def _build_feedback_context(session: Session) -> tuple[dict[str, set[str]], dict[str, list[str]]]:
+    # Heuristics: companies with >= 5 net negative votes
+    stmt = (
+        select(Job.company, func.sum(JobInteraction.feedback_signal).label("net_votes"))
+        .join(JobInteraction, JobInteraction.job_id == Job.id)
+        .where(Job.company.is_not(None))
+        .group_by(Job.company)
+    )
+    rows = session.execute(stmt).all()
+    heuristic_companies = {
+        row.company for row in rows if row.net_votes is not None and row.net_votes <= -5
+    }
+
+    # Explicit company rejections >= 2
+    stmt2 = (
+        select(Job.company, func.count(JobInteraction.id).label("rejections"))
+        .join(JobInteraction, JobInteraction.job_id == Job.id)
+        .where(
+            JobInteraction.feedback_signal == -1,
+            JobInteraction.feedback_reason == "company",
+            Job.company.is_not(None),
+        )
+        .group_by(Job.company)
+    )
+    rows2 = session.execute(stmt2).all()
+    heuristic_companies.update({row.company for row in rows2 if row.rejections >= 2})
+
+    # Positive companies
+    stmt2_pos = (
+        select(Job.company)
+        .join(JobInteraction, JobInteraction.job_id == Job.id)
+        .where(
+            JobInteraction.feedback_signal == 1,
+            JobInteraction.feedback_reason == "company",
+            Job.company.is_not(None),
+        )
+    )
+    positive_companies = {row.company for row in session.execute(stmt2_pos).all()}
+
+    # Locations explicitly rejected
+    stmt3 = (
+        select(Job.location)
+        .join(JobInteraction, JobInteraction.job_id == Job.id)
+        .where(
+            JobInteraction.feedback_signal == -1,
+            JobInteraction.feedback_reason == "location",
+            Job.location.is_not(None),
+        )
+    )
+    rows3 = session.execute(stmt3).all()
+    heuristic_locations = {row.location for row in rows3}
+
+    # Locations explicitly liked
+    stmt3_pos = (
+        select(Job.location)
+        .join(JobInteraction, JobInteraction.job_id == Job.id)
+        .where(
+            JobInteraction.feedback_signal == 1,
+            JobInteraction.feedback_reason == "location",
+            Job.location.is_not(None),
+        )
+    )
+    positive_locations = {row.location for row in session.execute(stmt3_pos).all()}
+
+    # LLM context: last 5 positive titles
+    stmt_pos = (
+        select(Job.title)
+        .join(JobInteraction, JobInteraction.job_id == Job.id)
+        .where(JobInteraction.feedback_signal == 1)
+        .order_by(desc(JobInteraction.updated_at))
+        .limit(5)
+    )
+    pos_titles = [row.title for row in session.execute(stmt_pos).all()]
+
+    # LLM context: last 5 negative titles
+    stmt_neg = (
+        select(Job.title)
+        .join(JobInteraction, JobInteraction.job_id == Job.id)
+        .where(JobInteraction.feedback_signal == -1, JobInteraction.feedback_reason.is_(None))
+        .order_by(desc(JobInteraction.updated_at))
+        .limit(5)
+    )
+    neg_titles = [row.title for row in session.execute(stmt_neg).all()]
+
+    # LLM context: top 10 rejected skills
+    stmt_skills = (
+        select(JobScoreRow.rationale_json)
+        .join(JobInteraction, JobInteraction.job_id == JobScoreRow.job_id)
+        .where(JobInteraction.feedback_signal == -1, JobInteraction.feedback_reason == "tech_stack")
+    )
+    skill_rows = session.execute(stmt_skills).all()
+    from collections import Counter
+
+    skill_counter = Counter()
+    for row in skill_rows:
+        if row.rationale_json and "matched_skills" in row.rationale_json:
+            skill_counter.update(row.rationale_json["matched_skills"])
+    top_rejected_skills = [skill for skill, count in skill_counter.most_common(10)]
+
+    # LLM context: top 10 liked skills
+    stmt_skills_pos = (
+        select(JobScoreRow.rationale_json)
+        .join(JobInteraction, JobInteraction.job_id == JobScoreRow.job_id)
+        .where(JobInteraction.feedback_signal == 1, JobInteraction.feedback_reason == "tech_stack")
+    )
+    skill_rows_pos = session.execute(stmt_skills_pos).all()
+    skill_counter_pos = Counter()
+    for row in skill_rows_pos:
+        if row.rationale_json and "matched_skills" in row.rationale_json:
+            skill_counter_pos.update(row.rationale_json["matched_skills"])
+    top_liked_skills = [skill for skill, count in skill_counter_pos.most_common(10)]
+
+    return (
+        {
+            "companies": heuristic_companies,
+            "locations": heuristic_locations,
+            "positive_companies": positive_companies,
+            "positive_locations": positive_locations,
+        },
+        {
+            "positive_titles": pos_titles,
+            "negative_titles": neg_titles,
+            "rejected_skills": top_rejected_skills,
+            "liked_skills": top_liked_skills,
+        },
+    )
 
 
 def _load_jobs(session: Session, job_ids: list[int]) -> list[Job]:

@@ -363,3 +363,70 @@ def test_rescore_caps_large_backlogs(_seeded_profile: int, _mock_provider: MockP
     assert res["total_candidates"] == 60
     assert res["rescored"] == 50
     assert res["capped"] is True
+
+
+# ---------------------------------------------------------------------------
+# POST /api/jobs/{id}/interact
+# ---------------------------------------------------------------------------
+
+
+def test_post_interact_records_read_at(_seeded_profile: int) -> None:
+    [job_id] = _seed_three_jobs()[:1]
+
+    # 1. Job should initially be unread in the feed
+    score_jobs(MockProvider(), [job_id])
+    feed_before = client.get("/api/jobs/feed").json()
+    assert len(feed_before) == 1
+    assert feed_before[0]["unread"] is True
+
+    # 2. Interact with the job (mark as read)
+    response = client.post(f"/api/jobs/{job_id}/interact", json={"action": "read"})
+    assert response.status_code == 200
+
+    # 3. Check db interaction
+    from db.models import JobInteraction
+
+    with get_session() as session:
+        interaction = session.execute(
+            select(JobInteraction).where(JobInteraction.job_id == job_id)
+        ).scalar_one()
+        assert interaction.read_at is not None
+        assert interaction.feedback_signal is None
+        assert interaction.feedback_reason is None
+
+    # 4. Job should now be read in the feed
+    feed_after = client.get("/api/jobs/feed").json()
+    assert feed_after[0]["unread"] is False
+
+
+def test_post_interact_records_feedback(_seeded_profile: int) -> None:
+    [job_id] = _seed_three_jobs()[:1]
+
+    # 1. Provide feedback
+    response = client.post(
+        f"/api/jobs/{job_id}/interact", json={"action": "thumbs_down", "reason": "tech_stack"}
+    )
+    assert response.status_code == 200
+
+    # 2. Check interaction in DB
+    from db.models import JobInteraction
+
+    with get_session() as session:
+        interaction = session.execute(
+            select(JobInteraction).where(JobInteraction.job_id == job_id)
+        ).scalar_one()
+        assert interaction.read_at is not None  # It should implicitly mark as read
+        assert interaction.feedback_signal == -1
+        assert interaction.feedback_reason == "tech_stack"
+
+    # 3. Job feed should include feedback state
+    score_jobs(MockProvider(), [job_id])
+    feed = client.get("/api/jobs/feed").json()
+    assert feed[0]["feedback_signal"] == -1
+    assert feed[0]["feedback_reason"] == "tech_stack"
+    assert feed[0]["unread"] is False
+
+
+def test_post_interact_rejects_unknown_job_id(_seeded_profile: int) -> None:
+    response = client.post("/api/jobs/99999/interact", json={"action": "read"})
+    assert response.status_code == 404

@@ -227,6 +227,34 @@ export interface FeedItem {
   missing_skills: string[]
   red_flags: string[]
   status: JobActionStatus | null
+  unread: boolean
+  feedback_signal: number | null
+  feedback_reason: string | null
+}
+
+export type JobInteractAction = 'read' | 'thumbs_up' | 'thumbs_down' | 'remove_feedback'
+export type JobInteractReason = 'company' | 'location' | 'tech_stack'
+
+export interface JobInteractPayload {
+  action: JobInteractAction
+  reason?: JobInteractReason | null
+}
+
+export interface JobInteractResponse {
+  job_id: number
+  read_at: string | null
+  feedback_signal: number | null
+  feedback_reason: string | null
+}
+
+export interface InteractionHistoryItem {
+  job_id: number
+  title: string
+  company: string | null
+  location: string | null
+  feedback_signal: number
+  feedback_reason: string | null
+  updated_at: string
 }
 
 // ----- Phase 5 applications, interview prep, cost --------------------------

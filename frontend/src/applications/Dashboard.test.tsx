@@ -25,6 +25,9 @@ function feed(): FeedItem[] {
       missing_skills: [],
       red_flags: [],
       status: null,
+      unread: false,
+      feedback_signal: null,
+      feedback_reason: null,
     },
     {
       job_id: 2,
@@ -39,6 +42,9 @@ function feed(): FeedItem[] {
       missing_skills: [],
       red_flags: [],
       status: null,
+      unread: false,
+      feedback_signal: null,
+      feedback_reason: null,
     },
   ]
 }

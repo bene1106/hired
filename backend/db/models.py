@@ -119,6 +119,23 @@ class JobScore(Base):
     scored_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 
 
+class JobInteraction(Base):
+    __tablename__ = "job_interactions"
+    __table_args__ = (UniqueConstraint("job_id", name="uq_job_interactions_job_id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime)
+    feedback_signal: Mapped[int | None] = mapped_column(Integer)
+    feedback_reason: Mapped[str | None] = mapped_column(String(32))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
 class Application(Base):
     __tablename__ = "applications"
 

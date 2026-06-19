@@ -16,11 +16,11 @@ function renderSidebar(path = '/app') {
 }
 
 beforeEach(() => {
-  localStorage.clear()
+  window.localStorage.clear()
   document.documentElement.removeAttribute('data-theme')
 })
 afterEach(() => {
-  localStorage.clear()
+  window.localStorage.clear()
   document.documentElement.removeAttribute('data-theme')
 })
 

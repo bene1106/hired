@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 /** How long a toast stays visible before it auto-clears (ms). */

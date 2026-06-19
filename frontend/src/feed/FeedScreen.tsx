@@ -7,7 +7,15 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { ApiError, api } from '@/lib/api'
-import type { CrawlStatus, FeedItem, JobAction, JobActionStatus, ScoringStatus } from '@/lib/types'
+import type {
+  CrawlStatus,
+  FeedItem,
+  JobAction,
+  JobActionStatus,
+  JobInteractAction,
+  JobInteractReason,
+  ScoringStatus,
+} from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 import { JobCard } from './JobCard'
@@ -167,12 +175,18 @@ export function FeedScreen() {
 
   async function handleAction(jobId: number, action: JobAction) {
     if (action === 'apply') {
-      // Apply jumps straight to the generation flow; the user is the one
-      // who flips status to "applied" later, after editing materials.
+      setItems(
+        (prev) =>
+          prev?.map((item) => (item.job_id === jobId ? { ...item, unread: false } : item)) || null,
+      )
       navigate(`/app/apply/${jobId}`)
       return
     }
     setPendingActions((prev) => new Set(prev).add(jobId))
+    setItems(
+      (prev) =>
+        prev?.map((item) => (item.job_id === jobId ? { ...item, unread: false } : item)) || null,
+    )
     try {
       await api.postJobAction(jobId, action)
       await refreshFeed(filter)
@@ -185,27 +199,85 @@ export function FeedScreen() {
     }
   }
 
+  async function handleInteract(
+    jobId: number,
+    action: JobInteractAction,
+    reason?: JobInteractReason,
+  ) {
+    setItems((prev) => {
+      if (!prev) return prev
+      return prev.map((item) => {
+        if (item.job_id !== jobId) return item
+        const next = { ...item, unread: false }
+        if (action === 'thumbs_up') {
+          next.feedback_signal = 1
+          next.feedback_reason = reason || null
+        } else if (action === 'thumbs_down') {
+          next.feedback_signal = -1
+          next.feedback_reason = reason || null
+        } else if (action === 'remove_feedback') {
+          next.feedback_signal = null
+          next.feedback_reason = null
+        }
+        return next
+      })
+    })
+
+    try {
+      if (action === 'remove_feedback') {
+        await api.deleteInteraction(jobId)
+      } else {
+        await api.postJobInteract(jobId, { action, reason })
+      }
+    } catch (error) {
+      console.error('Failed to interact', error)
+    }
+  }
+
+  async function handleMarkAllRead() {
+    const unreadIds = items?.filter((i) => i.unread).map((i) => i.job_id) || []
+    if (!unreadIds.length) return
+
+    setItems((prev) => prev?.map((item) => ({ ...item, unread: false })) || null)
+
+    try {
+      await Promise.all(unreadIds.map((id) => api.postJobInteract(id, { action: 'read' })))
+    } catch (error) {
+      console.error('Failed to mark all as read', error)
+    }
+  }
+
   return (
     <div className="screen mx-auto max-w-[1120px] px-10 py-8">
       {/* Header */}
       <div className="mb-7">
         <div className="mb-2 flex items-end justify-between gap-4">
           <div>
-            <div className="mb-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-3">
+            <div className="mb-1.5 flex items-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-3">
               Job Feed
+              {items && items.filter((i) => i.unread).length > 0 ? (
+                <span className="text-blue-500">{items.filter((i) => i.unread).length} unread</span>
+              ) : null}
             </div>
             <h1 className="text-[28px] font-semibold tracking-[-0.025em] text-ink">
               Today&rsquo;s matches
             </h1>
           </div>
-          <Button
-            onClick={() => setCrawlOpen((open) => !open)}
-            aria-expanded={crawlOpen}
-            aria-controls="crawl-panel"
-          >
-            <Icon name="refresh" size={14} />
-            {crawlOpen ? 'Close crawl' : 'Crawl'}
-          </Button>
+          <div className="flex gap-2">
+            {items && items.filter((i) => i.unread).length > 0 ? (
+              <Button variant="outline" onClick={handleMarkAllRead}>
+                Mark all as read
+              </Button>
+            ) : null}
+            <Button
+              onClick={() => setCrawlOpen((open) => !open)}
+              aria-expanded={crawlOpen}
+              aria-controls="crawl-panel"
+            >
+              <Icon name="refresh" size={14} />
+              {crawlOpen ? 'Close crawl' : 'Crawl'}
+            </Button>
+          </div>
         </div>
         <p className="max-w-[640px] text-[13px] text-ink-3">
           Ranked by how well each job matches your profile and preferences.
@@ -310,6 +382,7 @@ export function FeedScreen() {
               item={item}
               pending={pendingActions.has(item.job_id)}
               onAction={(action) => handleAction(item.job_id, action)}
+              onInteract={(action, reason) => handleInteract(item.job_id, action, reason)}
             />
           ))}
         </div>

@@ -13,6 +13,13 @@ import { cn } from '@/lib/utils'
 
 import { useOnboarding } from './OnboardingContext'
 
+// Anthropic API models the user can pick from in onboarding. The first entry
+// is the default and must match DEFAULT_MODEL in backend/llm/anthropic_api.py.
+const ANTHROPIC_MODELS: Array<{ id: string; label: string }> = [
+  { id: 'claude-opus-4-7', label: 'Opus 4.7 — highest quality' },
+  { id: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5 — faster, cheaper' },
+]
+
 interface ProviderCardProps {
   id: ProviderId
   title: string
@@ -90,6 +97,7 @@ export function ProviderStep() {
   const [detectionError, setDetectionError] = useState<string | null>(null)
   const [selected, setSelected] = useState<ProviderId | null>(onboarding.selectedProvider)
   const [apiKeyInput, setApiKeyInput] = useState<string>('')
+  const [anthropicModel, setAnthropicModel] = useState<string>(ANTHROPIC_MODELS[0].id)
   const [ollamaModel, setOllamaModel] = useState<string>('qwen2.5:14b')
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'ok' | 'error'>('idle')
   const [testMessage, setTestMessage] = useState<string | null>(null)
@@ -168,7 +176,8 @@ export function ProviderStep() {
   async function continueToCV() {
     if (selected === null) return
     const apiKey = selected === 'anthropic_api' ? apiKeyInput.trim() || null : null
-    const model = selected === 'ollama' ? ollamaModel : null
+    const model =
+      selected === 'ollama' ? ollamaModel : selected === 'anthropic_api' ? anthropicModel : null
     onboarding.setProvider(selected, apiKey)
     setTestStatus('testing')
     setTestMessage(null)
@@ -221,13 +230,26 @@ export function ProviderStep() {
                     />
                   </>
                 )}
+                <Label htmlFor="anthropic-model">Model</Label>
+                <select
+                  id="anthropic-model"
+                  value={anthropicModel}
+                  onChange={(e) => setAnthropicModel(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                >
+                  {ANTHROPIC_MODELS.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
                 <div className="flex items-center gap-2">
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     disabled={testStatus === 'testing' || (!apiHasKey && apiKeyInput.length < 5)}
-                    onClick={() => runTest('anthropic_api', apiKeyInput || null, null)}
+                    onClick={() => runTest('anthropic_api', apiKeyInput || null, anthropicModel)}
                   >
                     {testStatus === 'testing' ? 'Testing…' : 'Test connection'}
                   </Button>

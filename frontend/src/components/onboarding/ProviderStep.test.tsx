@@ -169,6 +169,28 @@ describe('ProviderStep', () => {
     expect(await screen.findByText('CV step')).toBeInTheDocument()
   })
 
+  it('lets the user choose between Anthropic models', async () => {
+    setMockState({
+      detect: {
+        anthropic_api: { key_in_env: false, key_in_keychain: false },
+        claude_code: { detected: false, path: null, version: null },
+        codex_cli: { detected: false, path: null, version: null, logged_in: false },
+        ollama: { detected: false, models: [] },
+      },
+    })
+    const user = userEvent.setup()
+    renderStep()
+
+    await waitFor(() => screen.getByTestId('provider-card-anthropic_api'))
+    await user.click(screen.getByTestId('provider-card-anthropic_api'))
+
+    const select = screen.getByLabelText(/model/i) as HTMLSelectElement
+    const options = Array.from(select.querySelectorAll('option')).map((o) => o.value)
+    expect(options).toEqual(['claude-opus-4-7', 'claude-haiku-4-5-20251001'])
+    // Default is the highest-quality model.
+    expect(select.value).toBe('claude-opus-4-7')
+  })
+
   it('requires a successful test before letting the user advance with Anthropic', async () => {
     setMockState({
       detect: {

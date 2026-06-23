@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """Direct test of CV parsing to debug where the hang occurs."""
+
 import sys
 import time
+
+from llm import get_provider
 
 print("Starting test...", file=sys.stderr, flush=True)
 
 # Test 1: Check if adapter initializes
 print("Test 1: Initialize adapter", file=sys.stderr, flush=True)
-from llm import get_provider
+
 try:
     provider = get_provider()
     print(f"✓ Provider initialized: {type(provider).__name__}", file=sys.stderr, flush=True)
@@ -28,6 +31,7 @@ except Exception as e:
     elapsed = time.time() - start
     print(f"✗ parse_cv failed after {elapsed:.2f}s: {e}", file=sys.stderr, flush=True)
     import traceback
+
     traceback.print_exc(file=sys.stderr)
     sys.exit(1)
 

@@ -410,3 +410,40 @@ export type ChatStreamEvent =
   | { chunk: string }
   | { done: true; session_id: number }
   | { error: string }
+
+// ----- Mock interviews (M1: records + prepared questions) ------------------
+
+export type InterviewType = 'hr' | 'technical' | 'behavioral' | 'system_design' | 'other'
+
+export type InterviewerGender = 'male' | 'female' | 'unspecified'
+
+export interface MockQuestion {
+  category: string
+  question: string
+  rephrasing: string
+  time_limit_seconds: number
+  is_intro: boolean
+}
+
+export interface Interview {
+  id: number
+  application_id: number
+  round_number: number
+  interview_type: InterviewType
+  duration_minutes: number
+  interviewer_gender: InterviewerGender
+  scheduled_at: string | null
+  is_upcoming: boolean
+  question_count: number
+  questions: MockQuestion[] | null
+}
+
+export interface InterviewCreateRequest {
+  round_number: number
+  interview_type: InterviewType
+  duration_minutes: number
+  interviewer_gender?: InterviewerGender
+  scheduled_at?: string | null
+}
+
+export type InterviewUpdateRequest = Partial<InterviewCreateRequest>

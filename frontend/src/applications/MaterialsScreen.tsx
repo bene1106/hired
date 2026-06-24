@@ -22,6 +22,7 @@ import type {
 import { cn } from '@/lib/utils'
 
 import { InterviewPanel } from './InterviewPanel'
+import { InterviewsSection } from './Interviews'
 
 const POLL_INTERVAL_MS = 1000
 
@@ -40,7 +41,7 @@ const PIPELINE: { type: Exclude<MaterialType, never>; label: string }[] = [
   { type: 'cover_letter', label: 'Cover letter' },
 ]
 
-type Tab = 'job' | 'cover' | 'cv' | 'research' | 'interview'
+type Tab = 'job' | 'cover' | 'cv' | 'research' | 'interview' | 'interviews'
 
 interface MaterialsScreenProps {
   mode: 'generate' | 'detail'
@@ -215,11 +216,14 @@ export function MaterialsScreen({ mode, jobId, applicationId }: MaterialsScreenP
     }
   }
 
-  const tabs: { id: Tab; label: string; icon: 'mail' | 'file' | 'sparkle' }[] = [
+  const tabs: { id: Tab; label: string; icon: 'mail' | 'file' | 'sparkle' | 'feed' }[] = [
     { id: 'cover', label: 'Cover letter', icon: 'mail' },
     { id: 'cv', label: 'CV', icon: 'file' },
     ...(mode === 'detail'
-      ? [{ id: 'interview' as const, label: 'Interview prep', icon: 'sparkle' as const }]
+      ? [
+          { id: 'interview' as const, label: 'Interview prep', icon: 'sparkle' as const },
+          { id: 'interviews' as const, label: 'Interviews', icon: 'feed' as const },
+        ]
       : []),
   ]
 
@@ -426,6 +430,8 @@ export function MaterialsScreen({ mode, jobId, applicationId }: MaterialsScreenP
               ) : (
                 <p className="text-[13px] text-ink-3">No CV tailoring yet.</p>
               )
+            ) : appId !== null && tab === 'interviews' ? (
+              <InterviewsSection applicationId={appId} />
             ) : appId !== null ? (
               <InterviewPanel applicationId={appId} />
             ) : null}

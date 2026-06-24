@@ -64,6 +64,10 @@ from .types import (
     CoverLetter,
     InterviewQuestion,
     Job,
+    MockInterviewContext,
+    MockInterviewEvaluation,
+    MockInterviewPlan,
+    MockQAPair,
     Profile,
     ScoreResult,
 )
@@ -195,6 +199,35 @@ class ClaudeCodeAdapter:
     def summarize_role(self, job: Job) -> str:
         rendered = load_prompt("summarize_role", job=job.model_dump(mode="json"))
         return self._call(rendered).strip()
+
+    def generate_mock_interview_questions(
+        self,
+        job: Job,
+        profile: Profile,
+        context: MockInterviewContext,
+    ) -> MockInterviewPlan:
+        rendered = load_prompt(
+            "generate_mock_interview_questions",
+            job=job.model_dump(mode="json"),
+            profile_json=profile.model_dump(mode="json"),
+            context=context.model_dump(mode="json"),
+            target_count=context.num_questions,
+        )
+        return _parse_pydantic(self._call(rendered), MockInterviewPlan)
+
+    def evaluate_mock_interview(
+        self,
+        job: Job,
+        context: MockInterviewContext,
+        qa_pairs: list[MockQAPair],
+    ) -> MockInterviewEvaluation:
+        rendered = load_prompt(
+            "evaluate_mock_interview",
+            job=job.model_dump(mode="json"),
+            context=context.model_dump(mode="json"),
+            qa_json=[qa.model_dump(mode="json") for qa in qa_pairs],
+        )
+        return _parse_pydantic(self._call(rendered), MockInterviewEvaluation)
 
     def interview_chat_stream(
         self,

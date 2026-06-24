@@ -44,6 +44,10 @@ from .types import (
     CoverLetter,
     InterviewQuestion,
     Job,
+    MockInterviewContext,
+    MockInterviewEvaluation,
+    MockInterviewPlan,
+    MockQAPair,
     Profile,
     ScoreResult,
 )
@@ -73,6 +77,8 @@ _MAX_TOKENS = {
     "evaluate_answer": 1024,
     "summarize_role": 768,
     "interview_chat_stream": 1024,
+    "generate_mock_interview_questions": 2048,
+    "evaluate_mock_interview": 2048,
 }
 
 
@@ -198,6 +204,37 @@ class AnthropicAPIAdapter:
         rendered = load_prompt("summarize_role", job=job.model_dump(mode="json"))
         text = self._call(rendered, max_tokens=_MAX_TOKENS["summarize_role"])
         return text.strip()
+
+    def generate_mock_interview_questions(
+        self,
+        job: Job,
+        profile: Profile,
+        context: MockInterviewContext,
+    ) -> MockInterviewPlan:
+        rendered = load_prompt(
+            "generate_mock_interview_questions",
+            job=job.model_dump(mode="json"),
+            profile_json=profile.model_dump(mode="json"),
+            context=context.model_dump(mode="json"),
+            target_count=context.num_questions,
+        )
+        text = self._call(rendered, max_tokens=_MAX_TOKENS["generate_mock_interview_questions"])
+        return _parse_pydantic(text, MockInterviewPlan)
+
+    def evaluate_mock_interview(
+        self,
+        job: Job,
+        context: MockInterviewContext,
+        qa_pairs: list[MockQAPair],
+    ) -> MockInterviewEvaluation:
+        rendered = load_prompt(
+            "evaluate_mock_interview",
+            job=job.model_dump(mode="json"),
+            context=context.model_dump(mode="json"),
+            qa_json=[qa.model_dump(mode="json") for qa in qa_pairs],
+        )
+        text = self._call(rendered, max_tokens=_MAX_TOKENS["evaluate_mock_interview"])
+        return _parse_pydantic(text, MockInterviewEvaluation)
 
     def interview_chat_stream(
         self,

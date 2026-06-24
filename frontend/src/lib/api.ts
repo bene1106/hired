@@ -13,9 +13,12 @@ import type {
   FeedItem,
   GenerationStatus,
   InteractionHistoryItem,
+  Interview,
+  InterviewCreateRequest,
   InterviewQuestionBundle,
   InterviewSessionDetail,
   InterviewSessionSummary,
+  InterviewUpdateRequest,
   JobAction,
   JobActionStatus,
   JobInteractPayload,
@@ -330,6 +333,35 @@ export const api = {
   deleteInterviewSession: (applicationId: number, sessionId: number): Promise<void> =>
     request(`/api/applications/${applicationId}/interview/sessions/${sessionId}`, {
       method: 'DELETE',
+    }),
+
+  listInterviews: (applicationId: number): Promise<Interview[]> =>
+    request(`/api/applications/${applicationId}/interviews`),
+
+  createInterview: (applicationId: number, payload: InterviewCreateRequest): Promise<Interview> =>
+    request(`/api/applications/${applicationId}/interviews`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  updateInterview: (
+    applicationId: number,
+    interviewId: number,
+    payload: InterviewUpdateRequest,
+  ): Promise<Interview> =>
+    request(`/api/applications/${applicationId}/interviews/${interviewId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+
+  deleteInterview: (applicationId: number, interviewId: number): Promise<void> =>
+    request(`/api/applications/${applicationId}/interviews/${interviewId}`, {
+      method: 'DELETE',
+    }),
+
+  prepareInterviewQuestions: (applicationId: number, interviewId: number): Promise<Interview> =>
+    request(`/api/applications/${applicationId}/interviews/${interviewId}/questions`, {
+      method: 'POST',
     }),
 
   /**

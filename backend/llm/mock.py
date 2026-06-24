@@ -26,6 +26,12 @@ from .types import (
     ImprovementNote,
     InterviewQuestion,
     Job,
+    MockAnswerRating,
+    MockInterviewContext,
+    MockInterviewEvaluation,
+    MockInterviewPlan,
+    MockQAPair,
+    MockQuestion,
     Profile,
     ScoreResult,
 )
@@ -40,6 +46,8 @@ _VALID_METHODS = {
     "evaluate_answer",
     "summarize_role",
     "interview_chat_stream",
+    "generate_mock_interview_questions",
+    "evaluate_mock_interview",
 }
 
 
@@ -220,6 +228,82 @@ class MockProvider:
                 "within two sprints.'"
             ),
             off_topic=False,
+        )
+
+    def generate_mock_interview_questions(
+        self,
+        job: Job,
+        profile: Profile,
+        context: MockInterviewContext,
+    ) -> MockInterviewPlan:
+        if (override := self._override("generate_mock_interview_questions")) is not None:
+            return override
+        # Deterministic: an intro plus a rotating set sized to context.num_questions.
+        pool = [
+            (
+                "behavioral",
+                f"Tell me about a challenge you faced relevant to a {job.title} role.",
+                "Describe a tough situation from your past work and how you handled it.",
+            ),
+            (
+                "technical",
+                "Walk me through how you'd approach a problem central to this role.",
+                "How would you tackle a core technical task this job involves?",
+            ),
+            (
+                "role_specific",
+                f"What does a strong first 90 days look like as a {job.title}?",
+                f"How would you ramp up and add value early in this {job.title} role?",
+            ),
+            (
+                "company_fit",
+                f"Why {job.company or 'this company'}?",
+                f"What draws you specifically to {job.company or 'this company'}?",
+            ),
+        ]
+        questions = [
+            MockQuestion(
+                category="behavioral",
+                question="To start, tell me a bit about yourself and your background.",
+                rephrasing="Walk me through your career so far and what brought you here.",
+                time_limit_seconds=300,
+                is_intro=True,
+            )
+        ]
+        for i in range(max(0, context.num_questions - 1)):
+            cat, q, rephrase = pool[i % len(pool)]
+            questions.append(
+                MockQuestion(
+                    category=cat,  # type: ignore[arg-type]
+                    question=q,
+                    rephrasing=rephrase,
+                    time_limit_seconds=180,
+                    is_intro=False,
+                )
+            )
+        return MockInterviewPlan(questions=questions)
+
+    def evaluate_mock_interview(
+        self,
+        job: Job,
+        context: MockInterviewContext,
+        qa_pairs: list[MockQAPair],
+    ) -> MockInterviewEvaluation:
+        if (override := self._override("evaluate_mock_interview")) is not None:
+            return override
+        ratings = [
+            MockAnswerRating(
+                question=qa.question,
+                rating=70,
+                comment="Solid, concrete answer — add a quantified result to make it stronger.",
+            )
+            for qa in qa_pairs
+        ]
+        return MockInterviewEvaluation(
+            per_question=ratings,
+            overall_percentage=70,
+            strengths=["Clear structure", "Relevant examples"],
+            weaknesses=["Quantify outcomes", "Tie answers more tightly to the role"],
         )
 
     def interview_chat_stream(

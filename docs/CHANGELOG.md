@@ -5,6 +5,20 @@ All notable user-visible changes to Hired. are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Mock interviews (Milestone 1).** An application in the Interview stage now
+  has an **Interviews** tab where you can record each interview you've been
+  invited to — round number, type (HR / technical / behavioral / system design /
+  other), duration, interviewer (for the upcoming voice feature), and an optional
+  scheduled date. Upcoming interviews are flagged so you can tell them apart from
+  past ones.
+- Per-interview question preparation: with one provider call the app generates a
+  tailored question set sized to the interview's length (intro first, each with a
+  reworded fallback), stored ready ahead of the (upcoming) timed mock interview.
+
 ## [0.4.0] - 2026-06-14
 
 ### Added

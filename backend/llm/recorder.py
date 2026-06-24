@@ -34,6 +34,10 @@ from .types import (
     CoverLetter,
     InterviewQuestion,
     Job,
+    MockInterviewContext,
+    MockInterviewEvaluation,
+    MockInterviewPlan,
+    MockQAPair,
     Profile,
     ScoreResult,
 )
@@ -86,6 +90,28 @@ class RecordingProvider:
 
     def summarize_role(self, job: Job) -> str:
         return self._record("summarize_role", lambda: self._inner.summarize_role(job))
+
+    def generate_mock_interview_questions(
+        self,
+        job: Job,
+        profile: Profile,
+        context: MockInterviewContext,
+    ) -> MockInterviewPlan:
+        return self._record(
+            "generate_mock_interview_questions",
+            lambda: self._inner.generate_mock_interview_questions(job, profile, context),
+        )
+
+    def evaluate_mock_interview(
+        self,
+        job: Job,
+        context: MockInterviewContext,
+        qa_pairs: list[MockQAPair],
+    ) -> MockInterviewEvaluation:
+        return self._record(
+            "evaluate_mock_interview",
+            lambda: self._inner.evaluate_mock_interview(job, context, qa_pairs),
+        )
 
     def interview_chat_stream(
         self,

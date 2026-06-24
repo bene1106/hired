@@ -215,6 +215,35 @@ class InterviewSession(Base):
     )
 
 
+class Interview(Base):
+    """A concrete interview an application has been invited to.
+
+    One application has many interviews (round 1, 2, …). ``questions_json``
+    caches the mock-interview question set prepared ahead of time so the timed
+    runner has them ready with no LLM latency at start. ``scheduled_at`` drives
+    the "upcoming vs past" gating for whether a mock run can be started.
+    """
+
+    __tablename__ = "interviews"
+    __table_args__ = (Index("ix_interviews_application_id", "application_id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    application_id: Mapped[int] = mapped_column(
+        ForeignKey("applications.id", ondelete="CASCADE"), nullable=False
+    )
+    round_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    interview_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
+    interviewer_gender: Mapped[str] = mapped_column(
+        String(16), nullable=False, server_default="unspecified", default="unspecified"
+    )
+    scheduled_at: Mapped[datetime | None] = mapped_column(DateTime)
+    questions_json: Mapped[dict | None] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
+
+
 class AppConfig(Base):
     __tablename__ = "app_config"
 

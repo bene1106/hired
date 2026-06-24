@@ -18,6 +18,10 @@ from .types import (
     CoverLetter,
     InterviewQuestion,
     Job,
+    MockInterviewContext,
+    MockInterviewEvaluation,
+    MockInterviewPlan,
+    MockQAPair,
     Profile,
     ScoreResult,
 )
@@ -25,7 +29,7 @@ from .types import (
 
 @runtime_checkable
 class LLMProvider(Protocol):
-    """Every LLM adapter implements these nine methods."""
+    """Every LLM adapter implements these eleven methods."""
 
     def parse_cv(self, cv_text: str) -> dict:
         """Extract a structured profile dict from raw CV text."""
@@ -57,6 +61,31 @@ class LLMProvider(Protocol):
 
     def summarize_role(self, job: Job) -> str:
         """Two-paragraph plain-text summary of what the role actually involves."""
+        ...
+
+    def generate_mock_interview_questions(
+        self,
+        job: Job,
+        profile: Profile,
+        context: MockInterviewContext,
+    ) -> MockInterviewPlan:
+        """Prepare a full mock-interview question set in a single call.
+
+        The number of questions is proportionate to ``context.duration_minutes``
+        and slanted by ``context.interview_type``. Each question ships with one
+        pre-generated rephrasing and a max answer ``time_limit_seconds`` so the
+        timed runner needs no further LLM calls once the interview starts.
+        """
+        ...
+
+    def evaluate_mock_interview(
+        self,
+        job: Job,
+        context: MockInterviewContext,
+        qa_pairs: list[MockQAPair],
+    ) -> MockInterviewEvaluation:
+        """Score a completed mock interview: per-question ratings, an overall
+        correctness percentage, and strengths/weaknesses for the candidate."""
         ...
 
     def interview_chat_stream(

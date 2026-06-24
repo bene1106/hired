@@ -65,6 +65,7 @@ from api.dependencies import get_llm_provider
 from db.models import (
     Application,
     ApplicationMaterial,
+    Interview,
     InterviewSession,
     Job,
     PracticeAttempt,
@@ -87,6 +88,12 @@ from services.generation_progress import (
     GenerationProgress,
     create_entry,
     get_entry,
+)
+from services.mock_interview import (
+    VALID_GENDERS,
+    VALID_INTERVIEW_TYPES,
+    MockInterviewError,
+    prepare_interview_questions,
 )
 from services.profile_mapper import job_row_to_llm
 
@@ -143,6 +150,55 @@ class MaterialsBundleResponse(BaseModel):
     company_brief: MaterialResponse | None
     cv_suggestions: MaterialResponse | None
     cover_letter: MaterialResponse | None
+
+
+class InterviewCreateRequest(BaseModel):
+    round_number: int = Field(ge=1)
+    interview_type: str
+    duration_minutes: int = Field(ge=1)
+    interviewer_gender: str = "unspecified"
+    scheduled_at: datetime | None = None
+
+
+class InterviewUpdateRequest(BaseModel):
+    round_number: int | None = Field(default=None, ge=1)
+    interview_type: str | None = None
+    duration_minutes: int | None = Field(default=None, ge=1)
+    interviewer_gender: str | None = None
+    scheduled_at: datetime | None = None
+
+
+class InterviewResponse(BaseModel):
+    id: int
+    application_id: int
+    round_number: int
+    interview_type: str
+    duration_minutes: int
+    interviewer_gender: str
+    scheduled_at: datetime | None
+    is_upcoming: bool
+    question_count: int
+    questions: list[dict] | None
+
+    @classmethod
+    def from_row(cls, row: Interview) -> InterviewResponse:
+        questions = None
+        if isinstance(row.questions_json, dict):
+            raw = row.questions_json.get("questions")
+            if isinstance(raw, list):
+                questions = raw
+        return cls(
+            id=row.id,
+            application_id=row.application_id,
+            round_number=row.round_number,
+            interview_type=row.interview_type,
+            duration_minutes=row.duration_minutes,
+            interviewer_gender=row.interviewer_gender,
+            scheduled_at=row.scheduled_at,
+            is_upcoming=_interview_is_upcoming(row.scheduled_at),
+            question_count=len(questions) if questions is not None else 0,
+            questions=questions,
+        )
 
 
 class EditMaterialRequest(BaseModel):
@@ -424,6 +480,130 @@ def update_status(application_id: int, payload: StatusUpdateRequest) -> Applicat
             applied_at=live.applied_at,
             notes=live.notes,
         )
+
+
+# ---------------------------------------------------------------------------
+# Mock interviews (per-application interview records + prepared questions)
+# ---------------------------------------------------------------------------
+
+
+def _interview_is_upcoming(scheduled_at: datetime | None) -> bool:
+    """Upcoming if unscheduled or scheduled today or later (date granularity)."""
+    if scheduled_at is None:
+        return True
+    return scheduled_at.date() >= datetime.now(UTC).date()
+
+
+def _validate_interview_fields(interview_type: str | None, gender: str | None) -> None:
+    if interview_type is not None and interview_type not in VALID_INTERVIEW_TYPES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"interview_type must be one of {sorted(VALID_INTERVIEW_TYPES)}.",
+        )
+    if gender is not None and gender not in VALID_GENDERS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"interviewer_gender must be one of {sorted(VALID_GENDERS)}.",
+        )
+
+
+@router.post("/{application_id}/interviews", response_model=InterviewResponse)
+def create_interview(application_id: int, payload: InterviewCreateRequest) -> InterviewResponse:
+    _require_application(application_id)
+    _validate_interview_fields(payload.interview_type, payload.interviewer_gender)
+    with get_session() as session:
+        row = Interview(
+            application_id=application_id,
+            round_number=payload.round_number,
+            interview_type=payload.interview_type,
+            duration_minutes=payload.duration_minutes,
+            interviewer_gender=payload.interviewer_gender,
+            scheduled_at=payload.scheduled_at,
+        )
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return InterviewResponse.from_row(row)
+
+
+@router.get("/{application_id}/interviews", response_model=list[InterviewResponse])
+def list_interviews(application_id: int) -> list[InterviewResponse]:
+    _require_application(application_id)
+    with get_session() as session:
+        rows = (
+            session.execute(
+                select(Interview)
+                .where(Interview.application_id == application_id)
+                .order_by(Interview.round_number, Interview.id)
+            )
+            .scalars()
+            .all()
+        )
+        return [InterviewResponse.from_row(r) for r in rows]
+
+
+@router.patch(
+    "/{application_id}/interviews/{interview_id}",
+    response_model=InterviewResponse,
+)
+def update_interview(
+    application_id: int,
+    interview_id: int,
+    payload: InterviewUpdateRequest,
+) -> InterviewResponse:
+    _require_application(application_id)
+    _validate_interview_fields(payload.interview_type, payload.interviewer_gender)
+    with get_session() as session:
+        row = session.get(Interview, interview_id)
+        if row is None or row.application_id != application_id:
+            raise HTTPException(status_code=404, detail="Unknown interview for this application.")
+        # If type or duration changes, the cached questions no longer fit — drop
+        # them so the next prepare call regenerates a matching set.
+        invalidates = (
+            payload.interview_type is not None and payload.interview_type != row.interview_type
+        ) or (
+            payload.duration_minutes is not None
+            and payload.duration_minutes != row.duration_minutes
+        )
+        for field, value in payload.model_dump(exclude_unset=True).items():
+            setattr(row, field, value)
+        if invalidates:
+            row.questions_json = None
+        session.commit()
+        session.refresh(row)
+        return InterviewResponse.from_row(row)
+
+
+@router.delete("/{application_id}/interviews/{interview_id}", status_code=204)
+def delete_interview(application_id: int, interview_id: int) -> None:
+    _require_application(application_id)
+    with get_session() as session:
+        row = session.get(Interview, interview_id)
+        if row is None or row.application_id != application_id:
+            raise HTTPException(status_code=404, detail="Unknown interview for this application.")
+        session.delete(row)
+        session.commit()
+
+
+@router.post(
+    "/{application_id}/interviews/{interview_id}/questions",
+    response_model=InterviewResponse,
+)
+def prepare_interview_questions_route(
+    application_id: int,
+    interview_id: int,
+    provider: Annotated[LLMProvider, Depends(get_llm_provider)],
+) -> InterviewResponse:
+    _require_application(application_id)
+    try:
+        prepare_interview_questions(application_id, interview_id, provider)
+    except MockInterviewError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    with get_session() as session:
+        row = session.get(Interview, interview_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="Interview disappeared.")
+        return InterviewResponse.from_row(row)
 
 
 # ---------------------------------------------------------------------------

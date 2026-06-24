@@ -107,6 +107,69 @@ class AnswerFeedback(BaseModel):
     off_topic: bool = False
 
 
+class MockInterviewContext(BaseModel):
+    """Metadata describing the specific interview a mock run simulates.
+
+    Drives both question generation (count/slant proportionate to duration and
+    type) and evaluation (so the rubric matches an HR vs. technical round).
+    ``interview_type`` is a free-form string at this layer — the API/UI
+    constrain it to the known set.
+    """
+
+    round_number: int = Field(ge=1)
+    interview_type: str
+    duration_minutes: int = Field(ge=1)
+    # How many questions to produce. Computed by the service (proportionate to
+    # duration); included here so adapters can render it without importing the
+    # service layer.
+    num_questions: int = Field(ge=1, default=5)
+
+
+class MockQuestion(BaseModel):
+    """One element of `LLMProvider.generate_mock_interview_questions`.
+
+    ``rephrasing`` is generated up front so the timed runner can re-ask a
+    skipped question with no mid-interview LLM latency. ``time_limit_seconds``
+    is the max answer window; the intro question gets a longer one.
+    """
+
+    category: InterviewCategory
+    question: str
+    rephrasing: str
+    time_limit_seconds: int = Field(ge=15)
+    is_intro: bool = False
+
+
+class MockInterviewPlan(BaseModel):
+    """Output of `LLMProvider.generate_mock_interview_questions`."""
+
+    questions: list[MockQuestion] = Field(default_factory=list, min_length=1)
+
+
+class MockQAPair(BaseModel):
+    """A question paired with the candidate's transcribed answer."""
+
+    question: str
+    answer: str
+
+
+class MockAnswerRating(BaseModel):
+    """Per-question score within a mock-interview evaluation."""
+
+    question: str
+    rating: int = Field(ge=0, le=100)
+    comment: str
+
+
+class MockInterviewEvaluation(BaseModel):
+    """Output of `LLMProvider.evaluate_mock_interview`."""
+
+    per_question: list[MockAnswerRating] = Field(default_factory=list)
+    overall_percentage: int = Field(ge=0, le=100)
+    strengths: list[str] = Field(default_factory=list)
+    weaknesses: list[str] = Field(default_factory=list)
+
+
 ChatRole = Literal["user", "assistant"]
 
 
@@ -136,6 +199,12 @@ __all__ = [
     "InterviewDifficulty",
     "InterviewQuestion",
     "Job",
+    "MockAnswerRating",
+    "MockInterviewContext",
+    "MockInterviewEvaluation",
+    "MockInterviewPlan",
+    "MockQAPair",
+    "MockQuestion",
     "Profile",
     "ScoreResult",
     "WorkExperience",

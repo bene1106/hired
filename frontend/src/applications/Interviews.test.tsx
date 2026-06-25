@@ -11,6 +11,9 @@ const createInterview = vi.fn()
 const updateInterview = vi.fn()
 const deleteInterview = vi.fn()
 const prepareInterviewQuestions = vi.fn()
+const startMockRun = vi.fn()
+const listMockRuns = vi.fn()
+const getMockRun = vi.fn()
 
 vi.mock('@/lib/api', () => ({
   ApiError: class ApiError extends Error {},
@@ -20,6 +23,9 @@ vi.mock('@/lib/api', () => ({
     updateInterview: (...args: unknown[]) => updateInterview(...args),
     deleteInterview: (...args: unknown[]) => deleteInterview(...args),
     prepareInterviewQuestions: (...args: unknown[]) => prepareInterviewQuestions(...args),
+    startMockRun: (...args: unknown[]) => startMockRun(...args),
+    listMockRuns: (...args: unknown[]) => listMockRuns(...args),
+    getMockRun: (...args: unknown[]) => getMockRun(...args),
   },
 }))
 
@@ -43,6 +49,7 @@ function makeInterview(overrides: Partial<Interview> = {}): Interview {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  listMockRuns.mockResolvedValue([])
 })
 
 describe('InterviewsSection', () => {
@@ -111,5 +118,28 @@ describe('InterviewsSection', () => {
       expect(screen.getByTestId('interview-item-1')).toHaveTextContent(/5 questions ready/),
     )
     expect(screen.getByTestId('start-mock-1')).not.toBeDisabled()
+  })
+
+  it('shows a scored past run in the per-interview history', async () => {
+    listInterviews.mockResolvedValue([makeInterview({ question_count: 5 })])
+    listMockRuns.mockResolvedValue([
+      {
+        id: 11,
+        status: 'completed',
+        started_at: '2026-06-25T00:00:00Z',
+        completed_at: '2026-06-25T00:05:00Z',
+        question_count: 5,
+        has_evaluation: true,
+        overall_percentage: 73,
+      },
+    ])
+    const user = userEvent.setup()
+    render(<InterviewsSection applicationId={7} />)
+
+    await waitFor(() => screen.getByTestId('runs-toggle-1'))
+    await user.click(screen.getByTestId('runs-toggle-1'))
+
+    expect(screen.getByText('73%')).toBeInTheDocument()
+    expect(screen.getByTestId('view-run-11')).toBeInTheDocument()
   })
 })

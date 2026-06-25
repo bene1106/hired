@@ -310,3 +310,61 @@ def test_get_run_404_for_wrong_interview(mock_provider: MockProvider) -> None:
 
     res = client.get(f"/api/applications/{app_id}/interviews/{other_iid}/runs/{run_id}")
     assert res.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Evaluation (M3)
+# ---------------------------------------------------------------------------
+
+
+def _completed_run(app_id: int, mock_provider: MockProvider) -> tuple[int, int]:
+    iid = _create_interview(app_id)
+    run_id = client.post(f"/api/applications/{app_id}/interviews/{iid}/runs").json()["run_id"]
+    client.post(
+        f"/api/applications/{app_id}/interviews/{iid}/runs/{run_id}/complete",
+        json={
+            "transcript": [
+                {"question": "Tell me about yourself.", "answer": "I build APIs."},
+                {"question": "A hard bug?", "answer": "", "skipped": True},
+            ]
+        },
+    )
+    return iid, run_id
+
+
+def test_evaluate_run_stores_and_returns_evaluation(mock_provider: MockProvider) -> None:
+    app_id = _seed_application()
+    iid, run_id = _completed_run(app_id, mock_provider)
+
+    res = client.post(f"/api/applications/{app_id}/interviews/{iid}/runs/{run_id}/evaluate")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["evaluation"] is not None
+    assert body["evaluation"]["overall_percentage"] == 70  # MockProvider default
+    assert len(body["evaluation"]["per_question"]) == 2
+    assert body["evaluation"]["strengths"]
+    assert body["evaluation"]["weaknesses"]
+
+    # Persisted: fetching the run now carries the evaluation, and the summary
+    # flags it.
+    detail = client.get(f"/api/applications/{app_id}/interviews/{iid}/runs/{run_id}").json()
+    assert detail["evaluation"]["overall_percentage"] == 70
+    listing = client.get(f"/api/applications/{app_id}/interviews/{iid}/runs").json()
+    assert listing[0]["has_evaluation"] is True
+    assert listing[0]["overall_percentage"] == 70
+
+
+def test_evaluate_unknown_run_is_404(mock_provider: MockProvider) -> None:
+    app_id = _seed_application()
+    iid = _create_interview(app_id)
+    res = client.post(f"/api/applications/{app_id}/interviews/{iid}/runs/9999/evaluate")
+    assert res.status_code == 404
+
+
+def test_evaluate_run_without_transcript_is_404(mock_provider: MockProvider) -> None:
+    app_id = _seed_application()
+    iid = _create_interview(app_id)
+    # Started but never completed → no transcript.
+    run_id = client.post(f"/api/applications/{app_id}/interviews/{iid}/runs").json()["run_id"]
+    res = client.post(f"/api/applications/{app_id}/interviews/{iid}/runs/{run_id}/evaluate")
+    assert res.status_code == 404

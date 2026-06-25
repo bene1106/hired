@@ -25,6 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   intro, 15 s–3 min otherwise); auto-advance once you've answered and gone quiet;
   and a blinking red warning in the final 10 seconds. Your typed answers are
   saved as a transcript per run. (Automated scoring/feedback comes next.)
+- **Mock interviews (Milestone 3).** Finishing a mock interview now
+  automatically scores it: each answer gets a rating and comment, with an
+  overall correctness percentage plus strengths and areas to improve. Results
+  show right after the interview, and every interview keeps a "Past runs"
+  history you can reopen to review earlier scores.
 
 ## [0.4.0] - 2026-06-14
 

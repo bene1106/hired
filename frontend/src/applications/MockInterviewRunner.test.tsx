@@ -4,11 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { MockQuestion } from '@/lib/types'
 
 const completeMockRun = vi.fn()
+const evaluateMockRun = vi.fn()
 
 vi.mock('@/lib/api', () => ({
   ApiError: class ApiError extends Error {},
   api: {
     completeMockRun: (...args: unknown[]) => completeMockRun(...args),
+    evaluateMockRun: (...args: unknown[]) => evaluateMockRun(...args),
   },
 }))
 
@@ -36,8 +38,24 @@ afterEach(() => {
 })
 
 describe('MockInterviewRunner', () => {
-  it('runs a single-question interview and submits the transcript', async () => {
+  it('runs a single-question interview, submits, and auto-scores it', async () => {
     completeMockRun.mockResolvedValue({ id: 1 })
+    evaluateMockRun.mockResolvedValue({
+      id: 9,
+      interview_id: 3,
+      status: 'completed',
+      started_at: '2026-06-25T00:00:00Z',
+      completed_at: '2026-06-25T00:05:00Z',
+      transcript: [],
+      evaluation: {
+        per_question: [
+          { question: 'Design an idempotent endpoint.', rating: 80, comment: 'Good.' },
+        ],
+        overall_percentage: 80,
+        strengths: ['Clear'],
+        weaknesses: ['Quantify'],
+      },
+    })
     const onClose = vi.fn()
 
     render(
@@ -69,12 +87,17 @@ describe('MockInterviewRunner', () => {
     // auto-advances on inactivity and, being the only question, completes.
     await act(async () => {
       vi.advanceTimersByTime(16_000)
+      // Flush the complete → evaluate promise chain.
+      await Promise.resolve()
+      await Promise.resolve()
       await Promise.resolve()
     })
 
     expect(completeMockRun).toHaveBeenCalledWith(7, 3, 9, [
       expect.objectContaining({ answer: 'my answer', skipped: false }),
     ])
+    expect(evaluateMockRun).toHaveBeenCalledWith(7, 3, 9)
     expect(screen.getByTestId('runner-complete')).toBeInTheDocument()
+    expect(screen.getByTestId('overall-score')).toHaveTextContent('80%')
   })
 })

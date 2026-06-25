@@ -68,6 +68,7 @@ from db.models import (
     Interview,
     InterviewSession,
     Job,
+    MockInterviewRun,
     PracticeAttempt,
 )
 from db.session import get_session
@@ -93,7 +94,11 @@ from services.mock_interview import (
     VALID_GENDERS,
     VALID_INTERVIEW_TYPES,
     MockInterviewError,
+    MockInterviewNotUpcomingError,
+    complete_mock_run,
+    interview_is_upcoming,
     prepare_interview_questions,
+    start_mock_run,
 )
 from services.profile_mapper import job_row_to_llm
 
@@ -195,10 +200,78 @@ class InterviewResponse(BaseModel):
             duration_minutes=row.duration_minutes,
             interviewer_gender=row.interviewer_gender,
             scheduled_at=row.scheduled_at,
-            is_upcoming=_interview_is_upcoming(row.scheduled_at),
+            is_upcoming=interview_is_upcoming(row.scheduled_at),
             question_count=len(questions) if questions is not None else 0,
             questions=questions,
         )
+
+
+class TranscriptItem(BaseModel):
+    question: str
+    answer: str = ""
+    skipped: bool = False
+    asked_rephrasing: bool = False
+
+
+class CompleteRunRequest(BaseModel):
+    transcript: list[TranscriptItem]
+
+
+class RunStartResponse(BaseModel):
+    run_id: int
+    status: str
+    questions: list[dict]
+
+
+class RunSummaryResponse(BaseModel):
+    id: int
+    status: str
+    started_at: datetime
+    completed_at: datetime | None
+    question_count: int
+    has_evaluation: bool
+
+    @classmethod
+    def from_row(cls, row: MockInterviewRun) -> RunSummaryResponse:
+        transcript = _transcript_of(row)
+        return cls(
+            id=row.id,
+            status=row.status,
+            started_at=row.started_at,
+            completed_at=row.completed_at,
+            question_count=len(transcript),
+            has_evaluation=row.evaluation_json is not None,
+        )
+
+
+class RunDetailResponse(BaseModel):
+    id: int
+    interview_id: int
+    status: str
+    started_at: datetime
+    completed_at: datetime | None
+    transcript: list[dict]
+    evaluation: dict | None
+
+    @classmethod
+    def from_row(cls, row: MockInterviewRun) -> RunDetailResponse:
+        return cls(
+            id=row.id,
+            interview_id=row.interview_id,
+            status=row.status,
+            started_at=row.started_at,
+            completed_at=row.completed_at,
+            transcript=_transcript_of(row),
+            evaluation=row.evaluation_json if isinstance(row.evaluation_json, dict) else None,
+        )
+
+
+def _transcript_of(row: MockInterviewRun) -> list[dict]:
+    if isinstance(row.transcript_json, dict):
+        raw = row.transcript_json.get("transcript")
+        if isinstance(raw, list):
+            return raw
+    return []
 
 
 class EditMaterialRequest(BaseModel):
@@ -487,13 +560,6 @@ def update_status(application_id: int, payload: StatusUpdateRequest) -> Applicat
 # ---------------------------------------------------------------------------
 
 
-def _interview_is_upcoming(scheduled_at: datetime | None) -> bool:
-    """Upcoming if unscheduled or scheduled today or later (date granularity)."""
-    if scheduled_at is None:
-        return True
-    return scheduled_at.date() >= datetime.now(UTC).date()
-
-
 def _validate_interview_fields(interview_type: str | None, gender: str | None) -> None:
     if interview_type is not None and interview_type not in VALID_INTERVIEW_TYPES:
         raise HTTPException(
@@ -604,6 +670,97 @@ def prepare_interview_questions_route(
         if row is None:
             raise HTTPException(status_code=404, detail="Interview disappeared.")
         return InterviewResponse.from_row(row)
+
+
+def _require_interview(application_id: int, interview_id: int) -> None:
+    with get_session() as session:
+        interview = session.get(Interview, interview_id)
+        if interview is None or interview.application_id != application_id:
+            raise HTTPException(status_code=404, detail="Unknown interview for this application.")
+
+
+@router.post(
+    "/{application_id}/interviews/{interview_id}/runs",
+    response_model=RunStartResponse,
+)
+def start_interview_run(
+    application_id: int,
+    interview_id: int,
+    provider: Annotated[LLMProvider, Depends(get_llm_provider)],
+) -> RunStartResponse:
+    _require_application(application_id)
+    try:
+        run_id, questions = start_mock_run(application_id, interview_id, provider)
+    except MockInterviewNotUpcomingError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except MockInterviewError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return RunStartResponse(run_id=run_id, status="in_progress", questions=questions)
+
+
+@router.post(
+    "/{application_id}/interviews/{interview_id}/runs/{run_id}/complete",
+    response_model=RunDetailResponse,
+)
+def complete_interview_run(
+    application_id: int,
+    interview_id: int,
+    run_id: int,
+    payload: CompleteRunRequest,
+) -> RunDetailResponse:
+    _require_application(application_id)
+    try:
+        complete_mock_run(
+            application_id,
+            interview_id,
+            run_id,
+            [item.model_dump() for item in payload.transcript],
+        )
+    except MockInterviewError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    with get_session() as session:
+        run = session.get(MockInterviewRun, run_id)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run disappeared.")
+        return RunDetailResponse.from_row(run)
+
+
+@router.get(
+    "/{application_id}/interviews/{interview_id}/runs",
+    response_model=list[RunSummaryResponse],
+)
+def list_interview_runs(application_id: int, interview_id: int) -> list[RunSummaryResponse]:
+    _require_application(application_id)
+    _require_interview(application_id, interview_id)
+    with get_session() as session:
+        rows = (
+            session.execute(
+                select(MockInterviewRun)
+                .where(MockInterviewRun.interview_id == interview_id)
+                .order_by(desc(MockInterviewRun.id))
+            )
+            .scalars()
+            .all()
+        )
+        return [RunSummaryResponse.from_row(r) for r in rows]
+
+
+@router.get(
+    "/{application_id}/interviews/{interview_id}/runs/{run_id}",
+    response_model=RunDetailResponse,
+)
+def get_interview_run(
+    application_id: int,
+    interview_id: int,
+    run_id: int,
+) -> RunDetailResponse:
+    _require_application(application_id)
+    _require_interview(application_id, interview_id)
+    with get_session() as session:
+        run = session.get(MockInterviewRun, run_id)
+        if run is None or run.interview_id != interview_id:
+            raise HTTPException(status_code=404, detail="Unknown run for this interview.")
+        return RunDetailResponse.from_row(run)
 
 
 # ---------------------------------------------------------------------------

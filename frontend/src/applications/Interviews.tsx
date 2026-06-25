@@ -10,7 +10,10 @@ import type {
   InterviewCreateRequest,
   InterviewType,
   InterviewerGender,
+  MockQuestion,
 } from '@/lib/types'
+
+import { MockInterviewRunner } from './MockInterviewRunner'
 
 const TYPE_LABELS: Record<InterviewType, string> = {
   hr: 'HR',
@@ -42,6 +45,11 @@ export function InterviewsSection({ applicationId }: InterviewsSectionProps) {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Interview | null>(null)
   const [busyId, setBusyId] = useState<number | null>(null)
+  const [activeRun, setActiveRun] = useState<{
+    runId: number
+    interviewId: number
+    questions: MockQuestion[]
+  } | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -92,8 +100,33 @@ export function InterviewsSection({ applicationId }: InterviewsSectionProps) {
     }
   }
 
+  async function handleStart(id: number) {
+    setBusyId(id)
+    try {
+      const run = await api.startMockRun(applicationId, id)
+      setActiveRun({ runId: run.run_id, interviewId: id, questions: run.questions })
+    } catch (err) {
+      setError(messageFor(err, 'Could not start the mock interview.'))
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
+      {activeRun ? (
+        <MockInterviewRunner
+          applicationId={applicationId}
+          interviewId={activeRun.interviewId}
+          runId={activeRun.runId}
+          questions={activeRun.questions}
+          onClose={() => {
+            setActiveRun(null)
+            void load()
+          }}
+        />
+      ) : null}
+
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-[14px] font-semibold text-ink">Interviews</h3>
@@ -141,6 +174,7 @@ export function InterviewsSection({ applicationId }: InterviewsSectionProps) {
               }}
               onDelete={() => handleDelete(interview.id)}
               onPrepare={() => handlePrepare(interview.id)}
+              onStart={() => handleStart(interview.id)}
             />
           ))}
         </ul>
@@ -155,12 +189,14 @@ function InterviewRow({
   onEdit,
   onDelete,
   onPrepare,
+  onStart,
 }: {
   interview: Interview
   busy: boolean
   onEdit: () => void
   onDelete: () => void
   onPrepare: () => void
+  onStart: () => void
 }) {
   const hasQuestions = interview.question_count > 0
   return (
@@ -200,9 +236,16 @@ function InterviewRow({
         </Button>
         <Button
           size="sm"
-          disabled={!interview.is_upcoming || !hasQuestions}
+          disabled={!interview.is_upcoming || !hasQuestions || busy}
           data-testid={`start-mock-${interview.id}`}
-          title="Mock interview runner coming soon"
+          title={
+            !interview.is_upcoming
+              ? 'Only available for upcoming interviews'
+              : !hasQuestions
+                ? 'Prepare questions first'
+                : undefined
+          }
+          onClick={onStart}
         >
           Start mock interview
         </Button>

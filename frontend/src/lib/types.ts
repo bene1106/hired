@@ -447,3 +447,37 @@ export interface InterviewCreateRequest {
 }
 
 export type InterviewUpdateRequest = Partial<InterviewCreateRequest>
+
+// ----- Mock interview runs (M2: timed runner + transcript) -----------------
+
+export interface TranscriptItem {
+  question: string
+  answer: string
+  skipped: boolean
+  asked_rephrasing: boolean
+}
+
+export interface MockRunStartResponse {
+  run_id: number
+  status: string
+  questions: MockQuestion[]
+}
+
+export interface MockRunSummary {
+  id: number
+  status: string
+  started_at: string
+  completed_at: string | null
+  question_count: number
+  has_evaluation: boolean
+}
+
+export interface MockRunDetail {
+  id: number
+  interview_id: number
+  status: string
+  started_at: string
+  completed_at: string | null
+  transcript: TranscriptItem[]
+  evaluation: Record<string, unknown> | null
+}

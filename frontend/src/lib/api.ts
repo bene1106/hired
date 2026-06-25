@@ -19,6 +19,10 @@ import type {
   InterviewSessionDetail,
   InterviewSessionSummary,
   InterviewUpdateRequest,
+  MockRunDetail,
+  MockRunStartResponse,
+  MockRunSummary,
+  TranscriptItem,
   JobAction,
   JobActionStatus,
   JobInteractPayload,
@@ -363,6 +367,28 @@ export const api = {
     request(`/api/applications/${applicationId}/interviews/${interviewId}/questions`, {
       method: 'POST',
     }),
+
+  startMockRun: (applicationId: number, interviewId: number): Promise<MockRunStartResponse> =>
+    request(`/api/applications/${applicationId}/interviews/${interviewId}/runs`, {
+      method: 'POST',
+    }),
+
+  completeMockRun: (
+    applicationId: number,
+    interviewId: number,
+    runId: number,
+    transcript: TranscriptItem[],
+  ): Promise<MockRunDetail> =>
+    request(`/api/applications/${applicationId}/interviews/${interviewId}/runs/${runId}/complete`, {
+      method: 'POST',
+      body: JSON.stringify({ transcript }),
+    }),
+
+  listMockRuns: (applicationId: number, interviewId: number): Promise<MockRunSummary[]> =>
+    request(`/api/applications/${applicationId}/interviews/${interviewId}/runs`),
+
+  getMockRun: (applicationId: number, interviewId: number, runId: number): Promise<MockRunDetail> =>
+    request(`/api/applications/${applicationId}/interviews/${interviewId}/runs/${runId}`),
 
   /**
    * Stream the coach's reply for one user message.

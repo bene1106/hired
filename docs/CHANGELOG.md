@@ -18,6 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Per-interview question preparation: with one provider call the app generates a
   tailored question set sized to the interview's length (intro first, each with a
   reworded fallback), stored ready ahead of the (upcoming) timed mock interview.
+- **Mock interviews (Milestone 2).** "Start mock interview" now launches a
+  full-screen, timed, text-mode interview that walks you through the prepared
+  questions: a 5-second grace before it repeats, then rephrases, then skips a
+  question you don't start; per-question min/max answer windows (1–5 min for the
+  intro, 15 s–3 min otherwise); auto-advance once you've answered and gone quiet;
+  and a blinking red warning in the final 10 seconds. Your typed answers are
+  saved as a transcript per run. (Automated scoring/feedback comes next.)
 
 ## [0.4.0] - 2026-06-14
 

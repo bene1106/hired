@@ -136,6 +136,7 @@ def start_mock_run(
     application_id: int,
     interview_id: int,
     provider: LLMProvider,
+    voice_mode: bool = False,
 ) -> tuple[int, list[dict]]:
     """Start a timed mock-interview run.
 
@@ -156,7 +157,9 @@ def start_mock_run(
         questions = prepare_interview_questions(application_id, interview_id, provider)
 
     with get_session() as session:
-        run = MockInterviewRun(interview_id=interview_id, status="in_progress")
+        run = MockInterviewRun(
+            interview_id=interview_id, status="in_progress", voice_mode=voice_mode
+        )
         session.add(run)
         session.commit()
         session.refresh(run)

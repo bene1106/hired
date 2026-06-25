@@ -7,26 +7,31 @@ import type { MockEvaluation, MockQuestion, TranscriptItem } from '@/lib/types'
 
 import { MockInterviewResults } from './MockInterviewResults'
 import { useMockInterviewRunner } from './useMockInterviewRunner'
+import { useVoiceRunner } from './useVoiceRunner'
 
 interface MockInterviewRunnerProps {
   applicationId: number
   interviewId: number
   runId: number
   questions: MockQuestion[]
+  voiceMode?: boolean
+  interviewerGender?: string | null
   /** Called after the run is submitted or the candidate ends it early. */
   onClose: (opts: { completed: boolean }) => void
 }
 
 /**
- * Full-screen, timed, text-mode mock interview (M2). The timing state machine
- * lives in `useMockInterviewRunner`; this component is the surface plus the
- * completion call. Scoring/feedback is M3.
+ * Full-screen mock interview shell. Owns submission + scoring + completion; the
+ * in-progress surface is either the text runner (M2) or the voice runner (M4),
+ * chosen by `voiceMode`. Both feed the same `handleComplete`.
  */
 export function MockInterviewRunner({
   applicationId,
   interviewId,
   runId,
   questions,
+  voiceMode = false,
+  interviewerGender = null,
   onClose,
 }: MockInterviewRunnerProps) {
   const [submitting, setSubmitting] = useState(false)
@@ -62,8 +67,6 @@ export function MockInterviewRunner({
     }
   }
 
-  const runner = useMockInterviewRunner({ questions, onComplete: handleComplete })
-
   return (
     <div
       data-testid="mock-runner"
@@ -72,24 +75,8 @@ export function MockInterviewRunner({
       aria-modal="true"
       aria-label="Mock interview"
     >
-      {/* Blinking red warning, top-center, during the final seconds. */}
-      {runner.showWarning && !runner.finished ? (
-        <button
-          type="button"
-          data-testid="runner-warning"
-          onClick={runner.submitNow}
-          className="absolute left-1/2 top-4 z-10 -translate-x-1/2 animate-pulse rounded-full bg-warn px-3 py-1 text-[12px] font-semibold text-white shadow"
-        >
-          {runner.secondsLeftToMax}s left — wrap up
-        </button>
-      ) : null}
-
       <div className="flex items-center justify-between border-b border-line px-8 py-4">
-        <div className="text-[12px] font-medium text-ink-3">
-          {runner.finished || done
-            ? 'Mock interview'
-            : `Question ${runner.index + 1} of ${runner.total}`}
-        </div>
+        <div className="text-[12px] font-medium text-ink-3">Mock interview</div>
         <Button
           size="sm"
           variant="ghost"
@@ -127,55 +114,180 @@ export function MockInterviewRunner({
           </div>
         ) : submitting ? (
           <p className="text-[14px] text-ink-3">Submitting your answers…</p>
+        ) : error ? (
+          <p role="alert" className="text-[12px] text-warn">
+            {error}
+          </p>
+        ) : voiceMode ? (
+          <VoiceSurface
+            questions={questions}
+            gender={interviewerGender}
+            onComplete={handleComplete}
+          />
         ) : (
-          <>
-            <div className="flex flex-col gap-1">
-              {runner.isRepeat ? (
-                <span className="text-[12px] font-medium text-warn">Let me repeat that…</span>
-              ) : null}
-              {runner.isRephrased ? (
-                <span className="text-[12px] font-medium text-ink-3">
-                  Let me put it another way…
-                </span>
-              ) : null}
-              <h2 data-testid="runner-question" className="text-[20px] font-semibold text-ink">
-                {runner.displayText}
-              </h2>
-              {runner.phase === 'answering' && runner.secondsLeftToMax !== null ? (
-                <span className="text-[12px] text-ink-3">{runner.secondsLeftToMax}s remaining</span>
-              ) : (
-                <span className="text-[12px] text-ink-4">Start typing your answer…</span>
-              )}
-            </div>
-
-            <Textarea
-              data-testid="runner-answer"
-              aria-label="Your answer"
-              value={runner.answer}
-              onChange={(e) => runner.onAnswerChange(e.target.value)}
-              rows={12}
-              className="flex-1 text-[15px] leading-7"
-              autoFocus
-            />
-
-            {error ? (
-              <p role="alert" className="text-[12px] text-warn">
-                {error}
-              </p>
-            ) : null}
-
-            <div className="flex justify-end">
-              <Button
-                data-testid="runner-submit"
-                disabled={!runner.canSubmit}
-                onClick={runner.submitNow}
-              >
-                {runner.index + 1 === runner.total ? 'Finish' : 'Submit answer'}
-              </Button>
-            </div>
-          </>
+          <TextSurface questions={questions} onComplete={handleComplete} />
         )}
       </div>
     </div>
+  )
+}
+
+function WarningButton({ seconds, onClick }: { seconds: number | null; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      data-testid="runner-warning"
+      onClick={onClick}
+      className="absolute left-1/2 top-4 z-10 -translate-x-1/2 animate-pulse rounded-full bg-warn px-3 py-1 text-[12px] font-semibold text-white shadow"
+    >
+      {seconds}s left — wrap up
+    </button>
+  )
+}
+
+function TextSurface({
+  questions,
+  onComplete,
+}: {
+  questions: MockQuestion[]
+  onComplete: (transcript: TranscriptItem[]) => void
+}) {
+  const runner = useMockInterviewRunner({ questions, onComplete })
+  return (
+    <>
+      {runner.showWarning && !runner.finished ? (
+        <WarningButton seconds={runner.secondsLeftToMax} onClick={runner.submitNow} />
+      ) : null}
+      <div className="flex flex-col gap-1">
+        <span className="text-[12px] text-ink-3">
+          Question {runner.index + 1} of {runner.total}
+        </span>
+        {runner.isRepeat ? (
+          <span className="text-[12px] font-medium text-warn">Let me repeat that…</span>
+        ) : null}
+        {runner.isRephrased ? (
+          <span className="text-[12px] font-medium text-ink-3">Let me put it another way…</span>
+        ) : null}
+        <h2 data-testid="runner-question" className="text-[20px] font-semibold text-ink">
+          {runner.displayText}
+        </h2>
+        {runner.phase === 'answering' && runner.secondsLeftToMax !== null ? (
+          <span className="text-[12px] text-ink-3">{runner.secondsLeftToMax}s remaining</span>
+        ) : (
+          <span className="text-[12px] text-ink-4">Start typing your answer…</span>
+        )}
+      </div>
+
+      <Textarea
+        data-testid="runner-answer"
+        aria-label="Your answer"
+        value={runner.answer}
+        onChange={(e) => runner.onAnswerChange(e.target.value)}
+        rows={12}
+        className="flex-1 text-[15px] leading-7"
+        autoFocus
+      />
+
+      <div className="flex justify-end">
+        <Button data-testid="runner-submit" disabled={!runner.canSubmit} onClick={runner.submitNow}>
+          {runner.index + 1 === runner.total ? 'Finish' : 'Submit answer'}
+        </Button>
+      </div>
+    </>
+  )
+}
+
+function VoiceSurface({
+  questions,
+  gender,
+  onComplete,
+}: {
+  questions: MockQuestion[]
+  gender: string | null
+  onComplete: (transcript: TranscriptItem[]) => void
+}) {
+  const runner = useVoiceRunner({ questions, gender, onComplete })
+  const [typing, setTyping] = useState(false)
+  const [draft, setDraft] = useState('')
+
+  const phaseLabel =
+    runner.phase === 'speaking'
+      ? 'Asking the question…'
+      : runner.phase === 'transcribing'
+        ? 'Transcribing your answer…'
+        : runner.phase === 'listening'
+          ? 'Listening — answer out loud'
+          : ''
+
+  return (
+    <>
+      {runner.showWarning && !runner.finished ? (
+        <WarningButton seconds={runner.secondsLeftToMax} onClick={runner.finishAnswer} />
+      ) : null}
+      <div className="flex flex-col gap-1">
+        <span className="text-[12px] text-ink-3">
+          Question {runner.index + 1} of {runner.total}
+        </span>
+        {runner.isRepeat ? (
+          <span className="text-[12px] font-medium text-warn">Let me repeat that…</span>
+        ) : null}
+        {runner.isRephrased ? (
+          <span className="text-[12px] font-medium text-ink-3">Let me put it another way…</span>
+        ) : null}
+        <h2 data-testid="runner-question" className="text-[20px] font-semibold text-ink">
+          {runner.displayText}
+        </h2>
+        <span className="text-[12px] text-ink-3" aria-live="polite">
+          {phaseLabel}
+          {runner.phase === 'listening' && runner.secondsLeftToMax !== null
+            ? ` · ${runner.secondsLeftToMax}s left`
+            : ''}
+        </span>
+      </div>
+
+      {typing ? (
+        <div className="flex flex-col gap-2">
+          <Textarea
+            data-testid="voice-text"
+            aria-label="Type your answer instead"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            rows={8}
+            className="text-[15px] leading-7"
+          />
+          <div className="flex justify-end">
+            <Button
+              data-testid="voice-text-submit"
+              disabled={runner.phase !== 'listening'}
+              onClick={() => {
+                runner.submitText(draft)
+                setDraft('')
+                setTyping(false)
+              }}
+            >
+              Submit answer
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center gap-3">
+          <Button
+            data-testid="voice-done"
+            disabled={runner.phase !== 'listening'}
+            onClick={runner.finishAnswer}
+          >
+            Done answering
+          </Button>
+          <button
+            type="button"
+            data-testid="voice-type-toggle"
+            className="text-[12px] text-ink-3 hover:text-ink"
+            onClick={() => setTyping(true)}
+          >
+            Type instead
+          </button>
+        </div>
+      )}
+    </>
   )
 }

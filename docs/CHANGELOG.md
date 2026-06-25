@@ -30,6 +30,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   overall correctness percentage plus strengths and areas to improve. Results
   show right after the interview, and every interview keeps a "Past runs"
   history you can reopen to review earlier scores.
+- **Mock interviews (Milestone 4 — voice).** You can now take a mock interview
+  by voice: questions are spoken aloud in a male/female interviewer voice
+  (matching the interview's interviewer), you answer out loud, and your speech is
+  transcribed automatically. A pre-flight chooser lets you pick Voice or Text per
+  run; voice models download once on first use and then run fully offline
+  (faster-whisper + Piper). If the mic or models aren't available it falls back
+  to browser speech / typing, and Text mode is always available. (Voice needs the
+  optional `voice` dependency group — `uv sync --extra voice`; bundling it into
+  packaged installers is a follow-up.)
 
 ## [0.4.0] - 2026-06-14
 

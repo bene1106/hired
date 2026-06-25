@@ -44,6 +44,7 @@ import type {
   StartGenerationResponse,
   TestProviderResult,
   UpdateSourcePayload,
+  VoiceStatus,
 } from './types'
 
 export const BACKEND_URL =
@@ -368,9 +369,14 @@ export const api = {
       method: 'POST',
     }),
 
-  startMockRun: (applicationId: number, interviewId: number): Promise<MockRunStartResponse> =>
+  startMockRun: (
+    applicationId: number,
+    interviewId: number,
+    voiceMode = false,
+  ): Promise<MockRunStartResponse> =>
     request(`/api/applications/${applicationId}/interviews/${interviewId}/runs`, {
       method: 'POST',
+      body: JSON.stringify({ voice_mode: voiceMode }),
     }),
 
   completeMockRun: (
@@ -398,6 +404,27 @@ export const api = {
     request(`/api/applications/${applicationId}/interviews/${interviewId}/runs/${runId}/evaluate`, {
       method: 'POST',
     }),
+
+  getVoiceStatus: (): Promise<VoiceStatus> => request('/api/voice/status'),
+
+  prepareVoice: (): Promise<VoiceStatus> => request('/api/voice/prepare', { method: 'POST' }),
+
+  // TTS returns binary audio, so it bypasses the JSON `request()` wrapper.
+  synthesizeSpeech: async (text: string, gender: string | null): Promise<Blob> => {
+    const res = await fetch(`${BACKEND_URL}/api/voice/tts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, gender }),
+    })
+    if (!res.ok) throw new ApiError(res.status, `TTS failed (${res.status})`)
+    return res.blob()
+  },
+
+  transcribeSpeech: (audio: Blob): Promise<{ text: string }> => {
+    const form = new FormData()
+    form.append('file', audio, 'answer.webm')
+    return request('/api/voice/stt', { method: 'POST', body: form })
+  },
 
   /**
    * Stream the coach's reply for one user message.

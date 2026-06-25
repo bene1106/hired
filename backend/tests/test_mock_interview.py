@@ -251,6 +251,17 @@ def test_start_run_auto_prepares_questions(mock_provider: MockProvider) -> None:
     assert body["questions"][0]["is_intro"] is True
 
 
+def test_start_run_persists_voice_mode(mock_provider: MockProvider) -> None:
+    app_id = _seed_application()
+    iid = _create_interview(app_id)
+    run_id = client.post(
+        f"/api/applications/{app_id}/interviews/{iid}/runs",
+        json={"voice_mode": True},
+    ).json()["run_id"]
+    detail = client.get(f"/api/applications/{app_id}/interviews/{iid}/runs/{run_id}").json()
+    assert detail["voice_mode"] is True
+
+
 def test_start_run_on_past_interview_is_409(mock_provider: MockProvider) -> None:
     app_id = _seed_application()
     past = (datetime.now(UTC) - timedelta(days=2)).isoformat()

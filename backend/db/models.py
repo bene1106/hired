@@ -244,6 +244,35 @@ class Interview(Base):
     )
 
 
+class MockInterviewRun(Base):
+    """One attempt at a timed mock interview for a given interview.
+
+    ``transcript_json`` holds the ordered question/answer records captured by the
+    runner; ``evaluation_json`` is filled later (M3) when the answers are scored.
+    ``voice_mode`` is stored for the later voice feature (M4) and defaults off.
+    """
+
+    __tablename__ = "mock_interview_runs"
+    __table_args__ = (Index("ix_mock_interview_runs_interview_id", "interview_id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    interview_id: Mapped[int] = mapped_column(
+        ForeignKey("interviews.id", ondelete="CASCADE"), nullable=False
+    )
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, server_default="in_progress", default="in_progress"
+    )
+    voice_mode: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="0", default=False
+    )
+    transcript_json: Mapped[dict | None] = mapped_column(JSON)
+    evaluation_json: Mapped[dict | None] = mapped_column(JSON)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
 class AppConfig(Base):
     __tablename__ = "app_config"
 

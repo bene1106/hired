@@ -225,3 +225,88 @@ def test_updating_duration_invalidates_cached_questions(mock_provider: MockProvi
     ).json()
     assert updated["question_count"] == 0
     assert updated["questions"] is None
+
+
+# ---------------------------------------------------------------------------
+# Mock-interview runs (M2)
+# ---------------------------------------------------------------------------
+
+
+def _create_interview(app_id: int, **overrides: object) -> int:
+    body = {"round_number": 1, "interview_type": "technical", "duration_minutes": 30}
+    body.update(overrides)
+    return client.post(f"/api/applications/{app_id}/interviews", json=body).json()["id"]
+
+
+def test_start_run_auto_prepares_questions(mock_provider: MockProvider) -> None:
+    app_id = _seed_application()
+    iid = _create_interview(app_id)
+
+    res = client.post(f"/api/applications/{app_id}/interviews/{iid}/runs")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["status"] == "in_progress"
+    assert body["run_id"] >= 1
+    assert len(body["questions"]) == target_question_count(30)
+    assert body["questions"][0]["is_intro"] is True
+
+
+def test_start_run_on_past_interview_is_409(mock_provider: MockProvider) -> None:
+    app_id = _seed_application()
+    past = (datetime.now(UTC) - timedelta(days=2)).isoformat()
+    iid = _create_interview(app_id, scheduled_at=past)
+
+    res = client.post(f"/api/applications/{app_id}/interviews/{iid}/runs")
+    assert res.status_code == 409
+
+
+def test_complete_run_saves_transcript_and_marks_completed(mock_provider: MockProvider) -> None:
+    app_id = _seed_application()
+    iid = _create_interview(app_id)
+    run_id = client.post(f"/api/applications/{app_id}/interviews/{iid}/runs").json()["run_id"]
+
+    transcript = [
+        {"question": "Tell me about yourself.", "answer": "I build APIs.", "skipped": False},
+        {"question": "A hard bug?", "answer": "", "skipped": True, "asked_rephrasing": True},
+    ]
+    res = client.post(
+        f"/api/applications/{app_id}/interviews/{iid}/runs/{run_id}/complete",
+        json={"transcript": transcript},
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["status"] == "completed"
+    assert body["completed_at"] is not None
+    assert len(body["transcript"]) == 2
+    assert body["transcript"][1]["skipped"] is True
+    assert body["evaluation"] is None  # scoring is M3
+
+
+def test_list_and_get_runs(mock_provider: MockProvider) -> None:
+    app_id = _seed_application()
+    iid = _create_interview(app_id)
+    run_id = client.post(f"/api/applications/{app_id}/interviews/{iid}/runs").json()["run_id"]
+    client.post(
+        f"/api/applications/{app_id}/interviews/{iid}/runs/{run_id}/complete",
+        json={"transcript": [{"question": "q", "answer": "a"}]},
+    )
+
+    listing = client.get(f"/api/applications/{app_id}/interviews/{iid}/runs").json()
+    assert len(listing) == 1
+    assert listing[0]["status"] == "completed"
+    assert listing[0]["question_count"] == 1
+    assert listing[0]["has_evaluation"] is False
+
+    detail = client.get(f"/api/applications/{app_id}/interviews/{iid}/runs/{run_id}").json()
+    assert detail["id"] == run_id
+    assert detail["transcript"][0]["answer"] == "a"
+
+
+def test_get_run_404_for_wrong_interview(mock_provider: MockProvider) -> None:
+    app_id = _seed_application()
+    iid = _create_interview(app_id)
+    run_id = client.post(f"/api/applications/{app_id}/interviews/{iid}/runs").json()["run_id"]
+    other_iid = _create_interview(app_id, round_number=2)
+
+    res = client.get(f"/api/applications/{app_id}/interviews/{other_iid}/runs/{run_id}")
+    assert res.status_code == 404

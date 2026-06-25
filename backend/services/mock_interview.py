@@ -8,9 +8,11 @@ the provider methods exist now but evaluation is not yet wired here.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from sqlalchemy import select
 
-from db.models import Application, Interview, Job
+from db.models import Application, Interview, Job, MockInterviewRun
 from db.models import Profile as ProfileRow
 from db.session import get_session
 from llm import LLMProvider
@@ -37,7 +39,26 @@ _MINUTES_PER_QUESTION = 6
 
 
 class MockInterviewError(Exception):
-    """Raised when an interview can't be found or prepared."""
+    """Raised when an interview/run can't be found or prepared."""
+
+
+class MockInterviewNotUpcomingError(MockInterviewError):
+    """Raised when a mock run is requested for a past interview."""
+
+
+def interview_is_upcoming(scheduled_at: datetime | None) -> bool:
+    """Upcoming if unscheduled or scheduled today or later (date granularity)."""
+    if scheduled_at is None:
+        return True
+    return scheduled_at.date() >= datetime.now(UTC).date()
+
+
+def _questions_of(interview: Interview) -> list[dict]:
+    if isinstance(interview.questions_json, dict):
+        raw = interview.questions_json.get("questions")
+        if isinstance(raw, list):
+            return raw
+    return []
 
 
 def target_question_count(duration_minutes: int) -> int:
@@ -109,3 +130,60 @@ def prepare_interview_questions(
         session.commit()
 
     return normalized
+
+
+def start_mock_run(
+    application_id: int,
+    interview_id: int,
+    provider: LLMProvider,
+) -> tuple[int, list[dict]]:
+    """Start a timed mock-interview run.
+
+    Rejects past interviews, ensures a question set exists (preparing one if
+    needed), inserts an ``in_progress`` run, and returns ``(run_id, questions)``.
+    """
+    with get_session() as session:
+        interview = session.get(Interview, interview_id)
+        if interview is None or interview.application_id != application_id:
+            raise MockInterviewError("Unknown interview for this application.")
+        if not interview_is_upcoming(interview.scheduled_at):
+            raise MockInterviewNotUpcomingError(
+                "A mock interview can only be started for an upcoming interview."
+            )
+        questions = _questions_of(interview)
+
+    if not questions:
+        questions = prepare_interview_questions(application_id, interview_id, provider)
+
+    with get_session() as session:
+        run = MockInterviewRun(interview_id=interview_id, status="in_progress")
+        session.add(run)
+        session.commit()
+        session.refresh(run)
+        run_id = run.id
+
+    return run_id, questions
+
+
+def complete_mock_run(
+    application_id: int,
+    interview_id: int,
+    run_id: int,
+    transcript: list[dict],
+) -> None:
+    """Persist a finished run's transcript and mark it completed.
+
+    Evaluation/scoring is invoked here in a later milestone; M2 only stores the
+    transcript so the run is reviewable.
+    """
+    with get_session() as session:
+        run = session.get(MockInterviewRun, run_id)
+        if run is None or run.interview_id != interview_id:
+            raise MockInterviewError("Unknown run for this interview.")
+        interview = session.get(Interview, interview_id)
+        if interview is None or interview.application_id != application_id:
+            raise MockInterviewError("Unknown interview for this application.")
+        run.transcript_json = {"transcript": transcript}
+        run.status = "completed"
+        run.completed_at = datetime.now(UTC)
+        session.commit()

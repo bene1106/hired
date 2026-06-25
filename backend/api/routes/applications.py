@@ -218,6 +218,10 @@ class CompleteRunRequest(BaseModel):
     transcript: list[TranscriptItem]
 
 
+class StartRunRequest(BaseModel):
+    voice_mode: bool = False
+
+
 class RunStartResponse(BaseModel):
     run_id: int
     status: str
@@ -256,6 +260,7 @@ class RunDetailResponse(BaseModel):
     id: int
     interview_id: int
     status: str
+    voice_mode: bool
     started_at: datetime
     completed_at: datetime | None
     transcript: list[dict]
@@ -267,6 +272,7 @@ class RunDetailResponse(BaseModel):
             id=row.id,
             interview_id=row.interview_id,
             status=row.status,
+            voice_mode=row.voice_mode,
             started_at=row.started_at,
             completed_at=row.completed_at,
             transcript=_transcript_of(row),
@@ -695,10 +701,14 @@ def start_interview_run(
     application_id: int,
     interview_id: int,
     provider: Annotated[LLMProvider, Depends(get_llm_provider)],
+    payload: StartRunRequest | None = None,
 ) -> RunStartResponse:
     _require_application(application_id)
+    voice_mode = payload.voice_mode if payload is not None else False
     try:
-        run_id, questions = start_mock_run(application_id, interview_id, provider)
+        run_id, questions = start_mock_run(
+            application_id, interview_id, provider, voice_mode=voice_mode
+        )
     except MockInterviewNotUpcomingError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except MockInterviewError as exc:

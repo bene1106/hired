@@ -27,6 +27,17 @@ dependencies = [
     "typing-extensions>=4.12",
 ]
 
+[project.optional-dependencies]
+# M4 voice: local STT (faster-whisper) + TTS (Piper). Kept optional so the
+# core sidecar + CI stay lean and don't pull heavy native wheels
+# (ctranslate2, onnxruntime). Enable with `uv sync --extra voice`; models
+# then download on first use into ~/.hired/models. Bundling these into the
+# PyInstaller release sidecar is a tracked follow-up.
+voice = [
+    "faster-whisper>=1.0",
+    "piper-tts>=1.2",
+]
+
 [dependency-groups]
 dev = [
     "pytest>=8.3",

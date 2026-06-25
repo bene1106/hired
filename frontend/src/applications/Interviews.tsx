@@ -13,6 +13,7 @@ import type {
   MockEvaluation,
   MockQuestion,
   MockRunSummary,
+  VoiceStatus,
 } from '@/lib/types'
 
 import { MockInterviewResults } from './MockInterviewResults'
@@ -52,9 +53,15 @@ export function InterviewsSection({ applicationId }: InterviewsSectionProps) {
     runId: number
     interviewId: number
     questions: MockQuestion[]
+    voiceMode: boolean
+    gender: string | null
   } | null>(null)
   // Bumped when a run finishes so each interview's run history reloads.
   const [runsVersion, setRunsVersion] = useState(0)
+  // Pre-flight: which interview is choosing Voice/Text before starting.
+  const [startingFor, setStartingFor] = useState<Interview | null>(null)
+  const [voiceStatus, setVoiceStatus] = useState<VoiceStatus | null>(null)
+  const [preparingVoice, setPreparingVoice] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -105,11 +112,53 @@ export function InterviewsSection({ applicationId }: InterviewsSectionProps) {
     }
   }
 
-  async function handleStart(id: number) {
-    setBusyId(id)
+  useEffect(() => {
+    let cancelled = false
+    void api
+      .getVoiceStatus()
+      .then((s) => {
+        if (!cancelled) setVoiceStatus(s)
+      })
+      .catch(() => {
+        if (!cancelled) setVoiceStatus(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const voiceReady = !!voiceStatus?.deps_available && !!voiceStatus?.models_ready
+
+  async function setupVoice() {
+    setPreparingVoice(true)
     try {
-      const run = await api.startMockRun(applicationId, id)
-      setActiveRun({ runId: run.run_id, interviewId: id, questions: run.questions })
+      await api.prepareVoice()
+      // Poll until the background download finishes (or errors).
+      for (let i = 0; i < 240; i++) {
+        const s = await api.getVoiceStatus()
+        setVoiceStatus(s)
+        if (s.models_ready || s.prepare_state === 'error' || !s.deps_available) break
+        await new Promise((r) => setTimeout(r, 2000))
+      }
+    } catch (err) {
+      setError(messageFor(err, 'Could not set up voice.'))
+    } finally {
+      setPreparingVoice(false)
+    }
+  }
+
+  async function beginRun(interview: Interview, voiceMode: boolean) {
+    setStartingFor(null)
+    setBusyId(interview.id)
+    try {
+      const run = await api.startMockRun(applicationId, interview.id, voiceMode)
+      setActiveRun({
+        runId: run.run_id,
+        interviewId: interview.id,
+        questions: run.questions,
+        voiceMode,
+        gender: interview.interviewer_gender,
+      })
     } catch (err) {
       setError(messageFor(err, 'Could not start the mock interview.'))
     } finally {
@@ -125,11 +174,25 @@ export function InterviewsSection({ applicationId }: InterviewsSectionProps) {
           interviewId={activeRun.interviewId}
           runId={activeRun.runId}
           questions={activeRun.questions}
+          voiceMode={activeRun.voiceMode}
+          interviewerGender={activeRun.gender}
           onClose={() => {
             setActiveRun(null)
             setRunsVersion((v) => v + 1)
             void load()
           }}
+        />
+      ) : null}
+
+      {startingFor ? (
+        <StartChooser
+          interview={startingFor}
+          voiceReady={voiceReady}
+          voiceDepsAvailable={!!voiceStatus?.deps_available}
+          preparingVoice={preparingVoice}
+          onSetupVoice={setupVoice}
+          onPick={(voiceMode) => void beginRun(startingFor, voiceMode)}
+          onCancel={() => setStartingFor(null)}
         />
       ) : null}
 
@@ -180,7 +243,7 @@ export function InterviewsSection({ applicationId }: InterviewsSectionProps) {
               }}
               onDelete={() => handleDelete(interview.id)}
               onPrepare={() => handlePrepare(interview.id)}
-              onStart={() => handleStart(interview.id)}
+              onStart={() => setStartingFor(interview)}
               applicationId={applicationId}
               runsVersion={runsVersion}
             />
@@ -501,6 +564,74 @@ function InterviewForm({
         >
           {saving ? 'Saving…' : initial ? 'Save interview' : 'Add interview'}
         </Button>
+      </div>
+    </div>
+  )
+}
+
+function StartChooser({
+  interview,
+  voiceReady,
+  voiceDepsAvailable,
+  preparingVoice,
+  onSetupVoice,
+  onPick,
+  onCancel,
+}: {
+  interview: Interview
+  voiceReady: boolean
+  voiceDepsAvailable: boolean
+  preparingVoice: boolean
+  onSetupVoice: () => void
+  onPick: (voiceMode: boolean) => void
+  onCancel: () => void
+}) {
+  return (
+    <div
+      data-testid="start-chooser"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Choose interview mode"
+    >
+      <div className="flex w-full max-w-[420px] flex-col gap-4 rounded-lg border border-line bg-surface p-6 shadow-lg">
+        <div>
+          <h3 className="text-[15px] font-semibold text-ink">
+            Start round {interview.round_number} mock interview
+          </h3>
+          <p className="text-[12px] text-ink-3">Choose how you want to answer.</p>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Button data-testid="choose-text" onClick={() => onPick(false)}>
+            Text mode — type your answers
+          </Button>
+
+          {voiceReady ? (
+            <Button data-testid="choose-voice" variant="outline" onClick={() => onPick(true)}>
+              Voice mode — spoken questions &amp; answers
+            </Button>
+          ) : voiceDepsAvailable ? (
+            <Button
+              data-testid="setup-voice"
+              variant="outline"
+              disabled={preparingVoice}
+              onClick={onSetupVoice}
+            >
+              {preparingVoice ? 'Downloading voice models…' : 'Set up voice (one-time download)'}
+            </Button>
+          ) : (
+            <p className="text-[12px] text-ink-4">
+              Voice mode isn&rsquo;t available in this build. Text mode works everywhere.
+            </p>
+          )}
+        </div>
+
+        <div className="flex justify-end">
+          <Button size="sm" variant="ghost" onClick={onCancel}>
+            Cancel
+          </Button>
+        </div>
       </div>
     </div>
   )

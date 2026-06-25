@@ -490,8 +490,20 @@ export interface MockRunDetail {
   id: number
   interview_id: number
   status: string
+  voice_mode: boolean
   started_at: string
   completed_at: string | null
   transcript: TranscriptItem[]
   evaluation: MockEvaluation | null
+}
+
+// ----- Voice (M4) ----------------------------------------------------------
+
+export type VoicePrepareState = 'idle' | 'downloading' | 'ready' | 'error'
+
+export interface VoiceStatus {
+  deps_available: boolean
+  models_ready: boolean
+  prepare_state: VoicePrepareState
+  error: string | null
 }

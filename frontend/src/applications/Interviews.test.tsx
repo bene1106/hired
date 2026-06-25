@@ -14,6 +14,8 @@ const prepareInterviewQuestions = vi.fn()
 const startMockRun = vi.fn()
 const listMockRuns = vi.fn()
 const getMockRun = vi.fn()
+const getVoiceStatus = vi.fn()
+const prepareVoice = vi.fn()
 
 vi.mock('@/lib/api', () => ({
   ApiError: class ApiError extends Error {},
@@ -26,7 +28,14 @@ vi.mock('@/lib/api', () => ({
     startMockRun: (...args: unknown[]) => startMockRun(...args),
     listMockRuns: (...args: unknown[]) => listMockRuns(...args),
     getMockRun: (...args: unknown[]) => getMockRun(...args),
+    getVoiceStatus: (...args: unknown[]) => getVoiceStatus(...args),
+    prepareVoice: (...args: unknown[]) => prepareVoice(...args),
   },
+}))
+
+// MockInterviewRunner pulls in audio/mic hooks we don't exercise here; stub it.
+vi.mock('./MockInterviewRunner', () => ({
+  MockInterviewRunner: () => null,
 }))
 
 import { InterviewsSection } from './Interviews'
@@ -50,6 +59,12 @@ function makeInterview(overrides: Partial<Interview> = {}): Interview {
 beforeEach(() => {
   vi.clearAllMocks()
   listMockRuns.mockResolvedValue([])
+  getVoiceStatus.mockResolvedValue({
+    deps_available: false,
+    models_ready: false,
+    prepare_state: 'idle',
+    error: null,
+  })
 })
 
 describe('InterviewsSection', () => {
@@ -141,5 +156,42 @@ describe('InterviewsSection', () => {
 
     expect(screen.getByText('73%')).toBeInTheDocument()
     expect(screen.getByTestId('view-run-11')).toBeInTheDocument()
+  })
+
+  it('starts a text-mode run from the pre-flight chooser', async () => {
+    listInterviews.mockResolvedValue([makeInterview({ question_count: 5 })])
+    startMockRun.mockResolvedValue({ run_id: 1, status: 'in_progress', questions: [] })
+    const user = userEvent.setup()
+    render(<InterviewsSection applicationId={7} />)
+
+    await waitFor(() => screen.getByTestId('start-mock-1'))
+    await user.click(screen.getByTestId('start-mock-1'))
+
+    // Chooser appears; voice is unavailable (deps false) so only Text shows.
+    await waitFor(() => screen.getByTestId('start-chooser'))
+    expect(screen.queryByTestId('choose-voice')).not.toBeInTheDocument()
+    await user.click(screen.getByTestId('choose-text'))
+
+    await waitFor(() => expect(startMockRun).toHaveBeenCalledWith(7, 1, false))
+  })
+
+  it('offers voice mode when voice is ready', async () => {
+    listInterviews.mockResolvedValue([makeInterview({ question_count: 5 })])
+    getVoiceStatus.mockResolvedValue({
+      deps_available: true,
+      models_ready: true,
+      prepare_state: 'ready',
+      error: null,
+    })
+    startMockRun.mockResolvedValue({ run_id: 1, status: 'in_progress', questions: [] })
+    const user = userEvent.setup()
+    render(<InterviewsSection applicationId={7} />)
+
+    await waitFor(() => screen.getByTestId('start-mock-1'))
+    await user.click(screen.getByTestId('start-mock-1'))
+    await waitFor(() => screen.getByTestId('choose-voice'))
+    await user.click(screen.getByTestId('choose-voice'))
+
+    await waitFor(() => expect(startMockRun).toHaveBeenCalledWith(7, 1, true))
   })
 })

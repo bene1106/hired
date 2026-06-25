@@ -25,6 +25,7 @@ from api.routes.profile import router as profile_router
 from api.routes.setup import router as setup_router
 from api.routes.sources import router as sources_router
 from api.routes.stats import router as stats_router
+from api.routes.voice import router as voice_router
 from db.migrations import run_migrations
 from llm.errors import LLMAuthError
 from services.source_scheduler import SourceScheduler
@@ -159,3 +160,4 @@ app.include_router(applications_router)
 app.include_router(stats_router)
 app.include_router(data_router)
 app.include_router(sources_router)
+app.include_router(voice_router)

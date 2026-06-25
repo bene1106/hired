@@ -470,6 +470,20 @@ export interface MockRunSummary {
   completed_at: string | null
   question_count: number
   has_evaluation: boolean
+  overall_percentage: number | null
+}
+
+export interface MockAnswerRating {
+  question: string
+  rating: number
+  comment: string
+}
+
+export interface MockEvaluation {
+  per_question: MockAnswerRating[]
+  overall_percentage: number
+  strengths: string[]
+  weaknesses: string[]
 }
 
 export interface MockRunDetail {
@@ -479,5 +493,5 @@ export interface MockRunDetail {
   started_at: string
   completed_at: string | null
   transcript: TranscriptItem[]
-  evaluation: Record<string, unknown> | null
+  evaluation: MockEvaluation | null
 }

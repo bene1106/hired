@@ -3,8 +3,9 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { ApiError, api } from '@/lib/api'
-import type { MockQuestion, TranscriptItem } from '@/lib/types'
+import type { MockEvaluation, MockQuestion, TranscriptItem } from '@/lib/types'
 
+import { MockInterviewResults } from './MockInterviewResults'
 import { useMockInterviewRunner } from './useMockInterviewRunner'
 
 interface MockInterviewRunnerProps {
@@ -31,15 +32,32 @@ export function MockInterviewRunner({
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [evaluating, setEvaluating] = useState(false)
+  const [evaluation, setEvaluation] = useState<MockEvaluation | null>(null)
+  const [evalError, setEvalError] = useState<string | null>(null)
+
+  async function runEvaluation() {
+    setEvaluating(true)
+    setEvalError(null)
+    try {
+      const detail = await api.evaluateMockRun(applicationId, interviewId, runId)
+      setEvaluation(detail.evaluation)
+    } catch (err) {
+      setEvalError(err instanceof ApiError ? err.message : 'Could not score the interview.')
+    } finally {
+      setEvaluating(false)
+    }
+  }
 
   async function handleComplete(transcript: TranscriptItem[]) {
     setSubmitting(true)
     try {
       await api.completeMockRun(applicationId, interviewId, runId, transcript)
       setDone(true)
+      setSubmitting(false)
+      await runEvaluation()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not submit the interview.')
-    } finally {
       setSubmitting(false)
     }
   }
@@ -84,11 +102,25 @@ export function MockInterviewRunner({
 
       <div className="mx-auto flex w-full max-w-[760px] flex-1 flex-col gap-5 px-8 py-10">
         {done ? (
-          <div data-testid="runner-complete" className="flex flex-col gap-3">
+          <div data-testid="runner-complete" className="flex flex-col gap-4">
             <h2 className="text-[20px] font-semibold text-ink">Interview submitted</h2>
-            <p className="text-[14px] text-ink-2">
-              Your answers were recorded. Automated scoring and feedback arrive in the next update.
-            </p>
+            {evaluating ? (
+              <p className="text-[14px] text-ink-3">Scoring your answers…</p>
+            ) : evaluation ? (
+              <MockInterviewResults evaluation={evaluation} />
+            ) : (
+              <div className="flex flex-col gap-2">
+                <p className="text-[14px] text-ink-2">
+                  Your answers were recorded
+                  {evalError ? `, but scoring failed: ${evalError}` : '.'}
+                </p>
+                <div>
+                  <Button size="sm" variant="outline" onClick={() => void runEvaluation()}>
+                    Score now
+                  </Button>
+                </div>
+              </div>
+            )}
             <div>
               <Button onClick={() => onClose({ completed: true })}>Back to interviews</Button>
             </div>

@@ -10,9 +10,12 @@ import type {
   InterviewCreateRequest,
   InterviewType,
   InterviewerGender,
+  MockEvaluation,
   MockQuestion,
+  MockRunSummary,
 } from '@/lib/types'
 
+import { MockInterviewResults } from './MockInterviewResults'
 import { MockInterviewRunner } from './MockInterviewRunner'
 
 const TYPE_LABELS: Record<InterviewType, string> = {
@@ -50,6 +53,8 @@ export function InterviewsSection({ applicationId }: InterviewsSectionProps) {
     interviewId: number
     questions: MockQuestion[]
   } | null>(null)
+  // Bumped when a run finishes so each interview's run history reloads.
+  const [runsVersion, setRunsVersion] = useState(0)
 
   const load = useCallback(async () => {
     try {
@@ -122,6 +127,7 @@ export function InterviewsSection({ applicationId }: InterviewsSectionProps) {
           questions={activeRun.questions}
           onClose={() => {
             setActiveRun(null)
+            setRunsVersion((v) => v + 1)
             void load()
           }}
         />
@@ -175,6 +181,8 @@ export function InterviewsSection({ applicationId }: InterviewsSectionProps) {
               onDelete={() => handleDelete(interview.id)}
               onPrepare={() => handlePrepare(interview.id)}
               onStart={() => handleStart(interview.id)}
+              applicationId={applicationId}
+              runsVersion={runsVersion}
             />
           ))}
         </ul>
@@ -190,6 +198,8 @@ function InterviewRow({
   onDelete,
   onPrepare,
   onStart,
+  applicationId,
+  runsVersion,
 }: {
   interview: Interview
   busy: boolean
@@ -197,6 +207,8 @@ function InterviewRow({
   onDelete: () => void
   onPrepare: () => void
   onStart: () => void
+  applicationId: number
+  runsVersion: number
 }) {
   const hasQuestions = interview.question_count > 0
   return (
@@ -267,7 +279,100 @@ function InterviewRow({
           Delete
         </button>
       </div>
+      <InterviewRunsHistory
+        applicationId={applicationId}
+        interviewId={interview.id}
+        refresh={runsVersion}
+      />
     </li>
+  )
+}
+
+function InterviewRunsHistory({
+  applicationId,
+  interviewId,
+  refresh,
+}: {
+  applicationId: number
+  interviewId: number
+  refresh: number
+}) {
+  const [runs, setRuns] = useState<MockRunSummary[] | null>(null)
+  const [open, setOpen] = useState(false)
+  const [viewing, setViewing] = useState<{
+    runId: number
+    evaluation: MockEvaluation | null
+  } | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    void api
+      .listMockRuns(applicationId, interviewId)
+      .then((r) => {
+        if (!cancelled) setRuns(r)
+      })
+      .catch(() => {
+        if (!cancelled) setRuns([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [applicationId, interviewId, refresh])
+
+  if (!runs || runs.length === 0) return null
+
+  async function view(runId: number) {
+    setViewing({ runId, evaluation: null })
+    try {
+      const detail = await api.getMockRun(applicationId, interviewId, runId)
+      setViewing({ runId, evaluation: detail.evaluation })
+    } catch {
+      setViewing(null)
+    }
+  }
+
+  return (
+    <div className="mt-1 border-t border-line pt-2">
+      <button
+        type="button"
+        data-testid={`runs-toggle-${interviewId}`}
+        className="text-[12px] text-ink-3 hover:text-ink"
+        onClick={() => setOpen((o) => !o)}
+      >
+        {open ? '▾' : '▸'} Past runs ({runs.length})
+      </button>
+      {open ? (
+        <ul className="mt-2 flex flex-col gap-1.5">
+          {runs.map((run) => (
+            <li key={run.id} className="flex flex-col gap-2">
+              <div className="flex items-center gap-2 text-[12px] text-ink-2">
+                <span>{new Date(run.started_at).toLocaleString()}</span>
+                {run.overall_percentage !== null ? (
+                  <span className="font-semibold text-ink">{run.overall_percentage}%</span>
+                ) : (
+                  <span className="text-ink-4">{run.status}</span>
+                )}
+                {run.has_evaluation ? (
+                  <button
+                    type="button"
+                    data-testid={`view-run-${run.id}`}
+                    className="text-ink-3 hover:text-ink hover:underline"
+                    onClick={() => void view(run.id)}
+                  >
+                    View
+                  </button>
+                ) : null}
+              </div>
+              {viewing && viewing.runId === run.id && viewing.evaluation ? (
+                <div className="rounded-md border border-line bg-surface-2 p-3">
+                  <MockInterviewResults evaluation={viewing.evaluation} />
+                </div>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
   )
 }
 

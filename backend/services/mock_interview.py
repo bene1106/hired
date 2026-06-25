@@ -16,7 +16,7 @@ from db.models import Application, Interview, Job, MockInterviewRun
 from db.models import Profile as ProfileRow
 from db.session import get_session
 from llm import LLMProvider
-from llm.types import MockInterviewContext, Profile
+from llm.types import MockInterviewContext, MockInterviewEvaluation, MockQAPair, Profile
 from services.profile_mapper import job_row_to_llm, profile_row_to_llm
 
 # Interview metadata the API/UI constrain to these sets.
@@ -187,3 +187,55 @@ def complete_mock_run(
         run.status = "completed"
         run.completed_at = datetime.now(UTC)
         session.commit()
+
+
+def evaluate_mock_run(
+    application_id: int,
+    interview_id: int,
+    run_id: int,
+    provider: LLMProvider,
+) -> MockInterviewEvaluation:
+    """Score a completed run's transcript and store the evaluation.
+
+    Skipped answers are sent as empty strings (the prompt scores those low).
+    The result is persisted to ``evaluation_json`` and returned.
+    """
+    with get_session() as session:
+        run = session.get(MockInterviewRun, run_id)
+        if run is None or run.interview_id != interview_id:
+            raise MockInterviewError("Unknown run for this interview.")
+        interview = session.get(Interview, interview_id)
+        if interview is None or interview.application_id != application_id:
+            raise MockInterviewError("Unknown interview for this application.")
+        application = session.get(Application, application_id)
+        if application is None:
+            raise MockInterviewError("Unknown application id.")
+        job = session.get(Job, application.job_id)
+        if job is None:
+            raise MockInterviewError("Application references missing job.")
+
+        transcript = []
+        if isinstance(run.transcript_json, dict):
+            raw = run.transcript_json.get("transcript")
+            if isinstance(raw, list):
+                transcript = raw
+        if not transcript:
+            raise MockInterviewError("Run has no transcript to evaluate.")
+
+        llm_job = job_row_to_llm(job)
+        context = MockInterviewContext(
+            round_number=interview.round_number,
+            interview_type=interview.interview_type,
+            duration_minutes=interview.duration_minutes,
+            num_questions=len(transcript),
+        )
+        qa_pairs = [
+            MockQAPair(question=item.get("question", ""), answer=item.get("answer", ""))
+            for item in transcript
+        ]
+
+        evaluation = provider.evaluate_mock_interview(llm_job, context, qa_pairs)
+        run.evaluation_json = evaluation.model_dump(mode="json")
+        session.commit()
+
+    return evaluation

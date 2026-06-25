@@ -96,6 +96,7 @@ from services.mock_interview import (
     MockInterviewError,
     MockInterviewNotUpcomingError,
     complete_mock_run,
+    evaluate_mock_run,
     interview_is_upcoming,
     prepare_interview_questions,
     start_mock_run,
@@ -230,10 +231,16 @@ class RunSummaryResponse(BaseModel):
     completed_at: datetime | None
     question_count: int
     has_evaluation: bool
+    overall_percentage: int | None
 
     @classmethod
     def from_row(cls, row: MockInterviewRun) -> RunSummaryResponse:
         transcript = _transcript_of(row)
+        overall = None
+        if isinstance(row.evaluation_json, dict):
+            value = row.evaluation_json.get("overall_percentage")
+            if isinstance(value, int):
+                overall = value
         return cls(
             id=row.id,
             status=row.status,
@@ -241,6 +248,7 @@ class RunSummaryResponse(BaseModel):
             completed_at=row.completed_at,
             question_count=len(transcript),
             has_evaluation=row.evaluation_json is not None,
+            overall_percentage=overall,
         )
 
 
@@ -760,6 +768,28 @@ def get_interview_run(
         run = session.get(MockInterviewRun, run_id)
         if run is None or run.interview_id != interview_id:
             raise HTTPException(status_code=404, detail="Unknown run for this interview.")
+        return RunDetailResponse.from_row(run)
+
+
+@router.post(
+    "/{application_id}/interviews/{interview_id}/runs/{run_id}/evaluate",
+    response_model=RunDetailResponse,
+)
+def evaluate_interview_run(
+    application_id: int,
+    interview_id: int,
+    run_id: int,
+    provider: Annotated[LLMProvider, Depends(get_llm_provider)],
+) -> RunDetailResponse:
+    _require_application(application_id)
+    try:
+        evaluate_mock_run(application_id, interview_id, run_id, provider)
+    except MockInterviewError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    with get_session() as session:
+        run = session.get(MockInterviewRun, run_id)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run disappeared.")
         return RunDetailResponse.from_row(run)
 
 

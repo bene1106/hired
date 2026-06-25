@@ -390,6 +390,15 @@ export const api = {
   getMockRun: (applicationId: number, interviewId: number, runId: number): Promise<MockRunDetail> =>
     request(`/api/applications/${applicationId}/interviews/${interviewId}/runs/${runId}`),
 
+  evaluateMockRun: (
+    applicationId: number,
+    interviewId: number,
+    runId: number,
+  ): Promise<MockRunDetail> =>
+    request(`/api/applications/${applicationId}/interviews/${interviewId}/runs/${runId}/evaluate`, {
+      method: 'POST',
+    }),
+
   /**
    * Stream the coach's reply for one user message.
    *

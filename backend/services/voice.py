@@ -204,5 +204,7 @@ def synthesize(text: str, gender: str | None) -> bytes:
     voice = _piper(gender)
     buf = io.BytesIO()
     with wave.open(buf, "wb") as wav_file:
-        voice.synthesize(text, wav_file)
+        # piper-tts ≥1.3 writes a full WAV via ``synthesize_wav``; the bare
+        # ``synthesize`` now yields raw audio chunks instead.
+        voice.synthesize_wav(text, wav_file)
     return buf.getvalue()

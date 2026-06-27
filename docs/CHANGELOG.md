@@ -36,9 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   transcribed automatically. A pre-flight chooser lets you pick Voice or Text per
   run; voice models download once on first use and then run fully offline
   (faster-whisper + Piper). If the mic or models aren't available it falls back
-  to browser speech / typing, and Text mode is always available. (Voice needs the
-  optional `voice` dependency group — `uv sync --extra voice`; bundling it into
-  packaged installers is a follow-up.)
+  to browser speech / typing, and Text mode is always available. (Voice deps are
+  installed by default for local dev; bundling
+  voice into packaged installers is a follow-up, so packaged builds report it as
+  unavailable.)
 
 ## [0.4.0] - 2026-06-14
 

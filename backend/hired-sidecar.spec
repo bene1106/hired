@@ -99,6 +99,16 @@ a = Analysis(
         "playwright",
         "tkinter",
         "matplotlib",
+        # M4 voice (faster-whisper + Piper) is lazily imported in
+        # services/voice.py and excluded from the bundle for now —
+        # ctranslate2/onnxruntime/av are large and platform-specific.
+        # Packaged builds report voice "unavailable"; bundling it is a
+        # tracked follow-up. Dev gets voice via the `voice` extra.
+        "faster_whisper",
+        "piper",
+        "ctranslate2",
+        "onnxruntime",
+        "av",
     ],
     noarchive=False,
 )

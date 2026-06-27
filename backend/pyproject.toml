@@ -27,17 +27,6 @@ dependencies = [
     "typing-extensions>=4.12",
 ]
 
-[project.optional-dependencies]
-# M4 voice: local STT (faster-whisper) + TTS (Piper). Kept optional so the
-# core sidecar + CI stay lean and don't pull heavy native wheels
-# (ctranslate2, onnxruntime). Enable with `uv sync --extra voice`; models
-# then download on first use into ~/.hired/models. Bundling these into the
-# PyInstaller release sidecar is a tracked follow-up.
-voice = [
-    "faster-whisper>=1.0",
-    "piper-tts>=1.2",
-]
-
 [dependency-groups]
 dev = [
     "pytest>=8.3",
@@ -48,11 +37,24 @@ dev = [
     # Tauri can ship as an externalBin per platform.
     "pyinstaller>=6.10",
 ]
+# M4 voice: local STT (faster-whisper) + TTS (Piper). A dependency-group (not
+# an extra) so it can be installed by default via `default-groups` below — a
+# plain `uv run` would otherwise strip an opt-in extra on each invocation.
+# Models download on first use into ~/.hired/models. The PyInstaller release
+# excludes these libs from the bundle (see hired-sidecar.spec), so packaging
+# stays lean; bundling voice is a tracked follow-up.
+voice = [
+    "faster-whisper>=1.0",
+    "piper-tts>=1.2",
+]
 
 [tool.uv]
 # Hired. backend is an application, not a library — uv should install deps
 # into a venv and run scripts in place, not build a wheel.
 package = false
+# Install dev + voice by default so `uv run`/`uv sync` keep faster-whisper +
+# Piper present without a flag. Opt out with `uv sync --no-group voice`.
+default-groups = ["dev", "voice"]
 
 [tool.ruff]
 line-length = 100

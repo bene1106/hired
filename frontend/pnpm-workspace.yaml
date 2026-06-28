@@ -1,4 +1,11 @@
+# Build-script approvals. pnpm 10 (CI) reads `onlyBuiltDependencies`; pnpm 11
+# (local) reads the `allowBuilds` map. Keep both in sync so neither version
+# fails the install with ERR_PNPM_IGNORED_BUILDS. core-js only prints a
+# funding banner — no need to run it.
+onlyBuiltDependencies:
+  - esbuild
+  - msw
 allowBuilds:
-  core-js: set this to true or false
+  core-js: false
   esbuild: true
   msw: true

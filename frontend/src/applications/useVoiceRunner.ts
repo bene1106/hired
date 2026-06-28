@@ -62,6 +62,7 @@ export function useVoiceRunner({
   const firstSpeechRef = useRef<number | null>(null)
   const lastSpeechRef = useRef(0)
   const busyRef = useRef(false)
+  const aliveRef = useRef(true)
   const transcriptRef = useRef<TranscriptItem[]>([])
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const onCompleteRef = useRef(onComplete)
@@ -149,7 +150,7 @@ export function useVoiceRunner({
     async (idx: number, s: VoiceEscalation) => {
       setPhaseBoth('speaking')
       await playTts(textFor(idx, s))
-      if (phaseRef.current === 'finished') return
+      if (!aliveRef.current) return
       beginListening()
     },
     [beginListening, playTts, textFor],
@@ -243,14 +244,19 @@ export function useVoiceRunner({
     return () => window.clearInterval(id)
   }, [commit, mic, playTts, questions, textFor])
 
-  // Kick off the first question once.
+  // Kick off the first question once. StrictMode mounts effects twice in dev
+  // (mount → cleanup → mount); `startedRef` keeps us from re-asking, and
+  // `aliveRef` is re-armed on every (re)mount so the in-flight first question
+  // isn't cancelled by the spurious cleanup.
   const startedRef = useRef(false)
   useEffect(() => {
-    if (startedRef.current) return
-    startedRef.current = true
-    void askCurrent(0, 0)
+    aliveRef.current = true
+    if (!startedRef.current) {
+      startedRef.current = true
+      void askCurrent(0, 0)
+    }
     return () => {
-      phaseRef.current = 'finished'
+      aliveRef.current = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

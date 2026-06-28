@@ -3,8 +3,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api'
 import type { MockQuestion, TranscriptItem } from '@/lib/types'
 
-import { WARNING_S } from './mockInterviewTiming'
-import { useMicRecorder } from './useMicRecorder'
+import { minWindow, WARNING_S } from './mockInterviewTiming'
+import type { MicRecorder } from './useMicRecorder'
 import { decideVoice, type VoiceEscalation } from './voiceRunnerLogic'
 
 export type VoicePhase = 'speaking' | 'listening' | 'transcribing' | 'finished'
@@ -16,11 +16,20 @@ export interface VoiceRunnerView {
   isRepeat: boolean
   isRephrased: boolean
   phase: VoicePhase
+  /** Seconds the candidate has been answering (null until they start speaking). */
+  secondsAnswered: number | null
+  /** Whole seconds left before the max window. */
   secondsLeftToMax: number | null
+  /** Minimum answer length before they may finish. */
+  minSeconds: number
+  /** Max answer window for the current question. */
+  maxSeconds: number
+  /** True once past the min window — gates the "Done answering" button. */
+  canFinish: boolean
   showWarning: boolean
-  /** End the current answer now (manual "Done answering"). */
+  /** End the current answer now (only once `canFinish`). */
   finishAnswer: () => void
-  /** Backup: submit a typed answer for the current question (STT/mic trouble). */
+  /** Backup: submit a typed answer for the current question. */
   submitText: (text: string) => void
   finished: boolean
 }
@@ -28,24 +37,24 @@ export interface VoiceRunnerView {
 const TICK_MS = 250
 
 export function useVoiceRunner({
+  mic,
   questions,
   gender,
   onComplete,
 }: {
+  mic: MicRecorder
   questions: MockQuestion[]
   gender: string | null
   onComplete: (transcript: TranscriptItem[]) => void
 }): VoiceRunnerView {
-  const mic = useMicRecorder()
-
   const [index, setIndex] = useState(0)
   const [phase, setPhase] = useState<VoicePhase>('speaking')
   const [stage, setStage] = useState<VoiceEscalation>(0)
+  const [secondsAnswered, setSecondsAnswered] = useState<number | null>(null)
   const [secondsLeftToMax, setSecondsLeftToMax] = useState<number | null>(null)
   const [showWarning, setShowWarning] = useState(false)
   const [finished, setFinished] = useState(false)
 
-  // Mutable timing state read by the tick without stale closures.
   const indexRef = useRef(0)
   const stageRef = useRef<VoiceEscalation>(0)
   const phaseRef = useRef<VoicePhase>('speaking')
@@ -110,19 +119,15 @@ export function useVoiceRunner({
     [gender],
   )
 
-  const beginListening = useCallback(async () => {
+  const beginListening = useCallback(() => {
     questionStartRef.current = Date.now()
     firstSpeechRef.current = null
     lastSpeechRef.current = Date.now()
+    setSecondsAnswered(null)
     setSecondsLeftToMax(null)
     setShowWarning(false)
     setPhaseBoth('listening')
-    try {
-      await mic.start()
-    } catch {
-      // Mic denied/unavailable mid-run: stay in listening so the user can use
-      // the "Type instead" backup; timers still escalate/skip.
-    }
+    mic.startRecording()
   }, [mic])
 
   const askCurrent = useCallback(
@@ -130,7 +135,7 @@ export function useVoiceRunner({
       setPhaseBoth('speaking')
       await playTts(textFor(idx, s))
       if (phaseRef.current === 'finished') return
-      await beginListening()
+      beginListening()
     },
     [beginListening, playTts, textFor],
   )
@@ -157,7 +162,7 @@ export function useVoiceRunner({
       let answer = opts.text ?? ''
       let blob: Blob | null = null
       try {
-        blob = await mic.stop()
+        blob = await mic.stopRecording()
       } catch {
         blob = null
       }
@@ -195,6 +200,7 @@ export function useVoiceRunner({
       const q = questions[indexRef.current]
       if (firstSpeechRef.current !== null) {
         const answeredFor = (now - firstSpeechRef.current) / 1000
+        setSecondsAnswered(Math.floor(answeredFor))
         const remaining = q.time_limit_seconds - answeredFor
         setSecondsLeftToMax(Math.max(0, Math.ceil(remaining)))
         setShowWarning(remaining <= WARNING_S)
@@ -230,10 +236,14 @@ export function useVoiceRunner({
     void askCurrent(0, 0)
     return () => {
       phaseRef.current = 'finished'
-      void mic.stop().catch(() => {})
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const q = questions[Math.min(index, questions.length - 1)]
+  const minSeconds = minWindow(q.is_intro)
+  const canFinish =
+    phase === 'listening' && secondsAnswered !== null && secondsAnswered >= minSeconds
 
   const finishAnswer = useCallback(() => {
     if (phaseRef.current === 'listening') void commit({ skipped: false })
@@ -253,7 +263,11 @@ export function useVoiceRunner({
     isRepeat: phase === 'listening' && firstSpeechRef.current === null && stage === 1,
     isRephrased: stage >= 2,
     phase,
+    secondsAnswered,
     secondsLeftToMax,
+    minSeconds,
+    maxSeconds: q.time_limit_seconds,
+    canFinish,
     showWarning,
     finishAnswer,
     submitText,

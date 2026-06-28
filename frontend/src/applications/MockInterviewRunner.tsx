@@ -1,13 +1,22 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { ApiError, api } from '@/lib/api'
 import type { MockEvaluation, MockQuestion, TranscriptItem } from '@/lib/types'
+import { cn } from '@/lib/utils'
 
 import { MockInterviewResults } from './MockInterviewResults'
+import { useMicRecorder, type MicRecorder } from './useMicRecorder'
 import { useMockInterviewRunner } from './useMockInterviewRunner'
 import { useVoiceRunner } from './useVoiceRunner'
+
+/** mm:ss formatter for the answer timer. */
+function fmt(seconds: number): string {
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return `${m}:${String(s).padStart(2, '0')}`
+}
 
 interface MockInterviewRunnerProps {
   applicationId: number
@@ -197,6 +206,38 @@ function TextSurface({
   )
 }
 
+/** Live input-level meter (a row of bars that light up with your voice). */
+function AudioMeter({ getLevel }: { getLevel: () => number }) {
+  const [level, setLevel] = useState(0)
+  useEffect(() => {
+    let raf = 0
+    const loop = () => {
+      setLevel(getLevel())
+      raf = requestAnimationFrame(loop)
+    }
+    raf = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(raf)
+  }, [getLevel])
+
+  const bars = 14
+  // ~0.3 RMS reads as a loud voice; map that to a full meter.
+  const active = Math.min(bars, Math.round((level / 0.3) * bars))
+  return (
+    <div data-testid="audio-meter" aria-hidden className="flex h-7 items-end gap-1">
+      {Array.from({ length: bars }).map((_, i) => (
+        <span
+          key={i}
+          className={cn(
+            'w-1.5 rounded-sm transition-colors',
+            i < active ? 'bg-brand-green' : 'bg-line',
+          )}
+          style={{ height: `${30 + (i / bars) * 70}%` }}
+        />
+      ))}
+    </div>
+  )
+}
+
 function VoiceSurface({
   questions,
   gender,
@@ -206,7 +247,83 @@ function VoiceSurface({
   gender: string | null
   onComplete: (transcript: TranscriptItem[]) => void
 }) {
-  const runner = useVoiceRunner({ questions, gender, onComplete })
+  const mic = useMicRecorder()
+  const [started, setStarted] = useState(false)
+
+  // Release the stream/analyser when leaving voice mode.
+  useEffect(() => {
+    return () => mic.release()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  if (!started) {
+    return <MicCheck mic={mic} onStart={() => setStarted(true)} />
+  }
+  return <VoiceRun mic={mic} questions={questions} gender={gender} onComplete={onComplete} />
+}
+
+/** Pre-interview gate: get mic permission + confirm audio with a live meter. */
+function MicCheck({ mic, onStart }: { mic: MicRecorder; onStart: () => void }) {
+  const [requesting, setRequesting] = useState(false)
+  return (
+    <div data-testid="mic-check" className="flex flex-col gap-4">
+      <h2 className="text-[20px] font-semibold text-ink">Microphone check</h2>
+      <p className="text-[13px] text-ink-2">
+        Voice mode needs your microphone. We only record while you&rsquo;re answering a question.
+      </p>
+
+      {!mic.supported ? (
+        <p role="alert" className="text-[12px] text-warn">
+          This environment doesn&rsquo;t support microphone capture. Use Text mode instead.
+        </p>
+      ) : mic.permission === 'granted' ? (
+        <div className="flex flex-col gap-3">
+          <span className="text-[12px] text-ink-3">
+            Say something — the meter should move when it hears you:
+          </span>
+          <AudioMeter getLevel={mic.getLevel} />
+          <div>
+            <Button data-testid="voice-begin" onClick={onStart}>
+              Start interview
+            </Button>
+          </div>
+        </div>
+      ) : mic.permission === 'denied' ? (
+        <p role="alert" className="text-[12px] text-warn">
+          Microphone access was blocked. Allow it in your browser settings and reopen, or use Text
+          mode.
+        </p>
+      ) : (
+        <div>
+          <Button
+            data-testid="enable-mic"
+            disabled={requesting}
+            onClick={async () => {
+              setRequesting(true)
+              await mic.requestPermission()
+              setRequesting(false)
+            }}
+          >
+            {requesting ? 'Requesting…' : 'Enable microphone'}
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function VoiceRun({
+  mic,
+  questions,
+  gender,
+  onComplete,
+}: {
+  mic: MicRecorder
+  questions: MockQuestion[]
+  gender: string | null
+  onComplete: (transcript: TranscriptItem[]) => void
+}) {
+  const runner = useVoiceRunner({ mic, questions, gender, onComplete })
   const [typing, setTyping] = useState(false)
   const [draft, setDraft] = useState('')
 
@@ -216,8 +333,13 @@ function VoiceSurface({
       : runner.phase === 'transcribing'
         ? 'Transcribing your answer…'
         : runner.phase === 'listening'
-          ? 'Listening — answer out loud'
+          ? runner.secondsAnswered === null
+            ? 'Listening — start speaking your answer'
+            : 'Listening…'
           : ''
+
+  const finishInSeconds =
+    runner.secondsAnswered !== null ? Math.max(0, runner.minSeconds - runner.secondsAnswered) : null
 
   return (
     <>
@@ -239,11 +361,29 @@ function VoiceSurface({
         </h2>
         <span className="text-[12px] text-ink-3" aria-live="polite">
           {phaseLabel}
-          {runner.phase === 'listening' && runner.secondsLeftToMax !== null
-            ? ` · ${runner.secondsLeftToMax}s left`
-            : ''}
         </span>
       </div>
+
+      {/* Per-question timing: elapsed / max, remaining, and the min gate. */}
+      <div
+        data-testid="voice-timing"
+        className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-ink-3"
+      >
+        <span>
+          Time <span className="font-medium text-ink">{fmt(runner.secondsAnswered ?? 0)}</span> /{' '}
+          {fmt(runner.maxSeconds)}
+        </span>
+        {runner.secondsLeftToMax !== null ? (
+          <span>{runner.secondsLeftToMax}s remaining</span>
+        ) : null}
+        {finishInSeconds && finishInSeconds > 0 ? (
+          <span data-testid="min-gate">You can finish in {finishInSeconds}s</span>
+        ) : (
+          <span className="text-brand-green">Minimum reached</span>
+        )}
+      </div>
+
+      {runner.phase === 'listening' ? <AudioMeter getLevel={mic.getLevel} /> : null}
 
       {typing ? (
         <div className="flex flex-col gap-2">
@@ -273,7 +413,7 @@ function VoiceSurface({
         <div className="flex items-center gap-3">
           <Button
             data-testid="voice-done"
-            disabled={runner.phase !== 'listening'}
+            disabled={!runner.canFinish}
             onClick={runner.finishAnswer}
           >
             Done answering

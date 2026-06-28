@@ -376,7 +376,9 @@ function VoiceRun({
         {runner.secondsLeftToMax !== null ? (
           <span>{runner.secondsLeftToMax}s remaining</span>
         ) : null}
-        {finishInSeconds && finishInSeconds > 0 ? (
+        {runner.secondsAnswered === null ? (
+          <span className="text-ink-4">Waiting for you to start speaking…</span>
+        ) : finishInSeconds && finishInSeconds > 0 ? (
           <span data-testid="min-gate">You can finish in {finishInSeconds}s</span>
         ) : (
           <span className="text-brand-green">Minimum reached</span>

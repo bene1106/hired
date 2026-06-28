@@ -84,37 +84,52 @@ export function useVoiceRunner({
 
   const playTts = useCallback(
     async (text: string) => {
+      // Never let speech block the interview: cap every path so we always
+      // fall through to listening even if TTS/audio stalls.
+      const cap = (p: Promise<void>, ms: number) =>
+        Promise.race([p, new Promise<void>((r) => window.setTimeout(r, ms))])
+
+      const server = new Promise<void>((resolve, reject) => {
+        api
+          .synthesizeSpeech(text, gender)
+          .then((blob) => {
+            const audio = audioRef.current ?? new Audio()
+            audioRef.current = audio
+            const url = URL.createObjectURL(blob)
+            audio.src = url
+            audio.onended = () => {
+              URL.revokeObjectURL(url)
+              resolve()
+            }
+            audio.onerror = () => reject(new Error('audio error'))
+            void audio.play().catch(reject)
+          })
+          .catch(reject)
+      })
+
       try {
-        const blob = await api.synthesizeSpeech(text, gender)
-        await new Promise<void>((resolve, reject) => {
-          const audio = audioRef.current ?? new Audio()
-          audioRef.current = audio
-          const url = URL.createObjectURL(blob)
-          audio.src = url
-          audio.onended = () => {
-            URL.revokeObjectURL(url)
-            resolve()
-          }
-          audio.onerror = () => reject(new Error('audio error'))
-          void audio.play().catch(reject)
-        })
+        await cap(server, 20_000)
         return
       } catch {
-        // Fall back to the browser's built-in speech synthesis.
+        // Server TTS failed — fall back to the browser's speech synthesis.
       }
-      try {
-        const synth = window.speechSynthesis
-        if (synth && 'SpeechSynthesisUtterance' in window) {
-          await new Promise<void>((resolve) => {
-            const utter = new SpeechSynthesisUtterance(text)
-            utter.onend = () => resolve()
-            utter.onerror = () => resolve()
-            synth.speak(utter)
-          })
+
+      const browser = new Promise<void>((resolve) => {
+        try {
+          const synth = window.speechSynthesis
+          if (!synth || !('SpeechSynthesisUtterance' in window)) {
+            resolve()
+            return
+          }
+          const utter = new SpeechSynthesisUtterance(text)
+          utter.onend = () => resolve()
+          utter.onerror = () => resolve()
+          synth.speak(utter)
+        } catch {
+          resolve()
         }
-      } catch {
-        // No audio available — proceed silently to listening.
-      }
+      })
+      await cap(browser, 15_000)
     },
     [gender],
   )

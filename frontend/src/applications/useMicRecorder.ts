@@ -60,6 +60,9 @@ export function useMicRecorder(): MicRecorder {
         analyser.fftSize = 2048
         source.connect(analyser)
         ctxRef.current = ctx
+        // Created after the async getUserMedia, the context can start
+        // suspended — resume it so the analyser actually sees audio.
+        void ctx.resume?.()
         const buf = new Uint8Array(analyser.fftSize)
         const loop = () => {
           analyser.getByteTimeDomainData(buf)

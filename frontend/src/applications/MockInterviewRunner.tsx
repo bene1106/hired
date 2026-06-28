@@ -96,7 +96,7 @@ export function MockInterviewRunner({
         </Button>
       </div>
 
-      <div className="mx-auto flex w-full max-w-[760px] flex-1 flex-col gap-5 px-8 py-10">
+      <div className="mx-auto flex w-full max-w-[760px] min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-8 py-10">
         {done ? (
           <div data-testid="runner-complete" className="flex flex-col gap-4">
             <h2 className="text-[20px] font-semibold text-ink">Interview submitted</h2>

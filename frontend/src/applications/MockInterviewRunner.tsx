@@ -206,6 +206,65 @@ function TextSurface({
   )
 }
 
+const AVATAR_BARS = 44
+
+/**
+ * Interviewer avatar (M4). While the interviewer is speaking (TTS), a circular
+ * blue spectrum of bars pulses around it; while it waits for the candidate it
+ * shows a thin red idle border. Uses a placeholder silhouette until real
+ * gendered photos are dropped in (avatar-male / avatar-female).
+ */
+function InterviewerAvatar({ gender, speaking }: { gender: string | null; speaking: boolean }) {
+  const label =
+    gender === 'male' ? 'Male voice' : gender === 'female' ? 'Female voice' : 'Interviewer'
+  return (
+    <div className="flex flex-col items-center gap-2" data-testid="interviewer-avatar">
+      <div className="relative h-40 w-40">
+        {speaking ? (
+          <div className="absolute inset-0" data-testid="avatar-spectrum" aria-hidden>
+            {Array.from({ length: AVATAR_BARS }).map((_, i) => (
+              <div
+                key={i}
+                className="absolute left-1/2 top-1/2"
+                style={{ transform: `rotate(${(i * 360) / AVATAR_BARS}deg) translateY(80px)` }}
+              >
+                <span
+                  className="block w-[3px] rounded-full bg-gradient-to-b from-sky-300 to-sky-600"
+                  style={{
+                    height: 10 + (i % 6) * 4,
+                    transformOrigin: 'top',
+                    animation: `mi-equalize ${700 + (i % 5) * 120}ms ease-in-out ${i * 35}ms infinite`,
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        ) : null}
+        <div
+          className={cn(
+            'absolute inset-3 flex items-center justify-center overflow-hidden rounded-full bg-surface-2',
+            speaking ? 'ring-2 ring-sky-400/60' : 'ring-2 ring-warn',
+          )}
+        >
+          {/* Placeholder silhouette — swap for a real photo per gender later. */}
+          <svg
+            viewBox="0 0 24 24"
+            className="h-3/5 w-3/5 text-ink-4"
+            fill="currentColor"
+            aria-hidden
+          >
+            <circle cx="12" cy="9" r="4.2" />
+            <path d="M4 21c0-4.4 3.8-7 8-7s8 2.6 8 7z" />
+          </svg>
+        </div>
+      </div>
+      <span className="text-[11px] text-ink-3">
+        {label} · {speaking ? 'speaking…' : 'listening'}
+      </span>
+    </div>
+  )
+}
+
 /** Live input-level meter (a row of bars that light up with your voice). */
 function AudioMeter({ getLevel }: { getLevel: () => number }) {
   const [level, setLevel] = useState(0)
@@ -346,6 +405,7 @@ function VoiceRun({
       {runner.showWarning && !runner.finished ? (
         <WarningButton seconds={runner.secondsLeftToMax} onClick={runner.finishAnswer} />
       ) : null}
+      <InterviewerAvatar gender={gender} speaking={runner.phase === 'speaking'} />
       <div className="flex flex-col gap-1">
         <span className="text-[12px] text-ink-3">
           Question {runner.index + 1} of {runner.total}

@@ -6,10 +6,22 @@ import { ApiError, api } from '@/lib/api'
 import type { MockEvaluation, MockQuestion, TranscriptItem } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
+import femaleListening from '@/assets/interviewer/female_listening.png'
+import femaleSpeaking from '@/assets/interviewer/female_speaking.png'
+import maleListening from '@/assets/interviewer/male_listening.png'
+import maleSpeaking from '@/assets/interviewer/male_speaking.png'
+
 import { MockInterviewResults } from './MockInterviewResults'
 import { useMicRecorder, type MicRecorder } from './useMicRecorder'
 import { useMockInterviewRunner } from './useMockInterviewRunner'
 import { useVoiceRunner } from './useVoiceRunner'
+
+// Interviewer avatars per gender × state. Unspecified falls back to the female
+// voice (matching the backend TTS default).
+const AVATAR_IMAGES: Record<'male' | 'female', { speaking: string; listening: string }> = {
+  male: { speaking: maleSpeaking, listening: maleListening },
+  female: { speaking: femaleSpeaking, listening: femaleListening },
+}
 
 /** mm:ss formatter for the answer timer. */
 function fmt(seconds: number): string {
@@ -210,11 +222,12 @@ const AVATAR_BARS = 44
 
 /**
  * Interviewer avatar (M4). While the interviewer is speaking (TTS), a circular
- * blue spectrum of bars pulses around it; while it waits for the candidate it
- * shows a thin red idle border. Uses a placeholder silhouette until real
- * gendered photos are dropped in (avatar-male / avatar-female).
+ * blue spectrum of bars pulses around a "speaking" photo; while it waits for
+ * the candidate it shows the "listening" photo with a thin red idle border.
  */
 function InterviewerAvatar({ gender, speaking }: { gender: string | null; speaking: boolean }) {
+  const set = gender === 'male' ? AVATAR_IMAGES.male : AVATAR_IMAGES.female
+  const src = speaking ? set.speaking : set.listening
   const label =
     gender === 'male' ? 'Male voice' : gender === 'female' ? 'Female voice' : 'Interviewer'
   return (
@@ -242,20 +255,11 @@ function InterviewerAvatar({ gender, speaking }: { gender: string | null; speaki
         ) : null}
         <div
           className={cn(
-            'absolute inset-3 flex items-center justify-center overflow-hidden rounded-full bg-surface-2',
+            'absolute inset-3 overflow-hidden rounded-full bg-surface-2',
             speaking ? 'ring-2 ring-sky-400/60' : 'ring-2 ring-warn',
           )}
         >
-          {/* Placeholder silhouette — swap for a real photo per gender later. */}
-          <svg
-            viewBox="0 0 24 24"
-            className="h-3/5 w-3/5 text-ink-4"
-            fill="currentColor"
-            aria-hidden
-          >
-            <circle cx="12" cy="9" r="4.2" />
-            <path d="M4 21c0-4.4 3.8-7 8-7s8 2.6 8 7z" />
-          </svg>
+          <img src={src} alt="" aria-hidden className="h-full w-full object-cover object-top" />
         </div>
       </div>
       <span className="text-[11px] text-ink-3">

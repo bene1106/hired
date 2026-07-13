@@ -319,7 +319,7 @@ export function ProviderStep() {
                     variant="outline"
                     size="sm"
                     disabled={testStatus === 'testing' || (!openaiHasKey && apiKeyInput.length < 5)}
-                    onClick={() => runTest('openai_api', apiKeyInput || null, openaiModel)}
+                    onClick={() => runTest('openai_api', apiKeyInput.trim() || null, openaiModel)}
                   >
                     {testStatus === 'testing' ? 'Testing…' : 'Test connection'}
                   </Button>

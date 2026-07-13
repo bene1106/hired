@@ -97,6 +97,9 @@ class OpenAIAPIAdapter:
             resolved_key = (
                 api_key or get_credential(OPENAI_API_KEY_NAME) or os.getenv("OPENAI_API_KEY")
             )
+            # Strip stray whitespace/newlines — a common paste error that
+            # otherwise surfaces as an opaque "API key was rejected" 401.
+            resolved_key = resolved_key.strip() if resolved_key else resolved_key
             if not resolved_key:
                 raise LLMAuthError(
                     "OpenAI API key not found. Set it via `set_credential"

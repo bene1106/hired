@@ -1,9 +1,20 @@
 // Mirror of the backend Pydantic shapes. Keep these in sync with
 // backend/api/routes/*.py and backend/services/provider_*.py.
 
-export type ProviderId = 'mock' | 'anthropic_api' | 'claude_code' | 'codex_cli' | 'ollama'
+export type ProviderId =
+  | 'mock'
+  | 'anthropic_api'
+  | 'openai_api'
+  | 'claude_code'
+  | 'codex_cli'
+  | 'ollama'
 
 export interface AnthropicDetection {
+  key_in_env: boolean
+  key_in_keychain: boolean
+}
+
+export interface OpenAiDetection {
   key_in_env: boolean
   key_in_keychain: boolean
 }
@@ -28,6 +39,7 @@ export interface OllamaDetection {
 
 export interface ProviderDetectionResult {
   anthropic_api: AnthropicDetection
+  openai_api: OpenAiDetection
   claude_code: ClaudeCodeDetection
   codex_cli: CodexCliDetection
   ollama: OllamaDetection

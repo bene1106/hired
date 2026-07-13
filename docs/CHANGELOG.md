@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **OpenAI API provider.** You can now use an OpenAI API key as a first-class
+  provider (previously only the experimental Codex CLI reached OpenAI). Pick
+  "OpenAI API" in the provider picker, enter your key, and choose a model
+  (default `gpt-4o`, plus `gpt-4o-mini` / `gpt-4.1`). Billed per-token via your
+  key, mirroring the Anthropic API provider.
 - **Mock interviews (Milestone 1).** An application in the Interview stage now
   has an **Interviews** tab where you can record each interview you've been
   invited to — round number, type (HR / technical / behavioral / system design /

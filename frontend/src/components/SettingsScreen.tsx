@@ -217,6 +217,7 @@ export function SettingsScreen() {
 
 const PROVIDER_LABELS: Record<ProviderId, string> = {
   anthropic_api: 'Anthropic API',
+  openai_api: 'OpenAI API',
   claude_code: 'Claude Code',
   codex_cli: 'OpenAI Codex',
   ollama: 'Ollama (local)',
@@ -229,6 +230,7 @@ const PROVIDER_LABELS: Record<ProviderId, string> = {
 // Code and OpenAI Codex CLIs report.
 const PROVIDER_BILLING_NOTE: Record<ProviderId, string> = {
   anthropic_api: 'Anthropic API is billed per token via your API key.',
+  openai_api: 'OpenAI API is billed per token via your API key.',
   claude_code: 'Claude Code is billed via your Claude.ai plan.',
   codex_cli: 'Codex is billed via your ChatGPT plan or OpenAI key.',
   ollama: 'Local provider – no billing.',

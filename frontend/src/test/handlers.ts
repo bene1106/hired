@@ -71,6 +71,7 @@ interface MockState {
 const defaultState = (): MockState => ({
   detect: {
     anthropic_api: { key_in_env: false, key_in_keychain: false },
+    openai_api: { key_in_env: false, key_in_keychain: false },
     claude_code: { detected: false, path: null, version: null },
     codex_cli: { detected: false, path: null, version: null, logged_in: false },
     ollama: { detected: false, models: [] },

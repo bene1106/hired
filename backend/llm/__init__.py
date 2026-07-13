@@ -84,6 +84,12 @@ def _build_inner_provider(provider_name: str, model: str | None) -> LLMProvider:
 
         return AnthropicAPIAdapter(model=model or DEFAULT_MODEL)
 
+    if provider_name == "openai_api":
+        from .openai_api import DEFAULT_MODEL as OPENAI_DEFAULT_MODEL
+        from .openai_api import OpenAIAPIAdapter
+
+        return OpenAIAPIAdapter(model=model or OPENAI_DEFAULT_MODEL)
+
     if provider_name == "claude_code":
         from .claude_code import ClaudeCodeAdapter
 
@@ -105,7 +111,7 @@ def _build_inner_provider(provider_name: str, model: str | None) -> LLMProvider:
 
     raise LLMError(
         f"Unknown provider '{provider_name}'. Set app_config.provider to one of "
-        "'mock', 'anthropic_api', 'claude_code', 'codex_cli', or 'ollama'."
+        "'mock', 'anthropic_api', 'openai_api', 'claude_code', 'codex_cli', or 'ollama'."
     )
 
 

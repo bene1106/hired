@@ -27,6 +27,7 @@ from typing_extensions import TypedDict
 from llm.anthropic_api import ANTHROPIC_API_KEY_NAME
 from llm.codex_cli import CODEX_CLI_NAME
 from llm.credentials import get_credential
+from llm.openai_api import OPENAI_API_KEY_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,11 @@ _OLLAMA_TIMEOUT_S = 2.0
 
 
 class AnthropicDetection(TypedDict):
+    key_in_env: bool
+    key_in_keychain: bool
+
+
+class OpenAiDetection(TypedDict):
     key_in_env: bool
     key_in_keychain: bool
 
@@ -60,6 +66,7 @@ class OllamaDetection(TypedDict):
 
 class ProviderDetectionResult(TypedDict):
     anthropic_api: AnthropicDetection
+    openai_api: OpenAiDetection
     claude_code: ClaudeCodeDetection
     codex_cli: CodexCliDetection
     ollama: OllamaDetection
@@ -69,6 +76,13 @@ def detect_anthropic_api() -> AnthropicDetection:
     """Check whether an Anthropic API key is reachable from env or keychain."""
     key_in_env = bool(os.environ.get("ANTHROPIC_API_KEY"))
     key_in_keychain = get_credential(ANTHROPIC_API_KEY_NAME) is not None
+    return {"key_in_env": key_in_env, "key_in_keychain": key_in_keychain}
+
+
+def detect_openai_api() -> OpenAiDetection:
+    """Check whether an OpenAI API key is reachable from env or keychain."""
+    key_in_env = bool(os.environ.get("OPENAI_API_KEY"))
+    key_in_keychain = get_credential(OPENAI_API_KEY_NAME) is not None
     return {"key_in_env": key_in_env, "key_in_keychain": key_in_keychain}
 
 
@@ -167,6 +181,7 @@ def detect_all() -> ProviderDetectionResult:
     """Run every detector. None of them raises."""
     return {
         "anthropic_api": detect_anthropic_api(),
+        "openai_api": detect_openai_api(),
         "claude_code": detect_claude_code(),
         "codex_cli": detect_codex_cli(),
         "ollama": detect_ollama(),
@@ -178,10 +193,12 @@ __all__ = [
     "ClaudeCodeDetection",
     "CodexCliDetection",
     "OllamaDetection",
+    "OpenAiDetection",
     "ProviderDetectionResult",
     "detect_all",
     "detect_anthropic_api",
     "detect_claude_code",
     "detect_codex_cli",
     "detect_ollama",
+    "detect_openai_api",
 ]

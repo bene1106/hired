@@ -22,12 +22,21 @@ from llm.anthropic_api import ANTHROPIC_API_KEY_NAME
 from llm.anthropic_api import DEFAULT_MODEL as ANTHROPIC_DEFAULT_MODEL
 from llm.credentials import set_credential
 from llm.ollama import DEFAULT_MODEL as OLLAMA_DEFAULT_MODEL
+from llm.openai_api import DEFAULT_MODEL as OPENAI_DEFAULT_MODEL
+from llm.openai_api import OPENAI_API_KEY_NAME
 from services.provider_detection import ProviderDetectionResult, detect_all
 from services.provider_setup import TestProviderResult, test_provider
 
 router = APIRouter(prefix="/api/setup", tags=["setup"])
 
-_SELECTABLE_PROVIDERS = {"mock", "anthropic_api", "claude_code", "codex_cli", "ollama"}
+_SELECTABLE_PROVIDERS = {
+    "mock",
+    "anthropic_api",
+    "openai_api",
+    "claude_code",
+    "codex_cli",
+    "ollama",
+}
 
 
 class ProviderMetadata(TypedDict):
@@ -55,6 +64,13 @@ _PROVIDER_METADATA: list[ProviderMetadata] = [
         "is_experimental": False,
         "requires_api_key": True,
         "default_model": ANTHROPIC_DEFAULT_MODEL,
+    },
+    {
+        "name": "openai_api",
+        "label": "OpenAI API",
+        "is_experimental": False,
+        "requires_api_key": True,
+        "default_model": OPENAI_DEFAULT_MODEL,
     },
     {
         "name": "claude_code",
@@ -143,6 +159,8 @@ def select_provider(payload: SelectProviderRequest) -> SelectProviderResponse:
 
     if payload.provider == "anthropic_api" and payload.api_key:
         set_credential(ANTHROPIC_API_KEY_NAME, payload.api_key)
+    if payload.provider == "openai_api" and payload.api_key:
+        set_credential(OPENAI_API_KEY_NAME, payload.api_key)
 
     resolved_model = _resolve_model(payload.provider, payload.model)
 

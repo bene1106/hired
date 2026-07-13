@@ -22,12 +22,13 @@ function renderStep() {
 }
 
 describe('ProviderStep', () => {
-  it('renders all five provider cards once detection resolves', async () => {
+  it('renders all six provider cards once detection resolves', async () => {
     renderStep()
 
     await waitFor(() => {
       expect(screen.getByTestId('provider-card-anthropic_api')).toBeInTheDocument()
     })
+    expect(screen.getByTestId('provider-card-openai_api')).toBeInTheDocument()
     expect(screen.getByTestId('provider-card-claude_code')).toBeInTheDocument()
     expect(screen.getByTestId('provider-card-codex_cli')).toBeInTheDocument()
     expect(screen.getByTestId('provider-card-ollama')).toBeInTheDocument()
@@ -54,6 +55,7 @@ describe('ProviderStep', () => {
     setMockState({
       detect: {
         anthropic_api: { key_in_env: false, key_in_keychain: false },
+        openai_api: { key_in_env: false, key_in_keychain: false },
         claude_code: { detected: true, path: '/usr/local/bin/claude', version: 'claude 2.0.0' },
         codex_cli: { detected: false, path: null, version: null, logged_in: false },
         ollama: { detected: false, models: [] },
@@ -92,6 +94,7 @@ describe('ProviderStep', () => {
     setMockState({
       detect: {
         anthropic_api: { key_in_env: false, key_in_keychain: false },
+        openai_api: { key_in_env: false, key_in_keychain: false },
         claude_code: { detected: false, path: null, version: null },
         codex_cli: {
           detected: true,
@@ -112,6 +115,7 @@ describe('ProviderStep', () => {
     setMockState({
       detect: {
         anthropic_api: { key_in_env: false, key_in_keychain: false },
+        openai_api: { key_in_env: false, key_in_keychain: false },
         claude_code: { detected: false, path: null, version: null },
         codex_cli: {
           detected: true,
@@ -142,6 +146,7 @@ describe('ProviderStep', () => {
     setMockState({
       detect: {
         anthropic_api: { key_in_env: false, key_in_keychain: false },
+        openai_api: { key_in_env: false, key_in_keychain: false },
         claude_code: { detected: false, path: null, version: null },
         codex_cli: { detected: false, path: null, version: null, logged_in: false },
         ollama: { detected: true, models: ['qwen2.5:14b', 'llama3.2:3b'] },
@@ -195,6 +200,7 @@ describe('ProviderStep', () => {
     setMockState({
       detect: {
         anthropic_api: { key_in_env: false, key_in_keychain: false },
+        openai_api: { key_in_env: false, key_in_keychain: false },
         claude_code: { detected: false, path: null, version: null },
         codex_cli: { detected: false, path: null, version: null, logged_in: false },
         ollama: { detected: false, models: [] },
@@ -217,6 +223,7 @@ describe('ProviderStep', () => {
     setMockState({
       detect: {
         anthropic_api: { key_in_env: false, key_in_keychain: false },
+        openai_api: { key_in_env: false, key_in_keychain: false },
         claude_code: { detected: false, path: null, version: null },
         codex_cli: { detected: false, path: null, version: null, logged_in: false },
         ollama: { detected: false, models: [] },

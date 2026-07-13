@@ -30,6 +30,8 @@ from llm.errors import (
 )
 from llm.ollama import DEFAULT_BASE_URL as OLLAMA_BASE_URL
 from llm.ollama import DEFAULT_MODEL as OLLAMA_DEFAULT_MODEL
+from llm.openai_api import DEFAULT_MODEL as OPENAI_DEFAULT_MODEL
+from llm.openai_api import OpenAIAPIAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +71,9 @@ def test_provider(
 
     if provider == "anthropic_api":
         return _test_anthropic_api(api_key)
+
+    if provider == "openai_api":
+        return _test_openai_api(api_key)
 
     if provider == "claude_code":
         return _test_claude_code()
@@ -281,6 +286,47 @@ def _test_anthropic_api(api_key: str | None) -> TestProviderResult:
         return {"ok": False, "latency_ms": _elapsed_ms(started), "error": msg, "error_kind": kind}
 
     return {"ok": True, "latency_ms": _elapsed_ms(started), "error": None, "error_kind": None}
+
+
+def _test_openai_api(api_key: str | None) -> TestProviderResult:
+    try:
+        adapter = OpenAIAPIAdapter(api_key=api_key, model=OPENAI_DEFAULT_MODEL)
+    except LLMAuthError as exc:
+        return {
+            "ok": False,
+            "latency_ms": 0,
+            "error": str(exc),
+            "error_kind": "missing_api_key",
+        }
+
+    started = time.perf_counter()
+    try:
+        adapter._client.chat.completions.create(  # type: ignore[attr-defined]
+            model=adapter.model,
+            max_tokens=1,
+            messages=[{"role": "user", "content": "ping"}],
+        )
+    except Exception as exc:  # noqa: BLE001 - re-classified below
+        kind, msg = _classify_openai(exc)
+        return {"ok": False, "latency_ms": _elapsed_ms(started), "error": msg, "error_kind": kind}
+
+    return {"ok": True, "latency_ms": _elapsed_ms(started), "error": None, "error_kind": None}
+
+
+def _classify_openai(exc: Exception) -> tuple[ErrorKind, str]:
+    import openai  # local import to keep the cold path cheap
+
+    if isinstance(exc, (LLMAuthError, openai.AuthenticationError)):
+        return "auth_failed", "API key was rejected."
+    if isinstance(exc, (LLMRateLimitError, openai.RateLimitError)):
+        return "rate_limited", "OpenAI rate limit hit. Try again in a moment."
+    if isinstance(exc, (LLMNetworkError, openai.APIConnectionError)):
+        return "network_error", "Could not reach the OpenAI API."
+    if isinstance(exc, (LLMResponseError, openai.APIStatusError, openai.APIError)):
+        return "bad_response", f"OpenAI returned an error: {exc}"
+    if isinstance(exc, LLMError):
+        return "unknown", str(exc)
+    return "unknown", f"Unexpected error: {exc}"
 
 
 def _classify(exc: Exception) -> tuple[ErrorKind, str]:

@@ -451,6 +451,29 @@ def test_select_provider_anthropic_stores_key(monkeypatch: pytest.MonkeyPatch) -
     assert body["model"] == "claude-haiku-4-5-20251001"
 
 
+def test_select_provider_openai_stores_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    from db.migrations import run_migrations
+
+    run_migrations()
+
+    stored: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        "api.routes.setup.set_credential",
+        lambda name, value: stored.append((name, value)),
+    )
+
+    response = client.post(
+        "/api/setup/select-provider",
+        json={"provider": "openai_api", "api_key": "sk-openai-XXXX"},
+    )
+
+    assert response.status_code == 200
+    assert stored == [("openai_api_key", "sk-openai-XXXX")]
+    body = response.json()
+    assert body["provider"] == "openai_api"
+    assert body["model"] == "gpt-4o"
+
+
 def test_select_provider_claude_code_now_accepted(monkeypatch: pytest.MonkeyPatch) -> None:
     from db.migrations import run_migrations
 

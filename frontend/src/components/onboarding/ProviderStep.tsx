@@ -20,6 +20,14 @@ const ANTHROPIC_MODELS: Array<{ id: string; label: string }> = [
   { id: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5 — faster, cheaper' },
 ]
 
+// OpenAI models the user can pick. The first entry is the default and must
+// match DEFAULT_MODEL in backend/llm/openai_api.py.
+const OPENAI_MODELS: Array<{ id: string; label: string }> = [
+  { id: 'gpt-4o', label: 'GPT-4o — general purpose' },
+  { id: 'gpt-4o-mini', label: 'GPT-4o mini — faster, cheaper' },
+  { id: 'gpt-4.1', label: 'GPT-4.1 — stronger (if available)' },
+]
+
 interface ProviderCardProps {
   id: ProviderId
   title: string
@@ -98,6 +106,7 @@ export function ProviderStep() {
   const [selected, setSelected] = useState<ProviderId | null>(onboarding.selectedProvider)
   const [apiKeyInput, setApiKeyInput] = useState<string>('')
   const [anthropicModel, setAnthropicModel] = useState<string>(ANTHROPIC_MODELS[0].id)
+  const [openaiModel, setOpenaiModel] = useState<string>(OPENAI_MODELS[0].id)
   const [ollamaModel, setOllamaModel] = useState<string>('qwen2.5:14b')
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'ok' | 'error'>('idle')
   const [testMessage, setTestMessage] = useState<string | null>(null)
@@ -132,6 +141,7 @@ export function ProviderStep() {
   }
 
   const apiHasKey = detection.anthropic_api.key_in_env || detection.anthropic_api.key_in_keychain
+  const openaiHasKey = detection.openai_api.key_in_env || detection.openai_api.key_in_keychain
 
   async function runTest(provider: ProviderId, key: string | null, model: string | null) {
     setTestStatus('testing')
@@ -155,7 +165,7 @@ export function ProviderStep() {
     setSelected(provider)
     setTestStatus('idle')
     setTestMessage(null)
-    if (provider !== 'anthropic_api') {
+    if (provider !== 'anthropic_api' && provider !== 'openai_api') {
       setApiKeyInput('')
     }
     // Pick a sensible default if Ollama is the choice and the user has
@@ -175,9 +185,16 @@ export function ProviderStep() {
 
   async function continueToCV() {
     if (selected === null) return
-    const apiKey = selected === 'anthropic_api' ? apiKeyInput.trim() || null : null
+    const apiKey =
+      selected === 'anthropic_api' || selected === 'openai_api' ? apiKeyInput.trim() || null : null
     const model =
-      selected === 'ollama' ? ollamaModel : selected === 'anthropic_api' ? anthropicModel : null
+      selected === 'ollama'
+        ? ollamaModel
+        : selected === 'anthropic_api'
+          ? anthropicModel
+          : selected === 'openai_api'
+            ? openaiModel
+            : null
     onboarding.setProvider(selected, apiKey)
     setTestStatus('testing')
     setTestMessage(null)
@@ -250,6 +267,59 @@ export function ProviderStep() {
                     size="sm"
                     disabled={testStatus === 'testing' || (!apiHasKey && apiKeyInput.length < 5)}
                     onClick={() => runTest('anthropic_api', apiKeyInput || null, anthropicModel)}
+                  >
+                    {testStatus === 'testing' ? 'Testing…' : 'Test connection'}
+                  </Button>
+                  {testMessage !== null && <span className={testMsgClass}>{testMessage}</span>}
+                </div>
+              </div>
+            )}
+          </ProviderCard>
+
+          <ProviderCard
+            id="openai_api"
+            title="OpenAI API"
+            subtitle="GPT models via your OpenAI API key. Pay-per-use."
+            badges={openaiHasKey ? [{ label: 'Key found' }] : []}
+            disabled={false}
+            selected={selected === 'openai_api'}
+            onSelect={() => pick('openai_api')}
+          >
+            {selected === 'openai_api' && (
+              <div className="flex flex-col gap-2">
+                {!openaiHasKey && (
+                  <>
+                    <Label htmlFor="openai-key">API key</Label>
+                    <Input
+                      id="openai-key"
+                      type="password"
+                      autoComplete="off"
+                      value={apiKeyInput}
+                      onChange={(e) => setApiKeyInput(e.target.value)}
+                      placeholder="sk-…"
+                    />
+                  </>
+                )}
+                <Label htmlFor="openai-model">Model</Label>
+                <select
+                  id="openai-model"
+                  value={openaiModel}
+                  onChange={(e) => setOpenaiModel(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                >
+                  {OPENAI_MODELS.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={testStatus === 'testing' || (!openaiHasKey && apiKeyInput.length < 5)}
+                    onClick={() => runTest('openai_api', apiKeyInput || null, openaiModel)}
                   >
                     {testStatus === 'testing' ? 'Testing…' : 'Test connection'}
                   </Button>

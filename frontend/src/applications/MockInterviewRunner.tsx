@@ -6,10 +6,22 @@ import { ApiError, api } from '@/lib/api'
 import type { MockEvaluation, MockQuestion, TranscriptItem } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
+import femaleListening from '@/assets/interviewer/female_listening.png'
+import femaleSpeaking from '@/assets/interviewer/female_speaking.png'
+import maleListening from '@/assets/interviewer/male_listening.png'
+import maleSpeaking from '@/assets/interviewer/male_speaking.png'
+
 import { MockInterviewResults } from './MockInterviewResults'
 import { useMicRecorder, type MicRecorder } from './useMicRecorder'
 import { useMockInterviewRunner } from './useMockInterviewRunner'
 import { useVoiceRunner } from './useVoiceRunner'
+
+// Interviewer avatars per gender × state. Unspecified falls back to the female
+// voice (matching the backend TTS default).
+const AVATAR_IMAGES: Record<'male' | 'female', { speaking: string; listening: string }> = {
+  male: { speaking: maleSpeaking, listening: maleListening },
+  female: { speaking: femaleSpeaking, listening: femaleListening },
+}
 
 /** mm:ss formatter for the answer timer. */
 function fmt(seconds: number): string {
@@ -96,7 +108,7 @@ export function MockInterviewRunner({
         </Button>
       </div>
 
-      <div className="mx-auto flex w-full max-w-[760px] flex-1 flex-col gap-5 px-8 py-10">
+      <div className="mx-auto flex w-full max-w-[760px] min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-8 py-10">
         {done ? (
           <div data-testid="runner-complete" className="flex flex-col gap-4">
             <h2 className="text-[20px] font-semibold text-ink">Interview submitted</h2>
@@ -203,6 +215,57 @@ function TextSurface({
         </Button>
       </div>
     </>
+  )
+}
+
+const AVATAR_BARS = 44
+
+/**
+ * Interviewer avatar (M4). While the interviewer is speaking (TTS), a circular
+ * blue spectrum of bars pulses around a "speaking" photo; while it waits for
+ * the candidate it shows the "listening" photo with a thin red idle border.
+ */
+function InterviewerAvatar({ gender, speaking }: { gender: string | null; speaking: boolean }) {
+  const set = gender === 'male' ? AVATAR_IMAGES.male : AVATAR_IMAGES.female
+  const src = speaking ? set.speaking : set.listening
+  const label =
+    gender === 'male' ? 'Male voice' : gender === 'female' ? 'Female voice' : 'Interviewer'
+  return (
+    <div className="flex flex-col items-center gap-2" data-testid="interviewer-avatar">
+      <div className="relative h-40 w-40">
+        {speaking ? (
+          <div className="absolute inset-0" data-testid="avatar-spectrum" aria-hidden>
+            {Array.from({ length: AVATAR_BARS }).map((_, i) => (
+              <div
+                key={i}
+                className="absolute left-1/2 top-1/2"
+                style={{ transform: `rotate(${(i * 360) / AVATAR_BARS}deg) translateY(80px)` }}
+              >
+                <span
+                  className="block w-[3px] rounded-full bg-gradient-to-b from-sky-300 to-sky-600"
+                  style={{
+                    height: 10 + (i % 6) * 4,
+                    transformOrigin: 'top',
+                    animation: `mi-equalize ${700 + (i % 5) * 120}ms ease-in-out ${i * 35}ms infinite`,
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        ) : null}
+        <div
+          className={cn(
+            'absolute inset-3 overflow-hidden rounded-full bg-surface-2',
+            speaking ? 'ring-2 ring-sky-400/60' : 'ring-2 ring-warn',
+          )}
+        >
+          <img src={src} alt="" aria-hidden className="h-full w-full object-cover object-top" />
+        </div>
+      </div>
+      <span className="text-[11px] text-ink-3">
+        {label} · {speaking ? 'speaking…' : 'listening'}
+      </span>
+    </div>
   )
 }
 
@@ -346,6 +409,7 @@ function VoiceRun({
       {runner.showWarning && !runner.finished ? (
         <WarningButton seconds={runner.secondsLeftToMax} onClick={runner.finishAnswer} />
       ) : null}
+      <InterviewerAvatar gender={gender} speaking={runner.phase === 'speaking'} />
       <div className="flex flex-col gap-1">
         <span className="text-[12px] text-ink-3">
           Question {runner.index + 1} of {runner.total}

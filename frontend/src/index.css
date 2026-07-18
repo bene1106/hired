@@ -269,3 +269,14 @@
     left: 16px;
   }
 }
+
+/* Radial audio-spectrum bars for the speaking interviewer avatar (M4). */
+@keyframes mi-equalize {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}

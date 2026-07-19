@@ -82,9 +82,76 @@ def test_parse_html_to_job_falls_back_to_meta_tags() -> None:
         """
     )
     job = parse_html_to_job(html, "https://acmeco.example/r/abc")
-    assert job.title == "Backend Engineer at AcmeCo"
+    # The " at AcmeCo" suffix is employer noise, not part of the role (#20).
+    assert job.title == "Backend Engineer"
     assert job.company == "AcmeCo"
     assert "Python" in (job.description or "")
+
+
+def test_fallback_recovers_company_from_title_when_site_name_missing() -> None:
+    """Issue #19: no og:site_name meant company=None → CompanyMark '?'."""
+    html = dedent(
+        """
+        <html><head>
+            <meta property="og:title" content="Senior SRE - Remote - AcmeCo">
+            <meta property="og:description" content="Run the platform.">
+        </head><body><main>SRE role.</main></body></html>
+        """
+    )
+    job = parse_html_to_job(html, "https://acmeco.example/r/abc")
+    assert job.company == "AcmeCo"
+    # Only the trailing employer is stripped; internal hyphens survive.
+    assert job.title == "Senior SRE - Remote"
+
+
+def test_fallback_recovers_company_from_url_host() -> None:
+    """Issue #19: nothing in the page names the employer."""
+    html = "<html><head><title>Data Engineer</title></head><body>Role.</body></html>"
+    job = parse_html_to_job(html, "https://jobs.bitpanda.com/o/data-engineer")
+    assert job.company == "Bitpanda"
+    assert job.title == "Data Engineer"
+
+
+def test_fallback_prefers_h1_when_og_title_is_just_the_company() -> None:
+    """Issue #20: the Bitpanda posting rendered 'Bitpanda' as the job title."""
+    html = dedent(
+        """
+        <html><head>
+            <meta property="og:title" content="Bitpanda">
+            <meta property="og:site_name" content="Bitpanda">
+        </head><body><h1>Senior Backend Engineer</h1><main>Role.</main></body></html>
+        """
+    )
+    job = parse_html_to_job(html, "https://jobs.bitpanda.com/o/123")
+    assert job.company == "Bitpanda"
+    assert job.title == "Senior Backend Engineer"
+
+
+def test_fallback_does_not_guess_company_from_aggregator_host() -> None:
+    """'Linkedin' as the employer is worse than leaving it blank."""
+    html = "<html><head><title>Product Manager</title></head><body>Role.</body></html>"
+    job = parse_html_to_job(html, "https://www.linkedin.com/jobs/view/123")
+    assert job.company is None
+    assert job.title == "Product Manager"
+
+
+def test_ats_host_takes_company_from_first_path_segment() -> None:
+    html = "<html><head><title>Platform Engineer</title></head><body>Role.</body></html>"
+    job = parse_html_to_job(html, "https://boards.greenhouse.io/acme-corp/jobs/7")
+    assert job.company == "Acme Corp"
+
+
+def test_json_ld_without_hiring_organization_falls_back_to_url() -> None:
+    html = dedent(
+        """
+        <html><head><script type="application/ld+json">
+        {"@type": "JobPosting", "title": "ML Engineer", "description": "Models."}
+        </script></head><body></body></html>
+        """
+    )
+    job = parse_html_to_job(html, "https://careers.sumup.com/jobs/9")
+    assert job.title == "ML Engineer"
+    assert job.company == "Sumup"
 
 
 def test_parse_html_to_job_handles_minimal_html() -> None:

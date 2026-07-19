@@ -368,10 +368,15 @@ No Supabase, Redis, Vercel, Railway, or Apify in this architecture.
 
 | Role | Person | Duties |
 |---|---|---|
-| Project Lead + Architect (AI/Backend) | Anna + Bene | Architecture, ADRs, LLM design, sprint planning |
-| Frontend Engineer + UX Lead | TBD | Tauri/React UI, UX flows |
-| Backend Engineer + Distribution Lead | TBD | DB, crawler, FastAPI, packaging, CI/CD |
-| AI Engineer + Integration | TBD | LLM adapters, prompts, evaluation |
+| Project Lead + Architect (AI/Backend) | Anna Vegera + Benedict Herrnleben | System architecture, ADRs, LLM provider design, prompt engineering, sprint planning |
+| Frontend Engineer + UX Lead | Eren Kocadag | Tauri/React UI, design system, UX flows and wireframes, onboarding, feed, Kanban, interview-prep screens |
+| Backend Engineer + Distribution Lead | Muhammad Kaleem Ullah | DB schema and migrations, crawler, FastAPI endpoints, packaging, CI/CD |
+| AI Engineer + Integration | Muhammad Kaleem Ullah | LLM adapters, CV parsing, generation prompts, eval harness |
+
+Contribution is not measured by commit count. Substantial parts of this project
+never took the form of a commit — the Phase 7 design system (`design/Hred.v2/`
+plus a 33 KB handoff document), the slide decks, and the mid-term and final
+demo videos are all team output that lives outside the git history.
 
 ### Shared Responsibilities
 
@@ -436,9 +441,13 @@ No Supabase, Redis, Vercel, Railway, or Apify in this architecture.
 
 ## 13. Appendices
 
-- **A.** Wireframes — Figma link [TBD]
-- **B.** ADR Index — `/docs/adr/`
-- **C.** API Endpoints — auto-generated from FastAPI OpenAPI
+- **A.** Design system & wireframes — `/design/Hred.v2/Hired.html` (interactive
+  reference build) and `/design/HANDOFF_PHASE_7_FRONTEND_REDESIGN.md`
+- **B.** ADR Index — `/docs/adr/README.md`
+- **C.** API Reference — `/docs/api.md`, with the machine-readable OpenAPI 3.1
+  schema (50 paths) at `/docs/api.openapi.json`
 - **D.** Prompt Library — `/backend/prompts/`
 - **E.** Goldset for Evaluation — `/eval/goldset.json`
-- **F.** Build & Distribution Guide — `/docs/build.md`
+- **F.** Install & Distribution Guides — `/docs/install/` (per-OS: macOS,
+  Windows, Linux); build-from-source steps in `/README.md`
+- **G.** Presentation & Demo — see §12

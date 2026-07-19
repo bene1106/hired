@@ -136,11 +136,12 @@ Work that was never in the plan and shipped anyway:
 | **Cost & provider-stats panel** | v0.3.x | Token spend and latency per provider |
 | **Web-search-backed company research** | v0.3.7 | Grounds the brief in live sources |
 
-> **Release status.** The mock-interview and voice work is committed but sits in
-> `[Unreleased]` — no tagged installer contains it. Voice dependencies are also
-> deliberately excluded from the PyInstaller bundle, so **packaged builds
-> currently report voice as unavailable**; it runs in a dev checkout. Bundling
-> is tracked as follow-up work.
+> **Release status.** Shipped in **v0.5.0**, which is the first installer to
+> contain the mock-interview work with voice enabled. Voice runtimes (Piper +
+> faster-whisper) are bundled into the sidecar; the speech *models* are still
+> downloaded on first use into `~/.hired/models/`, so the first voice interview
+> needs a one-time download and everything after it runs offline. Installers are
+> correspondingly larger — that is the deliberate trade.
 
 ---
 

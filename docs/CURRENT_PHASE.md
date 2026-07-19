@@ -5,15 +5,17 @@
 
 ## Aktueller Stand (verifiziert)
 
-- **Code-Stand (HEAD):** `v0.4.1` — konsistent in `frontend/package.json`,
-  `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` und `Cargo.lock`.
-- **Öffentliches Release („Latest"):** **`v0.4.1`** (erste veröffentlichte
-  Version mit Phase-9-Feedback-Loop, Multi-Source-Crawling und
-  Mock-Interviews).
+- **Code-Stand (HEAD):** `v0.5.0` — konsistent in `frontend/package.json`,
+  `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, `Cargo.lock` und
+  `backend/api/__init__.py`.
+- **Öffentliches Release („Latest"):** **`v0.4.1`** — `v0.5.0` ist getaggt,
+  aber erst nach dem Publish des Draft-Releases öffentlich.
 - **`v0.4.0` wurde nie getaggt** — der Changelog-Eintrag existiert, ein
   Installer dazu nicht. `v0.4.1` schließt diese Lücke.
-- **Voice ist im Packaged Build nicht enthalten** (Piper/faster-whisper sind
-  bewusst nicht im PyInstaller-Bundle); im Dev-Checkout funktioniert es.
+- **Voice ist ab `v0.5.0` im Packaged Build enthalten** (Piper/faster-whisper
+  werden per `collect_all()` gebündelt). Die Sprachmodelle selbst liegen weiter
+  nicht im Installer — sie werden beim ersten Start nach `~/.hired/models/`
+  geladen. Installer sind dadurch deutlich größer.
 - **Letzte abgeschlossene Phase:** **Phase 9** (Feedback Loop).
 - **Nächste Phase:** **Phase 10 — Email-Reading** (geplant, noch nicht im Code).
 
@@ -40,12 +42,13 @@ Legende: ✅ DONE · 🟡 PLANNED (konkret, nächster Schritt) · 🔵 PLANNED (
 
 ## Offene Punkte am aktuellen Stand
 
-- **Release:** `v0.3.7`-Draft publizieren bzw. Public-Flip entscheiden
-  (öffentliches Latest ist noch v0.3.6). Tauri-/Installer-Smoke auf dem RC
-  (WebView2-SSE ist die einzige nicht headless verifizierbare Risikofläche).
+- **Release:** `v0.5.0`-Draft publizieren (Workflow legt Releases per
+  `releaseDraft: true` als Draft an — Tagging allein veröffentlicht nichts).
+  Danach einen Installer herunterladen und starten: Voice muss als verfügbar
+  gemeldet werden, nicht in den Textmodus zurückfallen.
 - **Offene Issues:** #32 (Interview-Prep-Tab versteckt bis `applied`),
-  #21 (Score auf ApplicationSummary → MatchRing), #20 (Title-Parsing),
-  #19 (Company-Parser → CompanyMark „?").
+  #21 (Score auf ApplicationSummary → MatchRing).
+  Erledigt in v0.5.0: #19 (Company-Parser) und #20 (Title-Parsing).
 - **Phase 10** vor Start: Spec `.claude/specs/PHASE_10_email.md` schreiben.
 
 ## Versionsverlauf (Phasen → Releases)
@@ -60,6 +63,7 @@ Legende: ✅ DONE · 🟡 PLANNED (konkret, nächster Schritt) · 🔵 PLANNED (
 | v0.3.7 | 2026-05-31 | Web-Search-Company-Research + UX-Fixes |
 | v0.4.0 | 2026-06-14 | Phase 9 — Feedback Loop — **nie getaggt, kein Installer** |
 | v0.4.1 | 2026-07-19 | Erste Veröffentlichung mit Phase 9 + Multi-Source-Crawling + Mock-Interviews (Text); Voice nur im Dev-Checkout — **aktuelles Public Latest** |
+| v0.5.0 | 2026-07-19 | Voice im Packaged Build (Piper + faster-whisper gebündelt); Parser-Fixes für Company/Titel (#19, #20); `api.VERSION` korrigiert |
 
 > Hinweis: Die Phase-6-Spec sprach historisch von `v1.0.0`; real ausgeliefert
 > wurde die MVP-Komplettierung als `v0.1.1`. Es gibt keinen `v1.0.0`-Tag.

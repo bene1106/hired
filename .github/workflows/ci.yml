@@ -61,6 +61,14 @@ jobs:
       - name: pytest
         run: uv run pytest -q
 
+      # The committed OpenAPI schema went stale once (2026-05-29 → 2026-06-25,
+      # 19 missing paths). Regenerate and fail if it differs from the commit.
+      - name: OpenAPI schema is current
+        run: |
+          HIRED_DB_URL=sqlite:///./scratch-openapi.db \
+            uv run python ../scripts/gen_openapi.py
+          git diff --exit-code ../docs/api.openapi.json
+
   frontend-checks:
     name: Frontend (lint + typecheck + tests)
     runs-on: ubuntu-latest

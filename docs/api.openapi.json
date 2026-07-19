@@ -159,6 +159,48 @@
         }
       }
     },
+    "/api/setup/model": {
+      "put": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Update Model",
+        "description": "Update only the active model without changing the provider.",
+        "operationId": "update_model_api_setup_model_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateModelRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateModelResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/profile/cv": {
       "post": {
         "tags": [
@@ -557,6 +599,127 @@
         }
       }
     },
+    "/api/jobs/{job_id}/interact": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Post Job Interact",
+        "operationId": "post_job_interact_api_jobs__job_id__interact_post",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobInteractRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobInteractResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Delete Job Interact",
+        "operationId": "delete_job_interact_api_jobs__job_id__interact_delete",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "title": "Response Delete Job Interact Api Jobs  Job Id  Interact Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/interactions": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Get Interactions",
+        "operationId": "get_interactions_api_jobs_interactions_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InteractionHistoryItem"
+                  },
+                  "type": "array",
+                  "title": "Response Get Interactions Api Jobs Interactions Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/applications/{job_id}": {
       "post": {
         "tags": [
@@ -934,6 +1097,567 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ApplicationSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/interviews": {
+      "post": {
+        "tags": [
+          "applications"
+        ],
+        "summary": "Create Interview",
+        "operationId": "create_interview_api_applications__application_id__interviews_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InterviewCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "applications"
+        ],
+        "summary": "List Interviews",
+        "operationId": "list_interviews_api_applications__application_id__interviews_get",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InterviewResponse"
+                  },
+                  "title": "Response List Interviews Api Applications  Application Id  Interviews Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/interviews/{interview_id}": {
+      "patch": {
+        "tags": [
+          "applications"
+        ],
+        "summary": "Update Interview",
+        "operationId": "update_interview_api_applications__application_id__interviews__interview_id__patch",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Application Id"
+            }
+          },
+          {
+            "name": "interview_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Interview Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InterviewUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "applications"
+        ],
+        "summary": "Delete Interview",
+        "operationId": "delete_interview_api_applications__application_id__interviews__interview_id__delete",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Application Id"
+            }
+          },
+          {
+            "name": "interview_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Interview Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/interviews/{interview_id}/questions": {
+      "post": {
+        "tags": [
+          "applications"
+        ],
+        "summary": "Prepare Interview Questions Route",
+        "operationId": "prepare_interview_questions_route_api_applications__application_id__interviews__interview_id__questions_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Application Id"
+            }
+          },
+          {
+            "name": "interview_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Interview Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/interviews/{interview_id}/runs": {
+      "post": {
+        "tags": [
+          "applications"
+        ],
+        "summary": "Start Interview Run",
+        "operationId": "start_interview_run_api_applications__application_id__interviews__interview_id__runs_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Application Id"
+            }
+          },
+          {
+            "name": "interview_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Interview Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/StartRunRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunStartResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "applications"
+        ],
+        "summary": "List Interview Runs",
+        "operationId": "list_interview_runs_api_applications__application_id__interviews__interview_id__runs_get",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Application Id"
+            }
+          },
+          {
+            "name": "interview_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Interview Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RunSummaryResponse"
+                  },
+                  "title": "Response List Interview Runs Api Applications  Application Id  Interviews  Interview Id  Runs Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/interviews/{interview_id}/runs/{run_id}/complete": {
+      "post": {
+        "tags": [
+          "applications"
+        ],
+        "summary": "Complete Interview Run",
+        "operationId": "complete_interview_run_api_applications__application_id__interviews__interview_id__runs__run_id__complete_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Application Id"
+            }
+          },
+          {
+            "name": "interview_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Interview Id"
+            }
+          },
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteRunRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunDetailResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/interviews/{interview_id}/runs/{run_id}": {
+      "get": {
+        "tags": [
+          "applications"
+        ],
+        "summary": "Get Interview Run",
+        "operationId": "get_interview_run_api_applications__application_id__interviews__interview_id__runs__run_id__get",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Application Id"
+            }
+          },
+          {
+            "name": "interview_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Interview Id"
+            }
+          },
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunDetailResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/interviews/{interview_id}/runs/{run_id}/evaluate": {
+      "post": {
+        "tags": [
+          "applications"
+        ],
+        "summary": "Evaluate Interview Run",
+        "operationId": "evaluate_interview_run_api_applications__application_id__interviews__interview_id__runs__run_id__evaluate_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Application Id"
+            }
+          },
+          {
+            "name": "interview_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Interview Id"
+            }
+          },
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunDetailResponse"
                 }
               }
             }
@@ -1401,6 +2125,400 @@
           }
         }
       }
+    },
+    "/api/sources/config": {
+      "get": {
+        "tags": [
+          "sources"
+        ],
+        "summary": "Get Config",
+        "operationId": "get_config_api_sources_config_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceConfigResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "sources"
+        ],
+        "summary": "Update Config",
+        "operationId": "update_config_api_sources_config_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSourceConfigRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceConfigResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sources/run-now": {
+      "post": {
+        "tags": [
+          "sources"
+        ],
+        "summary": "Trigger All",
+        "operationId": "trigger_all_api_sources_run_now_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunNowResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sources": {
+      "get": {
+        "tags": [
+          "sources"
+        ],
+        "summary": "List Sources",
+        "operationId": "list_sources_api_sources_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CrawlSourceResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List Sources Api Sources Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "sources"
+        ],
+        "summary": "Create Source",
+        "operationId": "create_source_api_sources_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrawlSourceResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sources/{source_id}": {
+      "put": {
+        "tags": [
+          "sources"
+        ],
+        "summary": "Update Source",
+        "operationId": "update_source_api_sources__source_id__put",
+        "parameters": [
+          {
+            "name": "source_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Source Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSourceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrawlSourceResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "sources"
+        ],
+        "summary": "Delete Source",
+        "operationId": "delete_source_api_sources__source_id__delete",
+        "parameters": [
+          {
+            "name": "source_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Source Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sources/{source_id}/run-now": {
+      "post": {
+        "tags": [
+          "sources"
+        ],
+        "summary": "Trigger One",
+        "operationId": "trigger_one_api_sources__source_id__run_now_post",
+        "parameters": [
+          {
+            "name": "source_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Source Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunNowResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/voice/status": {
+      "get": {
+        "tags": [
+          "voice"
+        ],
+        "summary": "Get Status",
+        "operationId": "get_status_api_voice_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/voice/prepare": {
+      "post": {
+        "tags": [
+          "voice"
+        ],
+        "summary": "Prepare",
+        "operationId": "prepare_api_voice_prepare_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/voice/tts": {
+      "post": {
+        "tags": [
+          "voice"
+        ],
+        "summary": "Text To Speech",
+        "operationId": "text_to_speech_api_voice_tts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TtsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/voice/stt": {
+      "post": {
+        "tags": [
+          "voice"
+        ],
+        "summary": "Speech To Text",
+        "operationId": "speech_to_text_api_voice_stt_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_speech_to_text_api_voice_stt_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SttResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1571,7 +2689,7 @@
             "type": "string",
             "contentMediaType": "application/octet-stream",
             "title": "File",
-            "description": "PDF CV (\u22645 MB)"
+            "description": "PDF CV (≤5 MB)"
           }
         },
         "type": "object",
@@ -1579,6 +2697,21 @@
           "file"
         ],
         "title": "Body_post_cv_upload_api_profile_cv_upload_post"
+      },
+      "Body_speech_to_text_api_voice_stt_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "description": "Recorded answer audio"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_speech_to_text_api_voice_stt_post"
       },
       "CVParseResponse": {
         "properties": {
@@ -1740,6 +2873,22 @@
         ],
         "title": "CodexCliDetection"
       },
+      "CompleteRunRequest": {
+        "properties": {
+          "transcript": {
+            "items": {
+              "$ref": "#/components/schemas/TranscriptItem"
+            },
+            "type": "array",
+            "title": "Transcript"
+          }
+        },
+        "type": "object",
+        "required": [
+          "transcript"
+        ],
+        "title": "CompleteRunRequest"
+      },
       "CostResponse": {
         "properties": {
           "provider": {
@@ -1834,6 +2983,94 @@
         ],
         "title": "CrawlResponse"
       },
+      "CrawlSourceResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "source_type": {
+            "type": "string",
+            "title": "Source Type"
+          },
+          "company_slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Slug"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "last_checked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Checked At"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "is_running": {
+            "type": "boolean",
+            "title": "Is Running"
+          },
+          "crawl_phase": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crawl Phase"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "source_type",
+          "company_slug",
+          "label",
+          "enabled",
+          "last_checked_at",
+          "last_error",
+          "is_running",
+          "crawl_phase",
+          "created_at"
+        ],
+        "title": "CrawlSourceResponse"
+      },
       "CrawlStatusResponse": {
         "properties": {
           "job_id": {
@@ -1849,6 +3086,21 @@
               "error"
             ],
             "title": "State"
+          },
+          "phase": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "crawling",
+                  "scoring"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phase"
           },
           "fetched": {
             "type": "integer",
@@ -1886,6 +3138,7 @@
         "required": [
           "job_id",
           "state",
+          "phase",
           "fetched",
           "total",
           "new",
@@ -1894,6 +3147,54 @@
           "error"
         ],
         "title": "CrawlStatusResponse"
+      },
+      "CreateSourceRequest": {
+        "properties": {
+          "source_type": {
+            "type": "string",
+            "enum": [
+              "wellfound",
+              "indeed",
+              "remotive",
+              "stepstone"
+            ],
+            "title": "Source Type"
+          },
+          "company_slug": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Slug"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_type"
+        ],
+        "title": "CreateSourceRequest"
       },
       "DataWipeResponse": {
         "properties": {
@@ -2013,6 +3314,32 @@
               }
             ],
             "title": "Status"
+          },
+          "unread": {
+            "type": "boolean",
+            "title": "Unread"
+          },
+          "feedback_signal": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedback Signal"
+          },
+          "feedback_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedback Reason"
           }
         },
         "type": "object",
@@ -2028,7 +3355,10 @@
           "matched_skills",
           "missing_skills",
           "red_flags",
-          "status"
+          "status",
+          "unread",
+          "feedback_signal",
+          "feedback_reason"
         ],
         "title": "FeedItem"
       },
@@ -2094,6 +3424,112 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "InteractionHistoryItem": {
+        "properties": {
+          "job_id": {
+            "type": "integer",
+            "title": "Job Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "company": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "feedback_signal": {
+            "type": "integer",
+            "title": "Feedback Signal"
+          },
+          "feedback_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedback Reason"
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "title",
+          "company",
+          "location",
+          "feedback_signal",
+          "feedback_reason",
+          "updated_at"
+        ],
+        "title": "InteractionHistoryItem"
+      },
+      "InterviewCreateRequest": {
+        "properties": {
+          "round_number": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Round Number"
+          },
+          "interview_type": {
+            "type": "string",
+            "title": "Interview Type"
+          },
+          "duration_minutes": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Duration Minutes"
+          },
+          "interviewer_gender": {
+            "type": "string",
+            "title": "Interviewer Gender",
+            "default": "unspecified"
+          },
+          "scheduled_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scheduled At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "round_number",
+          "interview_type",
+          "duration_minutes"
+        ],
+        "title": "InterviewCreateRequest"
       },
       "InterviewQuestionBundle": {
         "properties": {
@@ -2169,6 +3605,83 @@
           "difficulty"
         ],
         "title": "InterviewQuestionResponse"
+      },
+      "InterviewResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "application_id": {
+            "type": "integer",
+            "title": "Application Id"
+          },
+          "round_number": {
+            "type": "integer",
+            "title": "Round Number"
+          },
+          "interview_type": {
+            "type": "string",
+            "title": "Interview Type"
+          },
+          "duration_minutes": {
+            "type": "integer",
+            "title": "Duration Minutes"
+          },
+          "interviewer_gender": {
+            "type": "string",
+            "title": "Interviewer Gender"
+          },
+          "scheduled_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scheduled At"
+          },
+          "is_upcoming": {
+            "type": "boolean",
+            "title": "Is Upcoming"
+          },
+          "question_count": {
+            "type": "integer",
+            "title": "Question Count"
+          },
+          "questions": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Questions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "application_id",
+          "round_number",
+          "interview_type",
+          "duration_minutes",
+          "interviewer_gender",
+          "scheduled_at",
+          "is_upcoming",
+          "question_count",
+          "questions"
+        ],
+        "title": "InterviewResponse"
       },
       "InterviewSessionDetail": {
         "properties": {
@@ -2256,6 +3769,70 @@
         ],
         "title": "InterviewSessionSummary"
       },
+      "InterviewUpdateRequest": {
+        "properties": {
+          "round_number": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Round Number"
+          },
+          "interview_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interview Type"
+          },
+          "duration_minutes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Minutes"
+          },
+          "interviewer_gender": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interviewer Gender"
+          },
+          "scheduled_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scheduled At"
+          }
+        },
+        "type": "object",
+        "title": "InterviewUpdateRequest"
+      },
       "JobActionRequest": {
         "properties": {
           "action": {
@@ -2291,6 +3868,89 @@
           "status"
         ],
         "title": "JobActionResponse"
+      },
+      "JobInteractRequest": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "read",
+              "thumbs_up",
+              "thumbs_down"
+            ],
+            "title": "Action"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "company",
+                  "location",
+                  "tech_stack"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "title": "JobInteractRequest"
+      },
+      "JobInteractResponse": {
+        "properties": {
+          "job_id": {
+            "type": "integer",
+            "title": "Job Id"
+          },
+          "read_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read At"
+          },
+          "feedback_signal": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedback Signal"
+          },
+          "feedback_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedback Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "read_at",
+          "feedback_signal",
+          "feedback_reason"
+        ],
+        "title": "JobInteractResponse"
       },
       "MaterialResponse": {
         "properties": {
@@ -2545,6 +4205,17 @@
             ],
             "title": "Email"
           },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
           "target_roles": {
             "items": {
               "type": "string"
@@ -2576,6 +4247,20 @@
             },
             "type": "array",
             "title": "Priorities"
+          },
+          "skills": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Skills"
+          },
+          "work_formats": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Work Formats"
           },
           "cv_text": {
             "anyOf": [
@@ -2610,10 +4295,13 @@
           "id",
           "name",
           "email",
+          "phone",
           "target_roles",
           "target_locations",
           "target_salary_min",
           "priorities",
+          "skills",
+          "work_formats",
           "cv_text",
           "cv_parsed_json",
           "profile_version"
@@ -2644,6 +4332,17 @@
               }
             ],
             "title": "Email"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
           },
           "target_roles": {
             "anyOf": [
@@ -2698,11 +4397,39 @@
               }
             ],
             "title": "Priorities"
+          },
+          "skills": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skills"
+          },
+          "work_formats": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Work Formats"
           }
         },
         "type": "object",
         "title": "ProfileUpdate",
-        "description": "Body for ``POST /api/profile``. All fields optional; missing \u2192 unchanged."
+        "description": "Body for ``POST /api/profile``. All fields optional; missing → unchanged."
       },
       "ProviderDetectionResult": {
         "properties": {
@@ -2767,13 +4494,24 @@
           "default_model"
         ],
         "title": "ProviderMetadata",
-        "description": "One provider option as the onboarding UI renders it.\n\n``label`` is the user-visible name. ``is_experimental`` drives the\nyellow \"Experimental\" badge \u2014 the CLI providers (``claude_code`` and\n``codex_cli``) carry it (per ADR-0005 R-01 / ADR-0010 the CLIs are a\ndocumented gray zone). ``requires_api_key``\ntells the wizard whether to render the API-key input. ``default_model``\nis what we save to ``app_config`` if the user doesn't override."
+        "description": "One provider option as the onboarding UI renders it.\n\n``label`` is the user-visible name. ``is_experimental`` drives the\nyellow \"Experimental\" badge — the CLI providers (``claude_code`` and\n``codex_cli``) carry it (per ADR-0005 R-01 / ADR-0010 the CLIs are a\ndocumented gray zone). ``requires_api_key``\ntells the wizard whether to render the API-key input. ``default_model``\nis what we save to ``app_config`` if the user doesn't override."
       },
       "ProviderStatsResponse": {
         "properties": {
           "provider": {
             "type": "string",
             "title": "Provider"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
           },
           "last_latency_ms": {
             "anyOf": [
@@ -2831,6 +4569,7 @@
         "type": "object",
         "required": [
           "provider",
+          "model",
           "last_latency_ms",
           "last_success",
           "calls_today",
@@ -2862,6 +4601,177 @@
           "capped"
         ],
         "title": "RescoreResponse"
+      },
+      "RunDetailResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "interview_id": {
+            "type": "integer",
+            "title": "Interview Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "voice_mode": {
+            "type": "boolean",
+            "title": "Voice Mode"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "transcript": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Transcript"
+          },
+          "evaluation": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "interview_id",
+          "status",
+          "voice_mode",
+          "started_at",
+          "completed_at",
+          "transcript",
+          "evaluation"
+        ],
+        "title": "RunDetailResponse"
+      },
+      "RunNowResponse": {
+        "properties": {
+          "started": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Started"
+          }
+        },
+        "type": "object",
+        "required": [
+          "started"
+        ],
+        "title": "RunNowResponse"
+      },
+      "RunStartResponse": {
+        "properties": {
+          "run_id": {
+            "type": "integer",
+            "title": "Run Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "questions": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Questions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "status",
+          "questions"
+        ],
+        "title": "RunStartResponse"
+      },
+      "RunSummaryResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "question_count": {
+            "type": "integer",
+            "title": "Question Count"
+          },
+          "has_evaluation": {
+            "type": "boolean",
+            "title": "Has Evaluation"
+          },
+          "overall_percentage": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overall Percentage"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "started_at",
+          "completed_at",
+          "question_count",
+          "has_evaluation",
+          "overall_percentage"
+        ],
+        "title": "RunSummaryResponse"
       },
       "ScoringStatusResponse": {
         "properties": {
@@ -2950,6 +4860,19 @@
         ],
         "title": "SelectProviderResponse"
       },
+      "SourceConfigResponse": {
+        "properties": {
+          "interval_hours": {
+            "type": "integer",
+            "title": "Interval Hours"
+          }
+        },
+        "type": "object",
+        "required": [
+          "interval_hours"
+        ],
+        "title": "SourceConfigResponse"
+      },
       "StartGenerationResponse": {
         "properties": {
           "application_id": {
@@ -2967,6 +4890,17 @@
           "task_id"
         ],
         "title": "StartGenerationResponse"
+      },
+      "StartRunRequest": {
+        "properties": {
+          "voice_mode": {
+            "type": "boolean",
+            "title": "Voice Mode",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "StartRunRequest"
       },
       "StatusUpdateRequest": {
         "properties": {
@@ -2999,6 +4933,19 @@
           "status"
         ],
         "title": "StatusUpdateRequest"
+      },
+      "SttResponse": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "SttResponse"
       },
       "TestProviderRequest": {
         "properties": {
@@ -3089,6 +5036,142 @@
         ],
         "title": "TestProviderResult"
       },
+      "TranscriptItem": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer",
+            "default": ""
+          },
+          "skipped": {
+            "type": "boolean",
+            "title": "Skipped",
+            "default": false
+          },
+          "asked_rephrasing": {
+            "type": "boolean",
+            "title": "Asked Rephrasing",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "question"
+        ],
+        "title": "TranscriptItem"
+      },
+      "TtsRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "gender": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gender"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "TtsRequest"
+      },
+      "UpdateModelRequest": {
+        "properties": {
+          "model": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Model"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model"
+        ],
+        "title": "UpdateModelRequest"
+      },
+      "UpdateModelResponse": {
+        "properties": {
+          "model": {
+            "type": "string",
+            "title": "Model"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model"
+        ],
+        "title": "UpdateModelResponse"
+      },
+      "UpdateSourceConfigRequest": {
+        "properties": {
+          "interval_hours": {
+            "type": "integer",
+            "maximum": 168.0,
+            "minimum": 0.0,
+            "title": "Interval Hours"
+          }
+        },
+        "type": "object",
+        "required": [
+          "interval_hours"
+        ],
+        "title": "UpdateSourceConfigRequest"
+      },
+      "UpdateSourceRequest": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "company_slug": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Slug"
+          }
+        },
+        "type": "object",
+        "title": "UpdateSourceRequest"
+      },
       "ValidationError": {
         "properties": {
           "loc": {
@@ -3128,6 +5211,41 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VoiceStatusResponse": {
+        "properties": {
+          "deps_available": {
+            "type": "boolean",
+            "title": "Deps Available"
+          },
+          "models_ready": {
+            "type": "boolean",
+            "title": "Models Ready"
+          },
+          "prepare_state": {
+            "type": "string",
+            "title": "Prepare State"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deps_available",
+          "models_ready",
+          "prepare_state",
+          "error"
+        ],
+        "title": "VoiceStatusResponse"
       }
     }
   }

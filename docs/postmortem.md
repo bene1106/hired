@@ -6,6 +6,27 @@
 
 This document closes Phase 6. It's not a marketing recap — it's the honest "if I were doing it again" log, scoped to choices that mattered.
 
+## How we worked
+
+Hired. is a four-person project built with heavy agent assistance. Work was
+split by ownership area rather than by file: architecture and the LLM provider
+layer (Anna, Bene), frontend and the design system (Eren), backend, data
+ingestion, packaging and the AI integration prompts (Kaleem). Everyone worked
+against one shared codebase, reviewed each other's PRs, and synced weekly.
+
+Two consequences worth naming, because they shape what this postmortem can and
+cannot tell you:
+
+- **The retrospective below is written from the agent's perspective on the
+  implementation workstream through Phase 6.** It is deliberately narrow. The
+  Phase 7 design system, the decks, and the demo videos are substantial team
+  output that this document does not cover, and that `git log` does not show
+  either — commit counts are a poor proxy for contribution on this project.
+- **Agent-assisted development changed the shape of the work more than the
+  split of it.** The phase-spec contracts described below existed so that
+  several people plus an agent could work against the same repository without
+  re-litigating scope every session.
+
 ## What worked
 
 ### Phase-spec contracts
@@ -55,7 +76,7 @@ Phase 5 deferred the synthesised role explanation because adding a method to `LL
 1. **Land a CI-mirror script.** A single `make ci-local` (or `pnpm ci-mirror`) that runs the exact backend + frontend checks CI runs would have prevented both format-only failures and saved real time on every push. The bullets in `CLAUDE.md` are documentation; a script would be enforcement.
 2. **Ship a `tools/devtest` that tests provider switching round-trip.** Phase 6 spent meaningful time validating that switching from `mock` → `anthropic_api` → `claude_code` → `ollama` and back works without restart. Most of that validation is now scattered across unit tests; a single end-to-end "switch every provider in sequence" test would catch interface drift faster than per-adapter unit tests.
 3. **Bundle observability earlier.** `RecordingProvider` landed Phase 3, token usage landed Phase 5, the Settings stats panel only got real data Phase 6. If we'd wired the panel against fake stats in Phase 3 we'd have caught the columns-but-no-data state earlier and shipped meaningful telemetry by Phase 4.
-4. **Treat the eval harness as load-bearing, not a nice-to-have.** Phase 4's goldset (20 entries) is the right size for a one-person eval pass; running it against the mock provider is structurally meaningful but the numbers aren't real. We never integrated `make eval` into a recurring schedule. If this project continues, a weekly scheduled run against the real API plus a PR comment with eval deltas would close the loop.
+4. **Treat the eval harness as load-bearing, not a nice-to-have.** Phase 4's goldset (20 entries) is the right size for a single reviewer to label by hand; running it against the mock provider is structurally meaningful but the numbers aren't real. We never integrated `make eval` into a recurring schedule. If this project continues, a weekly scheduled run against the real API plus a PR comment with eval deltas would close the loop.
 5. **Pin Tauri sidecar binaries to a target-triple suffix from day one.** The Phase 6 release workflow had to rename the PyInstaller output for each platform; this is convention, not Tauri's fault, but it would have been cheaper to bake the convention into a pre-build hook in `tauri.conf.json` from the start.
 
 ## Lessons for the next project
@@ -67,6 +88,6 @@ Phase 5 deferred the synthesised role explanation because adding a method to `LL
 
 ## Closing
 
-We shipped the MVP we set out to ship. Six phases, one human collaborator, one persistent agent. The product runs end-to-end against four providers on three operating systems, with type-safe code on both sides, a real eval harness, and an accessibility audit that's honest about what it didn't do.
+We shipped the MVP we set out to ship. Six phases, a four-person team, and one persistent agent. The product runs end-to-end against four providers on three operating systems, with type-safe code on both sides, a real eval harness, and an accessibility audit that's honest about what it didn't do.
 
 The strong-final-touch advice from the Phase 6 spec — "this is for the documentation grade" — undersells what postmortems are for. The grade is incidental; the value is the next project starting with a sharper picture of what to do differently. That's what's above.

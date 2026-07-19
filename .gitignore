@@ -125,6 +125,7 @@ logs/
 .claude/settings.local.json
 
 scratch-snapshot.db
+scratch-openapi.db
 scratch.db
 scratch.db-wal
 scratch.db-shm

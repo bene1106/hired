@@ -16,9 +16,32 @@
 # noqa: F821 — Analysis / PYZ / EXE / collect_submodules are PyInstaller
 # spec globals injected by PyInstaller's exec environment.
 
-from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_all, collect_submodules
 
 block_cipher = None
+
+# M4 voice: faster-whisper (STT) and Piper (TTS) pull native libraries —
+# ctranslate2 ships .so/.dll/.dylib, onnxruntime ships its provider libs, and
+# PyAV wraps ffmpeg. `collect_all` grabs submodules + data files + binaries for
+# each; naming them in `hiddenimports` alone is not enough because the native
+# payloads are not Python modules and static analysis never sees them.
+#
+# The speech *models* are NOT bundled — services/voice.py downloads them to
+# ~/.hired/models/ on first use, so this only ships the runtimes.
+_voice_datas = []
+_voice_binaries = []
+_voice_hiddenimports = []
+for _pkg in ("faster_whisper", "piper", "ctranslate2", "onnxruntime", "av"):
+    try:
+        _d, _b, _h = collect_all(_pkg)
+    except Exception as exc:  # pragma: no cover - build-time only
+        # Keep the build green if a voice dep is absent from the build env
+        # (e.g. `uv sync --no-group voice`); the app degrades to text mode.
+        print(f"[hired-sidecar.spec] skipping voice dep {_pkg!r}: {exc}")
+        continue
+    _voice_datas += _d
+    _voice_binaries += _b
+    _voice_hiddenimports += _h
 
 # sidecar.py imports `from api.main import app`, so PyInstaller follows
 # api → routes → most of services/llm/db statically. But two graph
@@ -43,11 +66,12 @@ _app_modules = (
 a = Analysis(
     ["sidecar.py"],
     pathex=["."],
-    binaries=[],
+    binaries=[*_voice_binaries],
     datas=[
         ("alembic", "alembic"),
         ("alembic.ini", "."),
         ("prompts", "prompts"),
+        *_voice_datas,
     ],
     hiddenimports=[
         *_app_modules,
@@ -87,6 +111,8 @@ a = Analysis(
         "keyring.backends.Windows",
         "keyring.backends.macOS",
         "keyring.backends.SecretService",
+        # Lazily imported inside services/voice.py so voice stays optional.
+        *_voice_hiddenimports,
     ],
     hookspath=[],
     hooksconfig={},
@@ -99,16 +125,11 @@ a = Analysis(
         "playwright",
         "tkinter",
         "matplotlib",
-        # M4 voice (faster-whisper + Piper) is lazily imported in
-        # services/voice.py and excluded from the bundle for now —
-        # ctranslate2/onnxruntime/av are large and platform-specific.
-        # Packaged builds report voice "unavailable"; bundling it is a
-        # tracked follow-up. Dev gets voice via the `voice` extra.
-        "faster_whisper",
-        "piper",
-        "ctranslate2",
-        "onnxruntime",
-        "av",
+        # NOTE: faster_whisper / piper / ctranslate2 / onnxruntime / av used
+        # to be excluded here, which is why packaged builds reported voice as
+        # unavailable. They are now collected above via collect_all(). This
+        # grows the bundle substantially — that is the deliberate trade for
+        # voice working in a packaged install.
     ],
     noarchive=False,
 )

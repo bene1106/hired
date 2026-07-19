@@ -84,6 +84,64 @@ The core local-first loop that must work at launch:
 - Auto-application submission to ATS portals.
 - Social features.
 
+### 2.1 Delivered vs. Planned
+
+Status of every scope item above, verified against the code rather than the
+plan. ✅ delivered · ⚠️ delivered with a documented change of shape · ❌ not built.
+
+**Must-have (MVP) — 8/8 delivered**
+
+| Item | Status | Landed | Notes |
+|---|---|---|---|
+| Local installation (macOS/Windows/Linux) | ✅ | v0.1.1 | Tauri + PyInstaller sidecar, 3-OS CI matrix |
+| AI provider setup wizard | ✅ | v0.1.1 | Extended to five providers (see below) |
+| Profile setup (CV upload + questionnaire) | ✅ | v0.1.1 | Local SQLite only |
+| Job ingestion | ⚠️ | v0.1.1 | Paste-URL is the primary path; LinkedIn scraping is fragile by design — [ADR-0006](adr/0006-crawler-fragility.md) |
+| First screening (summary + apply/save/skip) | ✅ | v0.1.1 | |
+| Application materials (brief, CV tailoring, cover letter) | ✅ | v0.1.1 | |
+| Interview preparation | ✅ | v0.1.1 | Question bank + company info + role summary |
+| Application dashboard | ✅ | v0.1.1 → v0.2.0 | Table, then five-column Kanban in Phase 7 |
+
+**Nice-to-have — 4/5 delivered**
+
+| Item | Status | Landed | Notes |
+|---|---|---|---|
+| AI match scoring & ranked feed | ✅ | v0.1.1 | 0–100 with rationale |
+| Kanban dashboard | ✅ | v0.2.0 | |
+| Provider switching without restart | ✅ | v0.1.1 | |
+| PDF export (cover letter + CV) | ✅ | — | `frontend/src/lib/pdf.ts` |
+| Salary benchmark per role/location | ❌ | — | Salary shown when the listing carries it; no benchmark lookup was built |
+
+**Stretch goals — 1 delivered and extended, 1 partial, 3 not built**
+
+| Item | Status | Landed | Notes |
+|---|---|---|---|
+| Mock interview chatbot with feedback | ✅ | v0.3.0 → unreleased | Delivered, then **extended well past the original goal** — see below |
+| Rejection analysis | ⚠️ | v0.4.0 | Heuristic rather than a standalone report: companies/locations you repeatedly reject take −25 in scoring, positively-rated ones +25, and rejected titles/skills are injected into the grading prompt |
+| Glassdoor / culture per job card | ❌ | — | |
+| Multi-language CV and cover letter | ❌ | — | |
+| Encrypted backup to user's own cloud | ❌ | — | |
+
+### 2.2 Delivered Beyond the Original Scope
+
+Work that was never in the plan and shipped anyway:
+
+| Addition | Landed | Why it matters |
+|---|---|---|
+| **Voice mock interviews** — on-device Piper TTS + faster-whisper STT, timed runs, automatic scoring, audio-reactive interviewer avatar | unreleased | An entire on-device speech subsystem; see §5 |
+| **Feedback loop** — thumbs up/down with reasons, `JobInteraction` tracking, feedback injected into the scoring prompt, unread badges | v0.4.0 | Phase 9; closes the learning loop the user stories asked for |
+| **Scheduled multi-source crawling** — seven crawler modules (Wellfound, Indeed, Remotive, StepStone, Greenhouse, Lever, LinkedIn); four exposed as schedulable sources with per-source config | v0.4.0 | Reduces reliance on the single fragile LinkedIn path |
+| **OpenAI Codex CLI** as a fifth provider | v0.3.6 | [ADR-0010](adr/0010-codex-cli-provider.md) |
+| **Streaming interview coach** | v0.3.0 | All adapters stream; Phase 8 |
+| **Cost & provider-stats panel** | v0.3.x | Token spend and latency per provider |
+| **Web-search-backed company research** | v0.3.7 | Grounds the brief in live sources |
+
+> **Release status.** The mock-interview and voice work is committed but sits in
+> `[Unreleased]` — no tagged installer contains it. Voice dependencies are also
+> deliberately excluded from the PyInstaller bundle, so **packaged builds
+> currently report voice as unavailable**; it runs in a dev checkout. Bundling
+> is tracked as follow-up work.
+
 ---
 
 ## 3. User Stories

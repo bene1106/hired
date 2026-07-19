@@ -5,11 +5,15 @@
 
 ## Aktueller Stand (verifiziert)
 
-- **Code-Stand (HEAD):** `v0.3.7` — konsistent in `frontend/package.json`,
-  `src-tauri/tauri.conf.json` und `src-tauri/Cargo.toml`.
-- **Öffentliches Release („Latest"):** **`v0.3.6`**.
-- **`v0.3.7` ist aktuell nur ein Draft-Release** (noch nicht publiziert);
-  zusätzlich existiert ein `v0.3-stable`-Pre-Release.
+- **Code-Stand (HEAD):** `v0.4.1` — konsistent in `frontend/package.json`,
+  `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` und `Cargo.lock`.
+- **Öffentliches Release („Latest"):** **`v0.4.1`** (erste veröffentlichte
+  Version mit Phase-9-Feedback-Loop, Multi-Source-Crawling und
+  Mock-Interviews).
+- **`v0.4.0` wurde nie getaggt** — der Changelog-Eintrag existiert, ein
+  Installer dazu nicht. `v0.4.1` schließt diese Lücke.
+- **Voice ist im Packaged Build nicht enthalten** (Piper/faster-whisper sind
+  bewusst nicht im PyInstaller-Bundle); im Dev-Checkout funktioniert es.
 - **Letzte abgeschlossene Phase:** **Phase 9** (Feedback Loop).
 - **Nächste Phase:** **Phase 10 — Email-Reading** (geplant, noch nicht im Code).
 
@@ -54,7 +58,8 @@ Legende: ✅ DONE · 🟡 PLANNED (konkret, nächster Schritt) · 🔵 PLANNED (
 | v0.3.1–v0.3.5 | 2026-05-21 | Phase-8-RC-Smoke-Hotfixes |
 | v0.3.6 | 2026-05-31 | Codex-CLI-Provider (ADR-0010) — **aktuelles Public Latest** |
 | v0.3.7 | 2026-05-31 | Web-Search-Company-Research + UX-Fixes |
-| v0.4.0 | 2026-06-14 | Phase 9 — Feedback Loop — **Draft** |
+| v0.4.0 | 2026-06-14 | Phase 9 — Feedback Loop — **nie getaggt, kein Installer** |
+| v0.4.1 | 2026-07-19 | Erste Veröffentlichung mit Phase 9 + Multi-Source-Crawling + Mock-Interviews (Text); Voice nur im Dev-Checkout — **aktuelles Public Latest** |
 
 > Hinweis: Die Phase-6-Spec sprach historisch von `v1.0.0`; real ausgeliefert
 > wurde die MVP-Komplettierung als `v0.1.1`. Es gibt keinen `v1.0.0`-Tag.

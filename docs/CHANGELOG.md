@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.4.1] - 2026-07-19
+
+> **Note on 0.4.0.** The 0.4.0 entry below was written when Phase 9 landed but
+> no `v0.4.0` tag was ever pushed, so no installer for it exists. 0.4.1 is the
+> first published build containing the Phase 9 feedback loop, scheduled
+> multi-source crawling, and the mock-interview work.
+
+> **Voice is not in the packaged build.** Voice mock interviews run in a dev
+> checkout, but the Piper / faster-whisper dependencies are deliberately
+> excluded from the PyInstaller bundle to keep installer size down, so packaged
+> builds report voice as unavailable and fall back to text mode. Bundling is
+> tracked as follow-up work.
+
 ### Added
 
 - **Mock interviews (Milestone 1).** An application in the Interview stage now

@@ -2,7 +2,7 @@
 
 > Find jobs, write tailored applications, and prep for interviews, entirely on your own machine. No cloud backend, no third-party data collection, no subscription beyond whichever LLM you already have.
 
-Hired. is a desktop app (macOS · Windows · Linux) that runs your job search end-to-end against a local SQLite database and a pluggable LLM provider. Plug in **Claude Code**, **Ollama**, or the **Anthropic API**; switch any time without losing data.
+Hired. is a desktop app (macOS · Windows · Linux) that runs your job search end-to-end against a local SQLite database and a pluggable LLM provider. Plug in **Claude Code**, **OpenAI Codex**, **Ollama**, or the **Anthropic API**; switch any time without losing data. Voice mock interviews run on fully local speech models.
 
 ## Screenshots
 
@@ -55,6 +55,7 @@ Requires Node 20+, Python 3.11+, and a Rust toolchain.
 3. **Crawl jobs.** Paste URLs (the reliable path) or kick off an experimental LinkedIn run. Jobs are deduped and scored against your profile.
 4. **Apply.** Hired. researches the company, tailors your CV, and drafts a cover letter, all editable side-by-side with a live markdown preview.
 5. **Interview prep.** A cached question bank per application plus a practice mode that critiques your answers.
+6. **Mock interviews — including voice.** Run a full mock interview by text, or speak it: the interviewer talks via a local Piper voice, your spoken answer is transcribed by a local faster-whisper model, and the whole run is evaluated afterwards. Speech models download once into `~/.hired/models/`; no audio ever leaves your machine.
 
 The defining constraint is local-first: your CV, jobs, applications, and API keys never leave your machine. The keychain stores secrets via the OS-native API (Keychain Access / Credential Manager / Secret Service).
 
@@ -94,7 +95,8 @@ The full architecture lives in [`docs/architecture.md`](docs/architecture.md). P
 
 - **Frontend**: React 18, TypeScript (strict), Vite, Tailwind, shadcn/ui, MSW for tests
 - **Backend**: FastAPI, SQLAlchemy 2.x, Alembic, Pydantic v2, httpx, keyring
-- **LLM**: Anthropic SDK · Claude Code CLI subprocess · Ollama HTTP API
+- **LLM**: Anthropic SDK · Claude Code CLI subprocess · OpenAI Codex CLI subprocess · Ollama HTTP API
+- **On-device speech**: Piper (TTS) · faster-whisper (STT), lazily imported so the app runs without them
 - **Shell**: Tauri 2.x (Rust), packaged via `tauri-action` + PyInstaller
 - **CI**: GitHub Actions, ruff + ESLint + Prettier + pytest + Vitest
 

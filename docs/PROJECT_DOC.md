@@ -67,7 +67,9 @@ The core local-first loop that must work at launch:
 
 ### Stretch Goals
 
-- Mock interview chatbot with structured feedback.
+- Mock interview chatbot with structured feedback. **Delivered, and extended:
+  interviews also run in voice mode with on-device speech (see §5) and an
+  audio-reactive interviewer avatar.**
 - Rejection analysis — pattern detection over rejected applications.
 - Glassdoor / company culture info per job card.
 - Multi-language CV and cover letter generation.
@@ -153,6 +155,8 @@ Communication: Frontend talks to Backend via Tauri IPC + local HTTP. Backend tal
 | API Key Adapter | Anthropic Python SDK | Pay-as-you-go fallback |
 | Crawler | Playwright (Python) | LinkedIn job ingestion |
 | Job Scheduler | APScheduler (in-process) | Daily crawl trigger |
+| Speech (TTS) | Piper — `en_US-amy-medium` / `en_US-ryan-medium` | On-device interviewer voice, one per gender |
+| Speech (STT) | faster-whisper — `base` | On-device transcription of the candidate's spoken answer |
 
 ### LLM Provider Abstraction
 
@@ -253,6 +257,28 @@ This is documented as Risk R-01.
 - API key storage: OS keychain (Keychain/Credential Manager/Secret Service).
 - PII redacted from logs.
 
+### On-Device Speech (Voice Mock Interviews)
+
+The mock interview can run in voice mode: the interviewer speaks, the candidate
+answers out loud, and the answer is transcribed and evaluated. **No audio ever
+leaves the machine** — both models run locally, which is the same constraint
+that drives the rest of the architecture applied to a modality where cloud APIs
+are the default.
+
+| Concern | Decision |
+|---|---|
+| TTS | Piper, `en_US-amy-medium` / `en_US-ryan-medium` — one voice per interviewer gender |
+| STT | faster-whisper, `base` — smallest model that transcribes interview answers reliably |
+| Distribution | Models download on first use into `~/.hired/models/`, not bundled — keeps the installer lean and the feature offline afterwards |
+| Degradation | `faster_whisper` and `piper` are imported lazily; if absent, `voice_status` reports `deps_available=False` and the UI hides voice rather than erroring |
+| Setup UX | `GET /api/voice/status` reports what is missing so the app can offer a one-time "Set up voice" step with download progress |
+| Input cap | Audio uploads limited to 25 MB per answer |
+
+The interviewer avatar is audio-reactive (speaking/listening states per gender).
+It is **not** a deepfake: the original brief floated a synthesized-video
+recruiter and simultaneously listed deepfaked mock interviews as out of scope.
+What shipped is static photography driven by real audio amplitude.
+
 ### Evaluation
 
 - Goldset: 20 manually labeled CV/job pairs.
@@ -305,6 +331,9 @@ Desktop only (≥1024px width). Resizable down to 800x600. No mobile responsiven
 
 - All user data lives in `~/.hired/data.db`. No cloud component operated by us.
 - Only the specific prompt + context for a single LLM call leaves the device.
+- **Voice is fully on-device.** Recorded answers are transcribed by a local
+  faster-whisper model and synthesized by local Piper voices; no audio is ever
+  uploaded. Speech models are cached in `~/.hired/models/` after first download.
 - LinkedIn crawl: only public listing data fetched.
 - Uninstall removes 100% of user data.
 
@@ -370,8 +399,8 @@ No Supabase, Redis, Vercel, Railway, or Apify in this architecture.
 |---|---|---|
 | Project Lead + Architect (AI/Backend) | Anna Vegera + Benedict Herrnleben | System architecture, ADRs, LLM provider design, prompt engineering, sprint planning |
 | Frontend Engineer + UX Lead | Eren Kocadag | Tauri/React UI, design system, UX flows and wireframes, onboarding, feed, Kanban, interview-prep screens |
-| Backend Engineer + Distribution Lead | Muhammad Kaleem Ullah | DB schema and migrations, crawler, FastAPI endpoints, packaging, CI/CD |
-| AI Engineer + Integration | Muhammad Kaleem Ullah | LLM adapters, CV parsing, generation prompts, eval harness |
+| AI Engineer + Integration (primary) | Muhammad Kaleem Ullah | On-device speech stack (Piper TTS + faster-whisper STT), voice mock-interview pipeline, model selection and download/caching strategy, CV parsing and generation prompts, eval harness |
+| Backend Engineer (supporting) | Muhammad Kaleem Ullah | FastAPI endpoints, DB schema and migrations, packaging, CI/CD |
 
 Contribution is not measured by commit count. Substantial parts of this project
 never took the form of a commit — the Phase 7 design system (`design/Hred.v2/`

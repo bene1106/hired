@@ -31,6 +31,46 @@ DEFAULT_TIMEOUT_SECONDS = 15.0
 USER_AGENT = "Mozilla/5.0 (compatible; HiredApp/0.1; +https://github.com/bene1106/hired)"
 MAX_DESCRIPTION_CHARS = 30_000
 
+# Separators that commonly join a role and an employer in <title> / og:title:
+# "Backend Engineer at AcmeCo", "Senior SRE - Remote - Bitpanda".
+# " at " is matched first-occurrence; the punctuation forms are matched
+# last-occurrence, because roles legitimately contain hyphens and pipes.
+_TITLE_SEP_FIRST = (" at ", " @ ")
+_TITLE_SEP_LAST = (" — ", " – ", " | ", " :: ", " • ", " - ")
+
+# ATS hosts that carry the employer in the first path segment
+# (boards.greenhouse.io/acme) rather than in the domain.
+_ATS_PATH_HOSTS = frozenset(
+    {
+        "boards.greenhouse.io",
+        "job-boards.greenhouse.io",
+        "jobs.lever.co",
+        "jobs.ashbyhq.com",
+        "apply.workable.com",
+    }
+)
+
+# Aggregators whose domain says nothing about the employer — guessing
+# "Linkedin" as the company is worse than leaving it blank.
+_GENERIC_HOSTS = frozenset(
+    {
+        "linkedin.com",
+        "indeed.com",
+        "glassdoor.com",
+        "stepstone.de",
+        "xing.com",
+        "remotive.com",
+        "wellfound.com",
+        "angel.co",
+        "google.com",
+    }
+)
+
+# Subdomains that front a careers site without naming the employer.
+_CAREER_SUBDOMAINS = frozenset(
+    {"jobs", "job", "careers", "career", "apply", "boards", "job-boards", "www", "hiring"}
+)
+
 
 class ManualURLSource(JobSource):
     """Fetches a fixed list of job URLs supplied by the user."""
@@ -118,7 +158,9 @@ def _try_json_ld(soup: BeautifulSoup, url: str) -> RawJob | None:
 
 def _from_json_ld(entry: dict, url: str) -> RawJob:
     title = (entry.get("title") or "").strip() or "(untitled role)"
-    company = _extract_org_name(entry.get("hiringOrganization"))
+    # Well-formed JSON-LD usually names the org, but plenty of postings omit
+    # hiringOrganization entirely — fall back to the URL rather than '?'.
+    company = _extract_org_name(entry.get("hiringOrganization")) or _company_from_url(url)
     location = _extract_location(entry.get("jobLocation"))
     remote_policy = _normalize_remote_policy(entry)
     salary_min, salary_max, currency = _extract_salary(entry.get("baseSalary"))
@@ -142,14 +184,24 @@ def _from_json_ld(entry: dict, url: str) -> RawJob:
 
 
 def _fallback_meta(soup: BeautifulSoup, url: str) -> RawJob:
-    title = _meta(soup, "og:title") or (soup.title.string.strip() if soup.title else "(untitled)")
+    raw_title = _meta(soup, "og:title") or (soup.title.string.strip() if soup.title else "")
     description = _meta(soup, "og:description") or ""
     if not description:
         body = soup.find("main") or soup.find("article") or soup.body or soup
         description = body.get_text(separator="\n", strip=True)
 
-    company = _meta(soup, "og:site_name")
+    title, company_hint = _split_title_company(raw_title)
+    company = _meta(soup, "og:site_name") or company_hint or _company_from_url(url)
     location = _meta(soup, "job:location")  # rare but harmless when absent
+
+    # Some sites set og:title to the employer alone (Bitpanda, issue #20), so
+    # the "title" we just derived is really the company. Prefer the page's h1.
+    if company and title and title.casefold() == company.casefold():
+        heading = soup.find("h1")
+        heading_title, _ = _split_title_company(heading.get_text(strip=True) if heading else "")
+        title = heading_title
+
+    title = title or "(untitled role)"
 
     return RawJob(
         source=ManualURLSource.name,
@@ -178,6 +230,75 @@ def _truncate(text: str) -> str:
     if len(text) > MAX_DESCRIPTION_CHARS:
         return text[:MAX_DESCRIPTION_CHARS]
     return text
+
+
+def _split_title_company(raw: str) -> tuple[str, str | None]:
+    """Split "Backend Engineer at AcmeCo" into ("Backend Engineer", "AcmeCo").
+
+    Job pages routinely stuff the employer into og:title. Carrying that
+    through means the feed shows "Backend Engineer at AcmeCo" as the role
+    (issue #20), and it hides a company name we could otherwise recover.
+    """
+    text = (raw or "").strip()
+    if not text:
+        return "", None
+
+    for sep in _TITLE_SEP_FIRST:
+        if sep in text:
+            left, right = text.split(sep, 1)
+            if left.strip() and right.strip():
+                return left.strip(), right.strip()
+
+    for sep in _TITLE_SEP_LAST:
+        if sep in text:
+            left, right = text.rsplit(sep, 1)
+            if left.strip() and right.strip():
+                return left.strip(), right.strip()
+
+    return text, None
+
+
+def _titleize(slug: str) -> str:
+    cleaned = re.sub(r"[-_]+", " ", slug).strip()
+    # Title-case only all-lowercase slugs, so a source that already carries
+    # casing keeps it. Hostnames are always lowercase, so "sumup" becomes
+    # "Sumup" rather than "SumUp" — a guess, and a clearly better one than '?'.
+    return cleaned.title() if cleaned.islower() else cleaned
+
+
+def _company_from_url(url: str) -> str | None:
+    """Last-resort employer guess from the URL.
+
+    The parser frequently finds no company at all, which renders as '?' in
+    CompanyMark across feed, Kanban and materials (issue #19). A hostname is
+    a far better guess than nothing for the common case of a company-hosted
+    or ATS-hosted posting.
+    """
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return None
+
+    host = (parsed.hostname or "").lower().removeprefix("www.")
+    if not host:
+        return None
+
+    if host in _ATS_PATH_HOSTS:
+        segments = [s for s in parsed.path.split("/") if s]
+        return _titleize(segments[0]) if segments else None
+
+    # Aggregators: no useful signal in the domain.
+    if any(host == g or host.endswith("." + g) for g in _GENERIC_HOSTS):
+        return None
+
+    labels = host.split(".")
+    if len(labels) < 2:
+        return None
+    # Drop the TLD, then any careers-y subdomain prefix: jobs.bitpanda.com → bitpanda
+    meaningful = [lab for lab in labels[:-1] if lab not in _CAREER_SUBDOMAINS]
+    if not meaningful:
+        return None
+    return _titleize(meaningful[-1])
 
 
 def _extract_org_name(value: object) -> str | None:

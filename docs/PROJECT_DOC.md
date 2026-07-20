@@ -147,6 +147,60 @@ Work that was never in the plan and shipped anyway:
 > needs a one-time download and everything after it runs offline. Installers are
 > correspondingly larger — that is the deliberate trade.
 
+### 2.3 Future Work
+
+Not built, and deliberately not started before the deadline. Each entry names
+the trade-off rather than just the wish, because the trade-off is the part we
+would have to get right.
+
+**CV template export.** Today Hired. *tailors* a CV — it suggests which parts to
+emphasise for a given role — but it never produces a formatted document. The
+parsed CV is already stored as structured JSON (`profile.cv_parsed_json`:
+experience, education, skills, dates), and PDF export already exists in
+`frontend/src/lib/pdf.ts`, so rendering that structure into a chosen template is
+a natural next step rather than new machinery.
+
+The obvious implementation is LaTeX, and that is where the trade-off sits.
+LaTeX needs a TeX distribution to compile: TeX Live is several gigabytes, and
+even a minimal install needs packages added on top. Bundling one contradicts the
+whole point of a lean local install, and requiring users to install it
+separately breaks the "download it and it works" property the local-first pitch
+depends on. Three options, in the order we would take them:
+
+| Approach | Effort | New dependency |
+|---|---|---|
+| Export `.tex` source for a known CV class (`moderncv`, `altacv`) and let the user compile it locally or in Overleaf | ~1 day | None — we emit source, we do not compile |
+| HTML/CSS templates rendered through the WebView's own print-to-PDF | 2–3 days | None |
+| Bundle a TeX compiler | — | Rejected: gigabytes, for a minority of users |
+
+Emitting `.tex` without compiling gets most of the value for a fraction of the
+cost, and suits an audience that largely already keeps a CV in Overleaf.
+HTML/CSS templates would follow, for users who do not write LaTeX.
+
+**Missing-information detection.** Parsing is honest about gaps — the prompt
+instructs the model to return `null` rather than invent, and generation refuses
+to fabricate experience. But nothing *tells the user* what is missing. A CV
+without a skills section parses to an empty skills list, scoring then runs
+normally, every job scores low, and the feed looks broken for a reason the user
+cannot see. The fix is a completeness check after parsing, surfaced on the
+review step ("we could not find a skills section — match scores will be
+unreliable until you add one") with inline fields to fill the gap. Roughly half
+a day, and it removes a silent failure that makes the product look worse than it
+is.
+
+**Run the evaluation harness against a live provider.** `eval/run_eval.py` and
+`eval/bias_audit.py` both work, but have only ever run against `MockProvider`,
+so three of the metrics in §12 have no real figures. This is the smallest,
+highest-value item on this list: the harness exists, the goldset exists, and one
+run against the Anthropic API converts three "not measured" rows into evidence.
+
+**Reduce installer size.** Bundling the speech runtimes in v0.5.0 grew installers
+roughly three- to fourfold. The models themselves are still downloaded on first
+use, so the growth is runtime libraries — `onnxruntime`, `ctranslate2`, and PyAV.
+Worth measuring which of their optional components (GPU execution providers in
+particular) can be excluded for a CPU-only workload before assuming the size is
+irreducible.
+
 ---
 
 ## 3. User Stories

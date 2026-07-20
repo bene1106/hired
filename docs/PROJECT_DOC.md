@@ -193,6 +193,14 @@ Work that was never in the plan and shipped anyway:
 
 **Hired. is fundamentally a local-first desktop application.** There is no cloud backend operated by us. The user's machine is the entire system. Network calls leaving the device are limited to: (a) the LLM call to whichever provider the user configured — which for company research includes a server-side web search on the provider's side; (b) job-source crawls when triggered; and (c) a one-time download of the speech models from Hugging Face the first time voice is used.
 
+### Architecture Diagram
+
+![Hired. system architecture](assets/architecture.png)
+
+*Everything inside the green boundary runs on the user's machine. The only
+traffic leaving it is a single LLM prompt, a public job-page request, or the
+one-time speech-model download.*
+
 ### Architecture Layers
 
 The app consists of four logical layers, all running locally:
@@ -510,16 +518,16 @@ panel instead.
 
 8-week plan. W1–2 = local foundation; W3–6 = feature delivery; W7–8 = polish and packaging.
 
-| Week | Milestone |
-|---|---|
-| 1 | Repo, CI, Tauri shell, FastAPI skeleton |
-| 2 | LLM Provider abstraction + MockProvider + AnthropicAPIAdapter |
-| 3 | CV upload, profile setup, onboarding wizard |
-| 4 | LinkedIn crawler + job scoring + ranked feed (first end-to-end demo) |
-| 5 | Application material generation + dashboard |
-| 6 | Interview prep + ClaudeCodeAdapter + OllamaAdapter (MVP complete) |
-| 7 | Cross-platform packaging, accessibility, polish |
-| 8 | Final release v1.0 |
+| Week | Milestone | Owner | Deliverable |
+|---|---|---|---|
+| 1 | Repo, CI, Tauri shell, FastAPI skeleton | Kaleem | GitHub repo + green CI + `/health` responding |
+| 2 | LLM Provider abstraction + MockProvider + AnthropicAPIAdapter | Anna + Bene | `LLMProvider` Protocol; tests green against the mock |
+| 3 | CV upload, profile setup, onboarding wizard | Kaleem (parsing) · Eren (UI) | CV parsed to a structured profile in SQLite |
+| 4 | Job ingestion + scoring + ranked feed | Kaleem (ingest) · Anna (scoring) | `/api/jobs/feed` returns scored jobs; feed visible |
+| 5 | Application materials + dashboard | Anna + Bene · Eren (UI) | Cover letter generated and editable in the app |
+| 6 | Interview prep + ClaudeCodeAdapter + OllamaAdapter | Bene · Kaleem | MVP complete end-to-end on three providers |
+| 7 | Cross-platform packaging, accessibility, polish | Kaleem (packaging) · Eren (a11y) | Installers for macOS, Windows, Linux |
+| 8 | Final release + presentation | Team | Tagged release, demo video, slide deck |
 
 ### 9.1 What Actually Happened
 
@@ -663,4 +671,31 @@ Produced and available; not stored in the repository because of file size.
 - **E.** Goldset for Evaluation — `/eval/goldset.json`
 - **F.** Install & Distribution Guides — `/docs/install/` (per-OS: macOS,
   Windows, Linux); build-from-source steps in `/README.md`
-- **G.** Presentation & Demo — see §12
+- **G.** Presentation & Demo assets — see §12
+- **H.** Decision record — this project kept no separate meeting-minutes file.
+  Decisions live where they are actionable: architectural ones as ADRs in
+  `/docs/adr/`, per-phase scope and acceptance criteria in `/docs/phases/`, and
+  user-visible changes in `/docs/CHANGELOG.md`. Weekly syncs resolved blockers;
+  anything with lasting consequence became an ADR rather than a minute.
+
+### Glossary
+
+| Term | Meaning |
+|---|---|
+| **ADR** | Architecture Decision Record — a short file capturing one decision, its alternatives and consequences |
+| **ATS** | Applicant Tracking System — the recruiting software an employer uses to receive applications |
+| **CI / CD** | Continuous Integration / Delivery — automated lint, tests and builds on every push |
+| **CV** | Curriculum vitae; the user's résumé |
+| **Goldset** | A hand-labelled set of CV/job pairs used to check scoring quality between changes |
+| **Kanban** | The board view of applications, one column per status |
+| **LLM** | Large Language Model |
+| **Local-first** | All data and processing live on the user's device; no server we operate |
+| **MVP** | Minimum Viable Product — the smallest end-to-end useful version |
+| **OpenAPI** | Machine-readable REST API description; ours covers 50 paths |
+| **PII** | Personally Identifiable Information |
+| **Protocol** | Python's structural interface type; `LLMProvider` is one |
+| **RAG** | Retrieval-Augmented Generation — retrieving documents into a prompt. Deliberately not used here; see §5 |
+| **Sidecar** | The FastAPI process the desktop shell launches and supervises |
+| **STT / TTS** | Speech-to-Text / Text-to-Speech — faster-whisper and Piper respectively |
+| **SUS** | System Usability Scale, a standard 10-item usability questionnaire |
+| **WCAG AA** | Web Content Accessibility Guidelines, level AA |

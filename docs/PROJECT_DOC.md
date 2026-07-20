@@ -216,7 +216,7 @@ Communication: Frontend talks to Backend via Tauri IPC + local HTTP. Backend tal
 | Claude Code Adapter | Subprocess wrapper around `claude` CLI | Uses user's Claude subscription |
 | Ollama Adapter | HTTP client to localhost:11434 | Local model |
 | API Key Adapter | Anthropic Python SDK | Pay-as-you-go fallback |
-| Crawler | Playwright (Python) | LinkedIn job ingestion |
+| Crawler | httpx + BeautifulSoup (seven sources); Playwright for LinkedIn only | Job ingestion — paste-URL is the primary path |
 | Job Scheduler | APScheduler (in-process) | Daily crawl trigger |
 | Speech (TTS) | Piper — `en_US-amy-medium` / `en_US-ryan-medium` | On-device interviewer voice, one per gender |
 | Speech (STT) | faster-whisper — `base` | On-device transcription of the candidate's spoken answer |
@@ -227,20 +227,34 @@ All AI tasks go through a single Python interface:
 
 ```python
 class LLMProvider(Protocol):
+    # Profile & scoring
     def parse_cv(self, cv_text: str) -> CVData: ...
     def score_job(self, profile, job) -> ScoreResult: ...
-    def generate_cover_letter(self, profile, job, brief) -> str: ...
+    # Application materials
     def research_company(self, company: str) -> str: ...
-    def generate_interview_questions(self, job) -> List[Question]: ...
+    def tailor_cv(self, profile, job) -> CVSuggestions: ...
+    def generate_cover_letter(self, profile, job, brief) -> str: ...
+    def summarize_role(self, job) -> str: ...
+    # Interview prep and coaching
+    def generate_interview_questions(self, job) -> list[Question]: ...
     def evaluate_answer(self, question, answer) -> Feedback: ...
+    def interview_chat_stream(self, messages) -> Iterator[str]: ...
+    # Mock interviews
+    def generate_mock_interview_questions(self, interview) -> list[Question]: ...
+    def evaluate_mock_interview(self, transcript) -> MockInterviewResult: ...
 ```
+
+Eleven methods, added over six phases. Every one is implemented by all five
+adapters, which is what keeps provider switching a configuration change rather
+than a code path.
 
 Concrete implementations:
 
-- **ClaudeCodeAdapter** — invokes `claude` CLI via subprocess; user's Claude subscription handles billing.
-- **OllamaAdapter** — POSTs to local Ollama HTTP endpoint.
-- **AnthropicAPIAdapter** — uses Anthropic Python SDK with user-provided API key.
-- **MockProvider** — deterministic stub used in CI tests.
+- **AnthropicAPIAdapter** — Anthropic Python SDK with a user-provided API key. The canonical path, and the only one billed per token.
+- **ClaudeCodeAdapter** — invokes the `claude` CLI via subprocess; the user's Claude subscription handles billing.
+- **CodexCLIAdapter** — invokes the `codex` CLI the same way against a ChatGPT subscription ([ADR-0010](adr/0010-codex-cli-provider.md)).
+- **OllamaAdapter** — POSTs to a local Ollama HTTP endpoint; fully offline.
+- **MockProvider** — deterministic stub, the default in tests, which is why 333 backend tests run with no network and no cost.
 
 Switching providers is a single setting change in the UI; no app restart.
 
@@ -248,7 +262,7 @@ Switching providers is a single setting change in the UI; no app restart.
 
 **Provider Setup Flow:**
 1. User opens app → onboarding wizard launches.
-2. App scans for `claude` CLI in PATH and pings localhost:11434 to detect Ollama.
+2. App scans PATH for the `claude` and `codex` CLIs, checks for a stored Anthropic key, and pings localhost:11434 to detect Ollama.
 3. Wizard shows detected providers.
 4. User picks one; adapter config written to local config file.
 5. Test call validates the adapter.
@@ -263,7 +277,7 @@ Switching providers is a single setting change in the UI; no app restart.
 
 **Job Discovery Flow:**
 1. User triggers crawl manually OR daily scheduler fires.
-2. Playwright fetches LinkedIn listings.
+2. Pasted URLs are fetched directly, or an enabled source is crawled (Wellfound, Indeed, Remotive, StepStone; Greenhouse and Lever by board URL). LinkedIn uses Playwright and is the fragile path, not the default.
 3. Jobs normalized and deduplicated.
 4. New jobs scored via LLM provider.
 5. Ranked feed appears in UI.
@@ -274,11 +288,16 @@ Switching providers is a single setting change in the UI; no app restart.
 
 ### Provider Strategy
 
-| Provider | Best for | Cost | Privacy |
-|---|---|---|---|
-| Claude Code | Users with Pro/Max subscription | $0 extra | High |
-| Ollama | Privacy-focused with capable hardware | $0 | Maximum |
-| API Key | Users without subscriptions | Pay-per-token | High |
+| Provider | Best for | Cost | Privacy | Status |
+|---|---|---|---|---|
+| Anthropic API | Users without a subscription | Pay-per-token | High | Canonical |
+| Claude Code | Users with a Claude Pro/Max subscription | $0 extra | High | Experimental (R-01) |
+| OpenAI Codex CLI | Users with a ChatGPT subscription | $0 extra | High | Experimental (R-01) |
+| Ollama | Privacy-focused users with capable hardware | $0 | Maximum — nothing leaves the device | Supported |
+| Mock | Tests and CI | $0 | N/A | Default in tests |
+
+The two CLI providers exist because of the project's central premise: a user who
+already pays for Claude or ChatGPT should not pay a second time to use this app.
 
 ### Important: Claude Code Subscription Use
 
@@ -309,10 +328,10 @@ This is documented as Risk R-01.
 
 ### Cost & Performance
 
-- Caching: company research briefs cached per company.
-- Token caps per task.
-- Cost display in API mode.
-- Latency-aware UI loading states.
+- **Caching:** company research briefs are cached per company and reused across applications; the generation pipeline marks the step `cached` rather than re-calling the model (`services/application_service.py`).
+- **Token caps per task:** each task has its own `max_tokens` ceiling, so a runaway generation cannot silently burn budget.
+- **Cost tracking:** token spend for today and the past week, with per-provider attribution, in the Settings panel. Meaningful in API mode; the CLI and Ollama paths report calls and latency instead, since neither bills per token.
+- **Latency-aware UI:** loading states are written per provider, because a 10-second API call and a 90-second Ollama call need different affordances.
 
 ### Safety
 
@@ -367,21 +386,21 @@ The UI is provider-agnostic in the workflow and provider-aware in setup, status,
 
 ### Provider-Aware Screens
 
-**Onboarding Wizard**: Three provider cards with auto-detection, recommendation/experimental badges, install links.
+**Onboarding Wizard**: Four provider cards — Anthropic API, Claude Code, OpenAI Codex, Ollama — with auto-detection, experimental badges on the two CLI options, and install links for what is missing.
 
 **Loading States**: Adapt to expected latency:
 - Anthropic API: 5–15s, "~10 seconds"
-- Claude Code: 10–30s, "~20 seconds, via your subscription"
+- Claude Code / OpenAI Codex: 10–30s, "~20 seconds, via your subscription"
 - Ollama: 20–90s, progress bar, Cancel button
 
 **Settings & Footer**: Active provider always visible with status, latency, usage. Cost tracking only meaningful in API mode.
 
 ### Accessibility
 
-- Keyboard navigation throughout.
-- WCAG AA color contrast.
-- Screen-reader labels.
-- aria-live for loading states.
+- Keyboard navigation throughout, including dashboard rows that were previously mouse-only.
+- WCAG AA colour contrast on the shipped palette.
+- Screen-reader labels; `aria-live` on loading regions and `role="alert"` on inline errors.
+- Audited manually against the source in Phase 6, with findings and fixes recorded in `docs/accessibility-audit.md`. That audit is explicit about its limits: no live `axe-core` run and no screen-reader testing were performed.
 
 ### Responsive Design
 
@@ -398,7 +417,7 @@ Desktop only (≥1024px width). Resizable down to 800x600. No mobile responsiven
 - **Voice is fully on-device.** Recorded answers are transcribed by a local
   faster-whisper model and synthesized by local Piper voices; no audio is ever
   uploaded. Speech models are cached in `~/.hired/models/` after first download.
-- LinkedIn crawl: only public listing data fetched.
+- Job crawling reads only public listing pages, and only when the user triggers a crawl or enables a scheduled source.
 - Uninstall removes 100% of user data.
 
 ### Bias
@@ -455,6 +474,33 @@ panel instead.
 | 6 | Interview prep + ClaudeCodeAdapter + OllamaAdapter (MVP complete) |
 | 7 | Cross-platform packaging, accessibility, polish |
 | 8 | Final release v1.0 |
+
+### 9.1 What Actually Happened
+
+The eight-week plan covered the MVP, and the MVP landed roughly on it. Work then
+continued past the plan for three more phases, so the honest record is:
+
+| Release | Date | Contents |
+|---|---|---|
+| v0.1.1 | 2026-05-17 | MVP feature-complete — Phases 1–6, the whole eight-week plan |
+| v0.2.0 | 2026-05-19 | Phase 7 — frontend redesign, design system, Kanban |
+| v0.3.0 | 2026-05-21 | Phase 8 — streaming interview coach, editable preferences |
+| v0.3.1–v0.3.5 | 2026-05-21 | Release-candidate smoke fixes |
+| v0.3.6 | 2026-05-31 | OpenAI Codex CLI provider (ADR-0010) |
+| v0.3.7 | 2026-05-31 | Web-search-backed company research |
+| v0.3.8 | 2026-06-07 | Application-detail layout |
+| v0.4.0 | 2026-06-14 | Phase 9 — feedback loop. **Never tagged**, so no installer exists |
+| v0.4.1 | 2026-07-19 | First published build carrying Phase 9 and multi-source crawling |
+| v0.5.0 | 2026-07-20 | Voice bundled into installers; company/title parser fixes |
+
+Two deviations worth naming rather than hiding:
+
+- **No v1.0.0 was released.** The plan called for one in week 8. Versioning
+  stayed in `0.x` because the crawler remains fragile by design (ADR-0006) and
+  we did not want a `1.0` to imply a stability we had not earned.
+- **v0.4.0 was written up but never tagged.** The changelog entry existed for
+  five weeks before anyone noticed no installer had been produced — caught
+  during a documentation audit, and the reason `v0.4.1` exists.
 
 ### Decision-Making
 
@@ -533,17 +579,30 @@ the first thing to do if this project continues.
 - 00:00 — Open installed app; local-first pitch (30s)
 - 00:30 — Onboarding wizard, provider auto-detection (1 min)
 - 01:30 — Upload CV, set priorities (1 min)
-- 02:30 — Ranked job feed with match scores (1 min)
+- 02:30 — Ranked job feed with match scores; thumb one down to show the feedback loop (1 min)
 - 03:30 — Generate cover letter live, edit (1.5 min)
 - 05:00 — Application dashboard (30s)
-- 05:30 — Interview prep with feedback (30s)
-- 06:00 — Closing + Q&A
+- 05:30 — **Voice mock interview** — the interviewer speaks, answer out loud, show the transcript and scored feedback (1 min)
+- 06:30 — Closing + Q&A
+
+### Presentation & Demo Assets
+
+Produced and available; not stored in the repository because of file size.
+
+| Asset | Location |
+|---|---|
+| Final presentation video | `presentation/final/final_presentation.mp4` |
+| Feature walkthroughs | `presentation/final/` — on-device desktop app + unified LLM layer; the on-device voice stack |
+| Mid-term video | `presentation/mid-term/` — full, short, and per-section cuts |
+| Slide decks | `presentation/` — pitch deck, mid-term deck, speaker scripts |
+| Speaking scripts (in repo) | `docs/midterm-presentation-script.md`, `docs/slide-speaking-scripts.md` |
 
 ### Backup Plan
 
-- Pre-recorded demo video.
-- Static screenshot deck.
-- Test run on presentation laptop the day before.
+- Pre-recorded demo video — **done**, see above, so a live-demo failure costs nothing.
+- Static screenshot deck as a second fallback.
+- Test run on the presentation laptop the day before.
+- Seed the demo database in advance so no step depends on a live LLM call completing on time.
 
 ---
 

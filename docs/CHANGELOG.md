@@ -9,6 +9,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _Nothing yet._
 
+## [0.5.0] - 2026-07-19
+
+### Added
+
+- **Voice mock interviews now work in the packaged app.** Previously voice ran
+  only in a development checkout: the speech dependencies were excluded from
+  the installer, so packaged builds reported voice as unavailable and fell back
+  to text mode. Piper (text-to-speech) and faster-whisper (speech-to-text) and
+  their native libraries are now bundled into the sidecar. Speech models are
+  still downloaded on first use into `~/.hired/models/` — they are not shipped
+  in the installer — so the first voice interview needs a one-time download and
+  everything after that runs fully offline.
+
+### Fixed
+
+- **Job cards no longer show `?` instead of the company** (#19). When a posting
+  did not expose structured job data, the parser relied on an `og:site_name`
+  meta tag that many sites omit, so no company was stored at all. Hired. now
+  recovers the employer from the page title or the job URL — including
+  applicant-tracking hosts such as `boards.greenhouse.io/acme-corp` and
+  company-hosted boards such as `jobs.bitpanda.com`. Job aggregators are
+  deliberately excluded, since "LinkedIn" is not the employer.
+- **Job titles no longer show the company name instead of the role** (#20). A
+  Bitpanda posting displayed "Bitpanda" as the job title because that is what
+  the page's `og:title` contained. Hired. now splits employer names out of
+  titles ("Backend Engineer at AcmeCo" becomes "Backend Engineer") and falls
+  back to the page heading when the title carries only the company name. This
+  also improves match scoring and cover letters, which both read the role title.
+- The backend reported version `0.1.1` in `GET /health` and in the OpenAPI
+  schema regardless of the actual release; it now tracks the real version.
+
+### Notes for installers
+
+Installers are substantially larger than v0.4.1 because the speech runtimes
+ship inside them. This is the trade for voice working offline without a
+separate install step.
+
 ## [0.4.1] - 2026-07-19
 
 > **Note on 0.4.0.** The 0.4.0 entry below was written when Phase 9 landed but
@@ -16,11 +53,10 @@ _Nothing yet._
 > first published build containing the Phase 9 feedback loop, scheduled
 > multi-source crawling, and the mock-interview work.
 
-> **Voice is not in the packaged build.** Voice mock interviews run in a dev
-> checkout, but the Piper / faster-whisper dependencies are deliberately
-> excluded from the PyInstaller bundle to keep installer size down, so packaged
-> builds report voice as unavailable and fall back to text mode. Bundling is
-> tracked as follow-up work.
+> **Voice is not in this packaged build.** Voice mock interviews run in a dev
+> checkout, but the Piper / faster-whisper dependencies are excluded from the
+> 0.4.1 PyInstaller bundle, so 0.4.1 installers report voice as unavailable and
+> fall back to text mode. **Resolved in 0.5.0** — see above.
 
 ### Added
 

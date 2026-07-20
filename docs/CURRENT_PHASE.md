@@ -17,7 +17,9 @@
   nicht im Installer — sie werden beim ersten Start nach `~/.hired/models/`
   geladen. Installer sind dadurch deutlich größer.
 - **Letzte abgeschlossene Phase:** **Phase 9** (Feedback Loop).
-- **Nächste Phase:** **Phase 10 — Email-Reading** (geplant, noch nicht im Code).
+- **Nächste Phase:** **Phase 10 — CV-Templates, Lücken-Erkennung & Evaluation**
+  (geplant, noch nicht im Code). Email-Reading war hier ursprünglich vorgesehen
+  und ist zurückgestellt — Begründung in `docs/phases/PHASE_10.md`.
 
 ## Phasen-Tabelle
 
@@ -33,7 +35,7 @@
 | 8 | Interactive Coach + editierbare Preferences | v0.3.0 (→ v0.3.5) | ✅ DONE | [PHASE_08](phases/PHASE_08.md) |
 | — | Point-Releases: Codex-CLI-Provider; Web-Search-Research + UX-Fixes | v0.3.6 – v0.3.7 | ✅ DONE | [PHASE_08](phases/PHASE_08.md) |
 | **9** | Feedback Loop (thumbs up/down, `job_feedback`, Score-Rework, Unread-Badges) | v0.4.0 | ✅ DONE | [PHASE_09](phases/PHASE_09.md) |
-| **10** | **Email-Reading (Gmail) + Status-Auto-Detect** | **—** | 🟡 **PLANNED** | [**PHASE_10**](phases/PHASE_10.md) **← WIR SIND HIER (nächste Phase)** |
+| **10** | **CV-Templates, Lücken-Erkennung & Evaluation** | **v0.6.0** | 🟡 **PLANNED** | [**PHASE_10**](phases/PHASE_10.md) **← WIR SIND HIER (nächste Phase)** |
 | 11 | Auto-Crawl (Newsletter, RSS, LinkedIn-Alerts) | — | 🔵 PLANNED (Vision) | [PHASE_11](phases/PHASE_11.md) |
 | 12 | Auto-Submission (Easy Apply + Form-Automation) | — | 🔵 PLANNED (Vision) | [PHASE_12](phases/PHASE_12.md) |
 | 13 | Auto-Reply (Recruiter-Kommunikation) | — | 🔵 PLANNED (Vision) | [PHASE_13](phases/PHASE_13.md) |
@@ -49,7 +51,8 @@ Legende: ✅ DONE · 🟡 PLANNED (konkret, nächster Schritt) · 🔵 PLANNED (
 - **Offene Issues:** #32 (Interview-Prep-Tab versteckt bis `applied`),
   #21 (Score auf ApplicationSummary → MatchRing).
   Erledigt in v0.5.0: #19 (Company-Parser) und #20 (Title-Parsing).
-- **Phase 10** vor Start: Spec `.claude/specs/PHASE_10_email.md` schreiben.
+- **Phase 10**: Spec liegt vor — `.claude/specs/PHASE_10_templates_and_evaluation.md`
+  (7 PRs, 4 unabhängige Tracks). Ableitung aus `PROJECT_DOC.md` §2.3.
 
 ## Versionsverlauf (Phasen → Releases)
 

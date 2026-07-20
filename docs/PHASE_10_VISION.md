@@ -38,10 +38,25 @@ is the honest current state — but the system should ultimately:
 
 | Phase | Scope | Complexity |
 |-------|-------|------------|
-| Phase 10 | Email-Reading (Gmail API) + status auto-detect | Medium |
+| ~~Phase 10~~ | Email-Reading (Gmail API) + status auto-detect — **deferred**, see below | Medium |
 | Phase 11 | Auto-Crawl (newsletter, RSS, LinkedIn alerts) | High — adapter per source |
 | Phase 12 | Auto-Submission (Easy Apply + form automation) | Very high — anti-bot, per-site |
 | Phase 13 | Auto-Reply | High — tone, accountability, legal-risk |
+
+> **Deferred (2026-07-20).** Phase 10 was reassigned to CV templates, gap
+> detection, and evaluation — see `docs/phases/PHASE_10.md`. Email reading is
+> not cancelled, but it is not next, for three reasons:
+>
+> 1. **It breaks the privacy story.** Everything else here runs locally or sends
+>    one user-triggered prompt. Gmail OAuth means a persistent token with read
+>    access to the entire inbox — categorically larger than anything the app
+>    does today, and hard to reconcile with PROJECT_DOC §7.
+> 2. **It is the largest remaining item, not the smallest.** OAuth, token
+>    refresh, message parsing, and status classification is a phase on its own.
+> 3. **Nothing depends on it.** The Kanban board works with manual status updates.
+>
+> If it returns it should come back as its own phase with its own ADR covering
+> the privacy trade-off, not folded into another phase.
 
 ## Implications for Current Phases (7-9)
 

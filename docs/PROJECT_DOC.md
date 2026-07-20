@@ -296,10 +296,56 @@ This is documented as Risk R-01.
 - Few-shot examples for ambiguous tasks.
 - Provider-specific overrides allowed but minimized.
 
+### Retrieval Strategy
+
+Hired. uses retrieval where it earns its cost and deliberately avoids a vector
+store. The reasoning matters more than the mechanism, so it is written out here.
+
+**1. Web search grounds company research.** Claude reliably knows large
+employers and reliably *invents* plausible detail about a thirty-person Berlin
+startup — exactly the companies our users apply to. `research_company` therefore
+runs with Anthropic's server-side `web_search` tool enabled
+(`llm/anthropic_api.py`), so the brief is written from retrieved results rather
+than from model memory, with sources attributed. This is retrieval in the sense
+that matters: fetch external facts, put them in context, generate from them.
+
+**2. A deterministic pre-filter narrows candidates before scoring.** A crawl can
+return a few hundred postings; scoring each with an LLM costs tokens and time.
+`crawler/pre_filter.py` drops the clearly-irrelevant ones before anything
+reaches the model: outside your target locations (unless remote and you want
+remote), a work format you excluded, a title unrelated to your target roles, or
+an internship when you are not looking for one. It is tuned
+for a low false-negative rate: ambiguous postings pass through to LLM scoring
+rather than being silently dropped, because a missed job is a worse failure than
+a wasted call. Rules rather than embeddings, so a user can always be told *why*
+a job was filtered.
+
+**3. Feedback selects relevant history into the scoring prompt.** Thumbs-down
+signals accumulate in `job_interactions`. Subsequent scoring passes inject the
+titles and skills you have rejected or favoured into the grading prompt, and
+apply a ±25 heuristic for companies and locations you have repeatedly rejected.
+This is context selection over your own history rather than over a document
+corpus.
+
+**Why there is no vector database.** Every LLM call in Hired. operates on **one**
+job plus **one** profile, and both fit comfortably in context. RAG exists to
+select from a corpus too large for the context window; our corpus per call is a
+single document. Adding embeddings would introduce an embedding model to
+download, an index to rebuild after every crawl, staleness bugs when a profile
+changes, and a new failure mode — for no improvement in grounding. Where we do
+face a selection problem, deterministic rules solve it more cheaply and more
+transparently.
+
+**What would change our mind.** The moment Hired. reasons across the user's
+entire history at once — "which of my sixty applications is this role most
+like?", "what do my rejections have in common?" — the corpus stops being n=1 and
+embeddings start paying for themselves. The `LLMProvider` seam keeps that a
+contained change: retrieval would sit in front of the provider, not inside it.
+
 ### Grounding & Hallucination Mitigation
 
 - CV data and job descriptions always provided in context — never relied on from model memory.
-- Company research includes source attribution.
+- Company research is generated from live web-search results with source attribution (see Retrieval Strategy).
 - Edit-first workflow — every generated artifact opens in an editor.
 - No autonomous external actions.
 

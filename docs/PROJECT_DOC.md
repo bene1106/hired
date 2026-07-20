@@ -147,6 +147,60 @@ Work that was never in the plan and shipped anyway:
 > needs a one-time download and everything after it runs offline. Installers are
 > correspondingly larger — that is the deliberate trade.
 
+### 2.3 Future Work
+
+Not built, and deliberately not started before the deadline. Each entry names
+the trade-off rather than just the wish, because the trade-off is the part we
+would have to get right.
+
+**CV template export.** Today Hired. *tailors* a CV — it suggests which parts to
+emphasise for a given role — but it never produces a formatted document. The
+parsed CV is already stored as structured JSON (`profile.cv_parsed_json`:
+experience, education, skills, dates), and PDF export already exists in
+`frontend/src/lib/pdf.ts`, so rendering that structure into a chosen template is
+a natural next step rather than new machinery.
+
+The obvious implementation is LaTeX, and that is where the trade-off sits.
+LaTeX needs a TeX distribution to compile: TeX Live is several gigabytes, and
+even a minimal install needs packages added on top. Bundling one contradicts the
+whole point of a lean local install, and requiring users to install it
+separately breaks the "download it and it works" property the local-first pitch
+depends on. Three options, in the order we would take them:
+
+| Approach | Effort | New dependency |
+|---|---|---|
+| Export `.tex` source for a known CV class (`moderncv`, `altacv`) and let the user compile it locally or in Overleaf | ~1 day | None — we emit source, we do not compile |
+| HTML/CSS templates rendered through the WebView's own print-to-PDF | 2–3 days | None |
+| Bundle a TeX compiler | — | Rejected: gigabytes, for a minority of users |
+
+Emitting `.tex` without compiling gets most of the value for a fraction of the
+cost, and suits an audience that largely already keeps a CV in Overleaf.
+HTML/CSS templates would follow, for users who do not write LaTeX.
+
+**Missing-information detection.** Parsing is honest about gaps — the prompt
+instructs the model to return `null` rather than invent, and generation refuses
+to fabricate experience. But nothing *tells the user* what is missing. A CV
+without a skills section parses to an empty skills list, scoring then runs
+normally, every job scores low, and the feed looks broken for a reason the user
+cannot see. The fix is a completeness check after parsing, surfaced on the
+review step ("we could not find a skills section — match scores will be
+unreliable until you add one") with inline fields to fill the gap. Roughly half
+a day, and it removes a silent failure that makes the product look worse than it
+is.
+
+**Run the evaluation harness against a live provider.** `eval/run_eval.py` and
+`eval/bias_audit.py` both work, but have only ever run against `MockProvider`,
+so three of the metrics in §12 have no real figures. This is the smallest,
+highest-value item on this list: the harness exists, the goldset exists, and one
+run against the Anthropic API converts three "not measured" rows into evidence.
+
+**Reduce installer size.** Bundling the speech runtimes in v0.5.0 grew installers
+roughly three- to fourfold. The models themselves are still downloaded on first
+use, so the growth is runtime libraries — `onnxruntime`, `ctranslate2`, and PyAV.
+Worth measuring which of their optional components (GPU execution providers in
+particular) can be excluded for a CPU-only workload before assuming the size is
+irreducible.
+
 ---
 
 ## 3. User Stories
@@ -192,6 +246,14 @@ Work that was never in the plan and shipped anyway:
 ### Architectural Philosophy
 
 **Hired. is fundamentally a local-first desktop application.** There is no cloud backend operated by us. The user's machine is the entire system. Network calls leaving the device are limited to: (a) the LLM call to whichever provider the user configured — which for company research includes a server-side web search on the provider's side; (b) job-source crawls when triggered; and (c) a one-time download of the speech models from Hugging Face the first time voice is used.
+
+### Architecture Diagram
+
+![Hired. system architecture](assets/architecture.png)
+
+*Everything inside the green boundary runs on the user's machine. The only
+traffic leaving it is a single LLM prompt, a public job-page request, or the
+one-time speech-model download.*
 
 ### Architecture Layers
 
@@ -510,16 +572,16 @@ panel instead.
 
 8-week plan. W1–2 = local foundation; W3–6 = feature delivery; W7–8 = polish and packaging.
 
-| Week | Milestone |
-|---|---|
-| 1 | Repo, CI, Tauri shell, FastAPI skeleton |
-| 2 | LLM Provider abstraction + MockProvider + AnthropicAPIAdapter |
-| 3 | CV upload, profile setup, onboarding wizard |
-| 4 | LinkedIn crawler + job scoring + ranked feed (first end-to-end demo) |
-| 5 | Application material generation + dashboard |
-| 6 | Interview prep + ClaudeCodeAdapter + OllamaAdapter (MVP complete) |
-| 7 | Cross-platform packaging, accessibility, polish |
-| 8 | Final release v1.0 |
+| Week | Milestone | Owner | Deliverable |
+|---|---|---|---|
+| 1 | Repo, CI, Tauri shell, FastAPI skeleton | Kaleem | GitHub repo + green CI + `/health` responding |
+| 2 | LLM Provider abstraction + MockProvider + AnthropicAPIAdapter | Anna + Bene | `LLMProvider` Protocol; tests green against the mock |
+| 3 | CV upload, profile setup, onboarding wizard | Kaleem (parsing) · Eren (UI) | CV parsed to a structured profile in SQLite |
+| 4 | Job ingestion + scoring + ranked feed | Kaleem (ingest) · Anna (scoring) | `/api/jobs/feed` returns scored jobs; feed visible |
+| 5 | Application materials + dashboard | Anna + Bene · Eren (UI) | Cover letter generated and editable in the app |
+| 6 | Interview prep + ClaudeCodeAdapter + OllamaAdapter | Bene · Kaleem | MVP complete end-to-end on three providers |
+| 7 | Cross-platform packaging, accessibility, polish | Kaleem (packaging) · Eren (a11y) | Installers for macOS, Windows, Linux |
+| 8 | Final release + presentation | Team | Tagged release, demo video, slide deck |
 
 ### 9.1 What Actually Happened
 
@@ -573,7 +635,7 @@ demo videos are all team output that lives outside the git history.
 
 ### Shared Responsibilities
 
-- Tests for your modules (≥80% coverage).
+- Tests for your modules (target ≥80% coverage — see §12 for what was actually reached).
 - Review one PR per week.
 - Update GitHub project board.
 - Document your module.
@@ -583,19 +645,22 @@ demo videos are all team output that lives outside the git history.
 
 ## 11. Risk Register
 
-| ID | Risk | Prob. | Impact | Mitigation |
-|---|---|---|---|---|
-| R-01 | Anthropic ToS gray zone for Claude Code as backend | Medium | High | Document clearly, user installs CLI themselves, API-key fallback |
-| R-02 | LinkedIn blocks crawler from user IPs | High | High | Manual user-triggered crawls, randomized delays, fallback to pasted URLs |
-| R-03 | Cross-platform packaging issues | High | Medium | Start packaging tests in W1; document per OS |
-| R-04 | Claude Code CLI behavior changes | Medium | High | Pin version; integration tests; abstract behind adapter |
-| R-05 | LLM hallucinates company facts | High | Medium | Source attribution; user reviews before use |
-| R-06 | Bias in scoring | Medium | High | Bias audit; CV anonymization mode |
-| R-07 | Ollama model quality too low | High | Medium | Document min model recommendation; capability warning |
-| R-08 | Team member unavailable | Medium | Medium | Pair coding; documentation requirements |
-| R-09 | Scope creep from stretch goals | High | Medium | MVP-only until W6 |
-| R-10 | GDPR concerns | Low | Medium | Privacy-by-design (local-only) |
-| R-11 | macOS code-signing without Developer ID | Medium | Medium | Investigate Apple Developer ID early; fallback install docs |
+Probability and impact were assessed at the start. The outcome column records
+what actually happened over the project — including the two risks that landed.
+
+| ID | Risk | Prob. | Impact | Mitigation | Outcome |
+|---|---|---|---|---|---|
+| R-01 | Anthropic ToS gray zone for Claude Code as backend | Medium | High | User installs the CLI themselves; we never proxy or centralise; API-key path is canonical | **Live.** Applies equally to the Codex CLI added later. Both are labelled Experimental in the UI |
+| R-02 | LinkedIn blocks crawler from user IPs | High | High | User-triggered crawls, delays, fallback to pasted URLs | **Materialised.** LinkedIn scraping proved unreliable; paste-URL became the primary path (ADR-0006) and six further sources were added to reduce dependence on it |
+| R-03 | Cross-platform packaging issues | High | Medium | Packaging tests early; per-OS docs | **Managed.** A 3-OS CI matrix builds every release; per-OS install guides ship in `docs/install/` |
+| R-04 | Claude Code CLI behaviour changes | Medium | High | Integration tests; abstract behind the adapter | **Partly mitigated.** The adapter boundary and its tests hold, but the CLI version is *not* pinned — a breaking upstream change would surface at runtime |
+| R-05 | LLM hallucinates company facts | High | Medium | Source attribution; user reviews before use | **Mitigated.** v0.3.7 moved company research onto a live web-search tool, so briefs are written from retrieved sources rather than model memory |
+| R-06 | Bias in scoring | Medium | High | Bias audit on the goldset; transparent rationale on every score | **Partly mitigated.** The name-swap audit exists and every score carries its rationale, but the audit has only run against `MockProvider`, and the planned CV-anonymisation mode was never built (see §7) |
+| R-07 | Ollama model quality too low | High | Medium | Document a minimum model; capability warning | **Managed.** `qwen2.5:14b` documented as the baseline; prompt Provider Notes record where smaller models drift on JSON shape |
+| R-08 | Team member unavailable | Medium | Medium | Pair work; documentation requirements | **Did not materialise.** |
+| R-09 | Scope creep from stretch goals | High | Medium | MVP-only until W6 | **Contained by design.** Per-phase specs with explicit out-of-scope lists turned creep into tracked deferrals rather than silent growth |
+| R-10 | GDPR concerns | Low | Medium | Privacy-by-design, local-only | **Did not materialise.** No personal data is transmitted to or stored by us |
+| R-11 | macOS code-signing without Developer ID | Medium | Medium | Investigate Developer ID early; fallback install docs | **Materialised.** No certificate was obtained; macOS and Windows builds ship unsigned, and every release carries the Gatekeeper / SmartScreen workaround notice |
 
 ---
 
@@ -663,4 +728,31 @@ Produced and available; not stored in the repository because of file size.
 - **E.** Goldset for Evaluation — `/eval/goldset.json`
 - **F.** Install & Distribution Guides — `/docs/install/` (per-OS: macOS,
   Windows, Linux); build-from-source steps in `/README.md`
-- **G.** Presentation & Demo — see §12
+- **G.** Presentation & Demo assets — see §12
+- **H.** Decision record — this project kept no separate meeting-minutes file.
+  Decisions live where they are actionable: architectural ones as ADRs in
+  `/docs/adr/`, per-phase scope and acceptance criteria in `/docs/phases/`, and
+  user-visible changes in `/docs/CHANGELOG.md`. Weekly syncs resolved blockers;
+  anything with lasting consequence became an ADR rather than a minute.
+
+### Glossary
+
+| Term | Meaning |
+|---|---|
+| **ADR** | Architecture Decision Record — a short file capturing one decision, its alternatives and consequences |
+| **ATS** | Applicant Tracking System — the recruiting software an employer uses to receive applications |
+| **CI / CD** | Continuous Integration / Delivery — automated lint, tests and builds on every push |
+| **CV** | Curriculum vitae; the user's résumé |
+| **Goldset** | A hand-labelled set of CV/job pairs used to check scoring quality between changes |
+| **Kanban** | The board view of applications, one column per status |
+| **LLM** | Large Language Model |
+| **Local-first** | All data and processing live on the user's device; no server we operate |
+| **MVP** | Minimum Viable Product — the smallest end-to-end useful version |
+| **OpenAPI** | Machine-readable REST API description; ours covers 50 paths |
+| **PII** | Personally Identifiable Information |
+| **Protocol** | Python's structural interface type; `LLMProvider` is one |
+| **RAG** | Retrieval-Augmented Generation — retrieving documents into a prompt. Deliberately not used here; see §5 |
+| **Sidecar** | The FastAPI process the desktop shell launches and supervises |
+| **STT / TTS** | Speech-to-Text / Text-to-Speech — faster-whisper and Piper respectively |
+| **SUS** | System Usability Scale, a standard 10-item usability questionnaire |
+| **WCAG AA** | Web Content Accessibility Guidelines, level AA |

@@ -581,7 +581,7 @@ demo videos are all team output that lives outside the git history.
 
 ### Shared Responsibilities
 
-- Tests for your modules (≥80% coverage).
+- Tests for your modules (target ≥80% coverage — see §12 for what was actually reached).
 - Review one PR per week.
 - Update GitHub project board.
 - Document your module.
@@ -591,19 +591,22 @@ demo videos are all team output that lives outside the git history.
 
 ## 11. Risk Register
 
-| ID | Risk | Prob. | Impact | Mitigation |
-|---|---|---|---|---|
-| R-01 | Anthropic ToS gray zone for Claude Code as backend | Medium | High | Document clearly, user installs CLI themselves, API-key fallback |
-| R-02 | LinkedIn blocks crawler from user IPs | High | High | Manual user-triggered crawls, randomized delays, fallback to pasted URLs |
-| R-03 | Cross-platform packaging issues | High | Medium | Start packaging tests in W1; document per OS |
-| R-04 | Claude Code CLI behavior changes | Medium | High | Pin version; integration tests; abstract behind adapter |
-| R-05 | LLM hallucinates company facts | High | Medium | Source attribution; user reviews before use |
-| R-06 | Bias in scoring | Medium | High | Bias audit; CV anonymization mode |
-| R-07 | Ollama model quality too low | High | Medium | Document min model recommendation; capability warning |
-| R-08 | Team member unavailable | Medium | Medium | Pair coding; documentation requirements |
-| R-09 | Scope creep from stretch goals | High | Medium | MVP-only until W6 |
-| R-10 | GDPR concerns | Low | Medium | Privacy-by-design (local-only) |
-| R-11 | macOS code-signing without Developer ID | Medium | Medium | Investigate Apple Developer ID early; fallback install docs |
+Probability and impact were assessed at the start. The outcome column records
+what actually happened over the project — including the two risks that landed.
+
+| ID | Risk | Prob. | Impact | Mitigation | Outcome |
+|---|---|---|---|---|---|
+| R-01 | Anthropic ToS gray zone for Claude Code as backend | Medium | High | User installs the CLI themselves; we never proxy or centralise; API-key path is canonical | **Live.** Applies equally to the Codex CLI added later. Both are labelled Experimental in the UI |
+| R-02 | LinkedIn blocks crawler from user IPs | High | High | User-triggered crawls, delays, fallback to pasted URLs | **Materialised.** LinkedIn scraping proved unreliable; paste-URL became the primary path (ADR-0006) and six further sources were added to reduce dependence on it |
+| R-03 | Cross-platform packaging issues | High | Medium | Packaging tests early; per-OS docs | **Managed.** A 3-OS CI matrix builds every release; per-OS install guides ship in `docs/install/` |
+| R-04 | Claude Code CLI behaviour changes | Medium | High | Integration tests; abstract behind the adapter | **Partly mitigated.** The adapter boundary and its tests hold, but the CLI version is *not* pinned — a breaking upstream change would surface at runtime |
+| R-05 | LLM hallucinates company facts | High | Medium | Source attribution; user reviews before use | **Mitigated.** v0.3.7 moved company research onto a live web-search tool, so briefs are written from retrieved sources rather than model memory |
+| R-06 | Bias in scoring | Medium | High | Bias audit on the goldset; transparent rationale on every score | **Partly mitigated.** The name-swap audit exists and every score carries its rationale, but the audit has only run against `MockProvider`, and the planned CV-anonymisation mode was never built (see §7) |
+| R-07 | Ollama model quality too low | High | Medium | Document a minimum model; capability warning | **Managed.** `qwen2.5:14b` documented as the baseline; prompt Provider Notes record where smaller models drift on JSON shape |
+| R-08 | Team member unavailable | Medium | Medium | Pair work; documentation requirements | **Did not materialise.** |
+| R-09 | Scope creep from stretch goals | High | Medium | MVP-only until W6 | **Contained by design.** Per-phase specs with explicit out-of-scope lists turned creep into tracked deferrals rather than silent growth |
+| R-10 | GDPR concerns | Low | Medium | Privacy-by-design, local-only | **Did not materialise.** No personal data is transmitted to or stored by us |
+| R-11 | macOS code-signing without Developer ID | Medium | Medium | Investigate Developer ID early; fallback install docs | **Materialised.** No certificate was obtained; macOS and Windows builds ship unsigned, and every release carries the Gatekeeper / SmartScreen workaround notice |
 
 ---
 

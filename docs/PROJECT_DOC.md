@@ -1,7 +1,11 @@
 # Hired. — Local-First AI Career Agent
 
-**Project Documentation v1.0** · 2026-04-23
+**Project Documentation v1.1** · first drafted 2026-04-23, revised 2026-07-20
 Anna Vegera · Benedict Herrnleben · Eren Kocadag · Muhammad Kaleem Ullah
+
+> Describes the shipped system as of **v0.5.0**. Where something was planned but
+> not built, this document says so rather than describing the plan as if it were
+> the product.
 
 ---
 
@@ -116,7 +120,7 @@ plan. ✅ delivered · ⚠️ delivered with a documented change of shape · ❌
 
 | Item | Status | Landed | Notes |
 |---|---|---|---|
-| Mock interview chatbot with feedback | ✅ | v0.3.0 → unreleased | Delivered, then **extended well past the original goal** — see below |
+| Mock interview chatbot with feedback | ✅ | v0.3.0 → v0.5.0 | Delivered, then **extended well past the original goal** — see below |
 | Rejection analysis | ⚠️ | v0.4.0 | Heuristic rather than a standalone report: companies/locations you repeatedly reject take −25 in scoring, positively-rated ones +25, and rejected titles/skills are injected into the grading prompt |
 | Glassdoor / culture per job card | ❌ | — | |
 | Multi-language CV and cover letter | ❌ | — | |
@@ -128,7 +132,7 @@ Work that was never in the plan and shipped anyway:
 
 | Addition | Landed | Why it matters |
 |---|---|---|
-| **Voice mock interviews** — on-device Piper TTS + faster-whisper STT, timed runs, automatic scoring, audio-reactive interviewer avatar | unreleased | An entire on-device speech subsystem; see §5 |
+| **Voice mock interviews** — on-device Piper TTS + faster-whisper STT, timed runs, automatic scoring, audio-reactive interviewer avatar | v0.5.0 | An entire on-device speech subsystem; see §5 |
 | **Feedback loop** — thumbs up/down with reasons, `JobInteraction` tracking, feedback injected into the scoring prompt, unread badges | v0.4.0 | Phase 9; closes the learning loop the user stories asked for |
 | **Scheduled multi-source crawling** — seven crawler modules (Wellfound, Indeed, Remotive, StepStone, Greenhouse, Lever, LinkedIn); four exposed as schedulable sources with per-source config | v0.4.0 | Reduces reliance on the single fragile LinkedIn path |
 | **OpenAI Codex CLI** as a fifth provider | v0.3.6 | [ADR-0010](adr/0010-codex-cli-provider.md) |
@@ -187,7 +191,7 @@ Work that was never in the plan and shipped anyway:
 
 ### Architectural Philosophy
 
-**Hired. is fundamentally a local-first desktop application.** There is no cloud backend operated by us. The user's machine is the entire system. The only network calls leaving the device are (a) the LLM call to whichever provider the user configured, and (b) the LinkedIn crawl when triggered.
+**Hired. is fundamentally a local-first desktop application.** There is no cloud backend operated by us. The user's machine is the entire system. Network calls leaving the device are limited to: (a) the LLM call to whichever provider the user configured — which for company research includes a server-side web search on the provider's side; (b) job-source crawls when triggered; and (c) a one-time download of the speech models from Hugging Face the first time voice is used.
 
 ### Architecture Layers
 
@@ -312,9 +316,10 @@ This is documented as Risk R-01.
 
 ### Safety
 
-- Prompt injection mitigation: CV uploads sanitized, wrapped in delimiters, structured output validated.
-- API key storage: OS keychain (Keychain/Credential Manager/Secret Service).
-- PII redacted from logs.
+- Prompt injection mitigation: CV text is treated as untrusted input — wrapped in delimiters, with the system prompt instructed to ignore instructions inside it, and structured output validated (`backend/prompts/parse_cv.md`).
+- API key storage: OS keychain via `backend/llm/credentials.py` (Keychain / Credential Manager / Secret Service). Keys are never written to the database or config file.
+- Local-only data: nothing is transmitted except the prompt for a single call.
+- **Not built:** automatic PII redaction in log output. Logs stay on the user's machine and are not collected, which lowers the exposure, but a redaction helper was planned and never implemented.
 
 ### On-Device Speech (Voice Mock Interviews)
 
@@ -328,8 +333,8 @@ are the default.
 |---|---|
 | TTS | Piper, `en_US-amy-medium` / `en_US-ryan-medium` — one voice per interviewer gender |
 | STT | faster-whisper, `base` — smallest model that transcribes interview answers reliably |
-| Distribution | Models download on first use into `~/.hired/models/`, not bundled — keeps the installer lean and the feature offline afterwards |
-| Degradation | `faster_whisper` and `piper` are imported lazily; if absent, `voice_status` reports `deps_available=False` and the UI hides voice rather than erroring |
+| Distribution | Runtimes are bundled into the sidecar as of v0.5.0; the *models* still download on first use into `~/.hired/models/`, so the feature is offline after one download. Bundling the runtimes grew installers roughly 3–4x — the deliberate trade |
+| Degradation | `faster_whisper` and `piper` are imported lazily; if absent — an unbundled build, or a stripped install — `voice_status` reports `deps_available=False` and the UI falls back to text mode rather than erroring |
 | Setup UX | `GET /api/voice/status` reports what is missing so the app can offer a one-time "Set up voice" step with download progress |
 | Input cap | Audio uploads limited to 25 MB per answer |
 
@@ -400,9 +405,10 @@ Desktop only (≥1024px width). Resizable down to 800x600. No mobile responsiven
 
 LLMs show measurable bias in hiring tasks. We measure and mitigate:
 
-- Optional CV anonymization for scoring.
-- Transparent rationale on every score.
-- Bias audit on goldset.
+- Transparent rationale on every score — a score never appears without its reasoning.
+- A name-swap bias audit ships in `eval/bias_audit.py` and runs via `make bias-audit`.
+- **Not built:** optional CV anonymization before scoring. It was planned (risk R-06) and remains the intended mitigation, but no anonymization path exists in the code today.
+- **Not yet run:** the bias audit has only been exercised against `MockProvider`, so no real variance figure has been recorded.
 
 ### Transparency & User Control
 
@@ -417,14 +423,21 @@ LLMs show measurable bias in hiring tasks. We measure and mitigate:
 
 | Service | Role | Tier |
 |---|---|---|
-| Anthropic Claude Code CLI | Default LLM provider option | User's subscription |
-| Ollama | Local LLM provider option | Free, runs locally |
-| Anthropic API | Fallback LLM provider | Pay-per-token |
-| LinkedIn (public) | Job source | Free |
-| GitHub | Source + releases | Free |
-| Sentry (opt-in) | Error tracking | Free tier |
+| Anthropic API | LLM provider (canonical path) | Pay-per-token |
+| Anthropic Claude Code CLI | LLM provider via the user's own subscription | User's subscription |
+| OpenAI Codex CLI | LLM provider via the user's own subscription | User's subscription |
+| Ollama | LLM provider, fully local | Free, runs locally |
+| Anthropic web-search tool | Grounds company research in live sources | Billed with the call |
+| Hugging Face | One-time download of Piper voice models | Free |
+| Job sources (public pages) | Wellfound, Indeed, Remotive, StepStone, Greenhouse, Lever, LinkedIn | Free |
+| GitHub | Source hosting, CI, releases | Free |
 
-No Supabase, Redis, Vercel, Railway, or Apify in this architecture.
+No Supabase, Redis, Vercel, Railway, Apify, or Pinecone in this architecture.
+
+**Not integrated:** earlier drafts listed Sentry for error tracking. It was never
+wired up — there is no Sentry dependency or DSN in the codebase, and errors are
+surfaced locally through the typed `LLMError` hierarchy and the provider-stats
+panel instead.
 
 ---
 
@@ -498,15 +511,22 @@ demo videos are all team output that lives outside the git history.
 
 ### Success Metrics
 
-| Metric | Target |
-|---|---|
-| Match relevance | ≥75% precision@5 on 20-pair goldset |
-| Cover letter latency (Claude Code) | ≤20s end-to-end |
-| Cover letter latency (Ollama, qwen2.5:14b) | ≤60s end-to-end |
-| Test coverage | ≥80% |
-| Cross-platform install success | 100% on Mac/Win/Linux |
-| Usability (SUS score) | ≥70 |
-| Bias variance | <10pt on name-swap test |
+Targets were set at the start of the project. The result column records what was
+actually measured — including where it was not.
+
+| Metric | Target | Result |
+|---|---|---|
+| Match relevance | ≥75% precision@5 on 20-pair goldset | **Not measured.** The harness (`eval/run_eval.py`) and a 20-entry goldset exist and run, but only ever against `MockProvider`, so the numbers are structural rather than real |
+| Cover letter latency (Claude Code) | ≤20s end-to-end | Not systematically measured; per-call latency is recorded and shown in the provider-stats panel |
+| Cover letter latency (Ollama, qwen2.5:14b) | ≤60s end-to-end | Not systematically measured |
+| Test coverage | ≥80% | **Partly met.** 333 backend tests and 149 frontend tests pass. Backend source-only line coverage is ~75%; the frontend has no coverage tooling configured |
+| Cross-platform build | 100% on Mac/Win/Linux | **Met.** The v0.5.0 gate built installers on all three platforms; the packaged Windows sidecar was launched and verified to report voice available |
+| Usability (SUS score) | ≥70 | **Not measured.** No usability study was run |
+| Bias variance | <10pt on name-swap test | **Not measured.** `eval/bias_audit.py` implements the name-swap audit but has only run against `MockProvider` |
+
+Recording the unmeasured rows honestly is deliberate. The evaluation harness is
+real and reusable; what is missing is a run against a live provider, which is
+the first thing to do if this project continues.
 
 ### Demo Script
 
